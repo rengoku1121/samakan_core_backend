@@ -2,7 +2,9 @@
 const { formatDateId } = require("../../helper-function/format-date");
 const merchantModel = require("../../models/merchant");
 const userModel = require("../../models/user");
+const settlementModel = require("../../models/settlement");
 const { pool } = require("../../utils/db");
+const bcrypt = require("bcryptjs");
 
 const toInt = (v, def) => {
   const n = Number(v);
@@ -10,6 +12,25 @@ const toInt = (v, def) => {
 };
 
 const normalizeName = (name) => String(name || "").trim();
+const normalizeText = (v) => String(v || "").trim();
+const normalizeLower = (v) => normalizeText(v).toLowerCase();
+
+const buildNewValue = (body = {}) => ({
+  name: normalizeText(body.name),
+  is_active: body.is_active === "0" ? 0 : 1,
+  username: normalizeLower(body.username),
+  email: normalizeLower(body.email),
+  password: String(body.password || ""),
+  password_confirm: String(body.password_confirm || ""),
+});
+
+const renderNewForm = (res, req, { status = 200, error = null, value = buildNewValue() } = {}) =>
+  res.status(status).render("admin/merchants/new", {
+    title: "New Merchant",
+    user: req.user,
+    error,
+    value,
+  });
 
 exports.list = async (req, res, next) => {
   try {
@@ -18,10 +39,12 @@ exports.list = async (req, res, next) => {
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 10)));
     const offset = (page - 1) * limit;
 
-    const [total, rows] = await Promise.all([
+    const [total, rows, balances] = await Promise.all([
       merchantModel.countAll({ archivedOnly }),
       merchantModel.listPaginated({ limit, offset, archivedOnly }),
+      settlementModel.getAllMerchantBalances().catch(() => []),
     ]);
+    const balanceMap = new Map((balances || []).map((b) => [Number(b.merchant_id), b]));
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -33,6 +56,11 @@ exports.list = async (req, res, next) => {
         created_at: formatDateId(r.created_at),
         updated_at: formatDateId(r.updated_at),
         deleted_at_fmt: r.deleted_at ? formatDateId(r.deleted_at) : null,
+        balance: Number(balanceMap.get(Number(r.id))?.balance || 0),
+        total_gross: Number(balanceMap.get(Number(r.id))?.total_gross || 0),
+        total_midtrans_fee: Number(balanceMap.get(Number(r.id))?.total_midtrans_fee || 0),
+        total_owner_fee: Number(balanceMap.get(Number(r.id))?.total_owner_fee || 0),
+        total_tx: Number(balanceMap.get(Number(r.id))?.total_tx || 0),
       })),
       page,
       limit,
@@ -47,47 +75,87 @@ exports.list = async (req, res, next) => {
 };
 
 exports.renderNew = async (req, res) => {
-  return res.render("admin/merchants/new", {
-    title: "New Merchant",
-    user: req.user,
-    error: null,
-    value: { name: "", is_active: 1 },
+  return renderNewForm(res, req, {
+    value: {
+      name: "",
+      is_active: 1,
+      username: "",
+      email: "",
+      password: "",
+      password_confirm: "",
+    },
   });
 };
 
 exports.create = async (req, res, next) => {
   try {
-    const name = normalizeName(req.body.name);
-    const is_active = req.body.is_active === "0" ? 0 : 1;
+    const value = buildNewValue(req.body);
+    const { name, is_active, username, email, password, password_confirm } = value;
 
     if (!name) {
-      return res.status(400).render("admin/merchants/new", {
-        title: "New Merchant",
-        user: req.user,
-        error: "Nama merchant wajib diisi.",
-        value: { name, is_active },
-      });
+      return renderNewForm(res, req, { status: 400, error: "Nama merchant wajib diisi.", value });
+    }
+    if (!username) {
+      return renderNewForm(res, req, { status: 400, error: "Username login merchant wajib diisi.", value });
+    }
+    if (!email) {
+      return renderNewForm(res, req, { status: 400, error: "Email login merchant wajib diisi.", value });
+    }
+    if (!password || password.length < 6) {
+      return renderNewForm(res, req, { status: 400, error: "Password minimal 6 karakter.", value });
+    }
+    if (password !== password_confirm) {
+      return renderNewForm(res, req, { status: 400, error: "Konfirmasi password tidak sama.", value });
     }
 
     const existing = await merchantModel.findByName(name);
     if (existing) {
-      return res.status(409).render("admin/merchants/new", {
-        title: "New Merchant",
-        user: req.user,
-        error: "Nama merchant sudah ada. Gunakan nama lain.",
-        value: { name, is_active },
-      });
+      return renderNewForm(res, req, { status: 409, error: "Nama merchant sudah ada. Gunakan nama lain.", value });
     }
 
-    await merchantModel.createWithAutoCode({ name, is_active });
+    const usernameTaken = await userModel.findByIdentifier(username);
+    if (usernameTaken) {
+      return renderNewForm(res, req, { status: 409, error: "Username sudah dipakai akun lain.", value });
+    }
+
+    const emailTaken = await userModel.findByIdentifier(email);
+    if (emailTaken) {
+      return renderNewForm(res, req, { status: 409, error: "Email sudah dipakai akun lain.", value });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const { id: merchantId } = await merchantModel.createWithAutoCode({ name, is_active }, conn);
+      const password_hash = await bcrypt.hash(password, 10);
+
+      await userModel.insertUser({
+        username,
+        email,
+        password_hash,
+        role: "merchant",
+        merchant_id: merchantId,
+        is_active,
+      }, conn);
+
+      await conn.commit();
+    } catch (e) {
+      try {
+        await conn.rollback();
+      } catch (_) {}
+      throw e;
+    } finally {
+      conn.release();
+    }
+
     return res.redirect("/admin/merchants");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
-      return res.status(409).render("admin/merchants/new", {
-        title: "New Merchant",
-        user: req.user,
-        error: "Nama merchant sudah ada. Gunakan nama lain.",
-        value: { name: String(req.body.name || "").trim(), is_active: req.body.is_active === "0" ? 0 : 1 },
+      return renderNewForm(res, req, {
+        status: 409,
+        error: "Nama merchant / username / email sudah ada. Gunakan data lain.",
+        value: buildNewValue(req.body),
       });
     }
     return next(err);

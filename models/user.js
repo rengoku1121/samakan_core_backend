@@ -37,7 +37,8 @@ exports.insertUser = async ({
   role,
   merchant_id,
   is_active,
-}) => {
+}, conn) => {
+  const executor = conn || pool;
   const sql = `
     INSERT INTO users (
       username,
@@ -56,7 +57,7 @@ exports.insertUser = async ({
     merchant_id ?? null,
     is_active ?? 1,
   ];
-  const [result] = await pool.query(sql, params);
+  const [result] = await executor.query(sql, params);
   return result.insertId;
 };
 

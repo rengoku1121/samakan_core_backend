@@ -18,6 +18,8 @@ exports.listPaginated = async ({ limit, offset }) => {
       sku,
       name,
       price,
+      shelf_life_days,
+      requires_heating,
       is_active,
       updated_at
     FROM products
@@ -35,6 +37,8 @@ exports.findById = async (id) => {
       sku,
       name,
       price,
+      shelf_life_days,
+      requires_heating,
       is_active,
       created_at,
       updated_at
@@ -60,42 +64,63 @@ exports.findBySku = async (sku) => {
   return rows[0] || null;
 };
 
-exports.create = async ({ sku, name, price, is_active }) => {
+exports.create = async ({ sku, name, price, shelf_life_days, requires_heating, is_active }) => {
   const sql = `
     INSERT INTO products (
       sku,
       name,
       price,
+      shelf_life_days,
+      requires_heating,
       is_active
-    ) VALUES (?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?)
   `;
-  const [result] = await pool.query(sql, [sku, name, price, is_active]);
+  const [result] = await pool.query(sql, [
+    sku,
+    name,
+    price,
+    shelf_life_days ?? null,
+    requires_heating ? 1 : 0,
+    is_active,
+  ]);
   return result.insertId;
 };
 
-exports.updateById = async ({ id, sku, name, price, is_active }) => {
+exports.updateById = async ({ id, sku, name, price, shelf_life_days, requires_heating, is_active }) => {
   const sql = `
     UPDATE products
     SET
       sku = ?,
       name = ?,
       price = ?,
+      shelf_life_days = ?,
+      requires_heating = ?,
       is_active = ?
     WHERE id = ?
     LIMIT ?
   `;
-  const [result] = await pool.query(sql, [sku, name, price, is_active, id, 1]);
+  const [result] = await pool.query(sql, [
+    sku,
+    name,
+    price,
+    shelf_life_days ?? null,
+    requires_heating ? 1 : 0,
+    is_active,
+    id,
+    1,
+  ]);
   return result.affectedRows === 1;
 };
 
-// models/product.js (tambahkan)
 exports.listActiveForSelect = async () => {
   const sql = `
     SELECT
       id,
       sku,
       name,
-      price
+      price,
+      shelf_life_days,
+      requires_heating
     FROM products
     WHERE is_active = ?
     ORDER BY name ASC
@@ -112,6 +137,8 @@ exports.listAllForSelect = async () => {
       sku,
       name,
       price,
+      shelf_life_days,
+      requires_heating,
       is_active
     FROM products
     ORDER BY name ASC
@@ -120,4 +147,3 @@ exports.listAllForSelect = async () => {
   const [rows] = await pool.query(sql, [5000]);
   return rows;
 };
-

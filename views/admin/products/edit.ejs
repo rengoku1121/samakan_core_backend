@@ -33,7 +33,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Edit Product</div>
+  <div class="topbar">Samakan Admin • Edit Product</div>
 
   <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -60,6 +60,15 @@
 
         <label for="price">Price (IDR)</label>
         <input id="price" name="price" value="<%= value?.price || '' %>" required />
+
+        <label for="shelf_life_days">Shelf life (hari, opsional)</label>
+        <input id="shelf_life_days" name="shelf_life_days" type="number" min="1" max="3650" value="<%= value?.shelf_life_days || '' %>" placeholder="default umur simpan untuk slot baru" />
+
+        <label for="requires_heating">Pemanasan (kiosk)</label>
+        <select id="requires_heating" name="requires_heating">
+          <option value="1" <%= (value?.requires_heating ?? 1) ? 'selected' : '' %>>Wajib dipanaskan</option>
+          <option value="0" <%= (value?.requires_heating ?? 1) ? '' : 'selected' %>>Opsional (boleh tidak dipanaskan)</option>
+        </select>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">

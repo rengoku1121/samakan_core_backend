@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    :root {
+      --bg: #fff6ec;
+      --card: #fff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --orange: #ff8a00;
+      --orange2: #ffb866;
+      --shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+      --radius: 16px;
+      --danger: #b91c1c;
+      --danger-bg: #fef2f2;
+      --ok: #047857;
+      --ok-bg: #ecfdf5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .qris-page { max-width: 1040px; margin: 0 auto; padding: 8px 16px 28px; }
+    .qris-head { margin-bottom: 18px; }
+    .qris-head h1 { margin: 0 0 6px; font-size: 1.35rem; font-weight: 800; }
+    .qris-head p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.55; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fed7aa;
+      margin-bottom: 10px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+    @media (max-width: 880px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 20px;
+    }
+    .card h2 { margin: 0 0 14px; font-size: 1rem; font-weight: 800; color: #7c2d12; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #7c2d12;
+      margin: 12px 0 6px;
+    }
+    label:first-of-type { margin-top: 0; }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 600;
+      background: #fff;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.2);
+    }
+    select:disabled, input:disabled {
+      background: #f9fafb;
+      color: var(--muted);
+    }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+    .btn {
+      width: 100%;
+      margin-top: 18px;
+      padding: 13px 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      background: linear-gradient(135deg, var(--orange), var(--orange2));
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(255, 138, 0, 0.35);
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+    .empty-state {
+      padding: 22px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .empty-state strong { color: #7c2d12; }
+    .preview {
+      min-height: 360px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: center;
+    }
+    .preview-placeholder {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      border: 2px dashed #e5e7eb;
+      border-radius: var(--radius);
+      padding: 24px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .qr-img {
+      max-width: 260px;
+      width: 100%;
+      height: auto;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .meta {
+      width: 100%;
+      text-align: left;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fffdf9;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-k { color: var(--muted); font-weight: 600; }
+    .meta-v { font-weight: 800; text-align: right; word-break: break-all; }
+    .alert {
+      padding: 11px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .alert.show { display: block; }
+    .alert-err { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+    .alert-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid #a7f3d0; }
+    .slot-exp { font-size: 11px; font-weight: 700; margin-top: 4px; }
+    .slot-exp.warn { color: #b45309; }
+    .slot-exp.bad { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="qris-page">
+    <div class="qris-head">
+      <div class="badge">Pembayaran QRIS</div>
+      <h1>Generate QRIS</h1>
+      <p>
+        Pilih mesin dan slot yang sudah ditautkan ke akun merchant kamu. Nominal mengikuti harga slot × qty.
+        Tidak perlu mengisi ID manual.
+      </p>
+    </div>
+
+    <% if (!hasMachines) { %>
+      <div class="card">
+        <div class="empty-state">
+          <strong>Belum ada mesin untuk merchant ini.</strong><br />
+          Minta admin menautkan <b>Machine</b> ke merchant kamu di menu Admin → Machines → Edit → Merchant.
+        </div>
+      </div>
+    <% } else { %>
+      <div id="alert" class="alert alert-err" role="alert"></div>
+      <div id="alertOk" class="alert alert-ok" role="alert"></div>
+
+      <div class="grid">
+        <div class="card">
+          <h2>Detail order</h2>
+          <form id="qris-form" novalidate>
+            <label for="machine_id">Mesin</label>
+            <select id="machine_id" name="machine_id" required></select>
+            <p class="hint" id="machine-hint"></p>
+
+            <label for="slot_id">Slot &amp; produk</label>
+            <select id="slot_id" name="slot_id" required disabled></select>
+            <div id="slot-exp" class="slot-exp" aria-live="polite"></div>
+
+            <label for="qty">Jumlah (qty)</label>
+            <input id="qty" name="qty" type="number" min="1" value="1" required />
+            <p class="hint">Maksimal sesuai stok slot.</p>
+
+            <button type="submit" class="btn" id="btn-submit">Generate QRIS</button>
+          </form>
+        </div>
+
+        <div class="card preview" id="preview-card">
+          <h2>Preview</h2>
+          <div id="preview-inner" class="preview-placeholder">
+            QR dan nominal muncul di sini setelah generate berhasil.
+          </div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <% if (hasMachines) { %>
+  <%#
+    Data lewat atribut + file /public/js/merchant-qris.js — Helmet CSP script-src 'self' memblokir script inline.
+  #%>
+  <div id="merchant-qris-data" hidden data-machines="<%= encodeURIComponent(machinesJson) %>"></div>
+  <script src="/public/js/merchant-qris.js" defer></script>
+  <% } %>
+</body>
+</html>

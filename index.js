@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const { verifyAccessToken } = require("./helper-function/jwt");
+const { escapeHtml } = require("./utils/escape-html");
 
 const app = express();
 
@@ -15,7 +16,30 @@ const app = express();
 // =========================
 app.set("trust proxy", 1); // important if behind proxy (nginx, cloudflare, etc.)
 
-app.use(helmet());
+// Izinkan gambar QR dari HTTPS (api.qrserver.com, CDN payment, dll.) — default Helmet hanya 'self' + data:
+// Jangan aktifkan upgrade-insecure-requests di LAN HTTP (http://192.168.x.x) — browser akan
+// memaksa form login ke https://… dan CSP form-action memblokir submit.
+const enableCspUpgradeInsecure =
+  String(process.env.CSP_UPGRADE_INSECURE || "").trim() === "1";
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "img-src": ["'self'", "data:", "https:"],
+        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+        "script-src": ["'self'", "https://cdn.jsdelivr.net"],
+        // Chart.js (CDN) butuh blob: untuk worker/canvas di beberapa browser
+        "worker-src": ["'self'", "blob:"],
+        ...(enableCspUpgradeInsecure
+          ? {}
+          : { "upgrade-insecure-requests": null }),
+      },
+    },
+  })
+);
 
 app.use(
   rateLimit({
@@ -23,13 +47,15 @@ app.use(
     max: 600, // adjust as needed
     standardHeaders: true,
     legacyHeaders: false,
+    // SSE stream adalah koneksi panjang + sering reconnect — jangan hitung ke kuota.
+    skip: (req) => String(req.originalUrl || "").includes("/notifications/stream"),
   })
 );
 
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
-app.use(cookieParser(process.env.COOKIE_SECRET || "saporsi_cookie_secret"));
+app.use(cookieParser(process.env.COOKIE_SECRET || "samakan_cookie_secret"));
 
 // =========================
 // View Engine (EJS)
@@ -60,7 +86,9 @@ function wrapHtmlWithShell(html, req) {
       ? `
       <nav class="shell-nav">
         <a href="/merchant">Dashboard</a>
-        <a href="/merchant/orders">Orders</a>
+        <a href="/orders">Orders</a>
+        <a href="/orders/qris">QRIS</a>
+        <a href="/merchant/balance">Riwayat Saldo</a>
       </nav>`
       : `
       <nav class="shell-nav">
@@ -71,6 +99,9 @@ function wrapHtmlWithShell(html, req) {
         <a href="/admin/products">Products</a>
         <a href="/admin/slots">Slots</a>
         <a href="/admin/orders">Orders</a>
+        <a href="/admin/xy">XY Platform</a>
+        <a href="/admin/settlement/ledger">Riwayat Saldo</a>
+        <a href="/admin/settings">Settings</a>
       </nav>`;
 
   const brandHref = userRole === "merchant" ? "/merchant" : "/admin";
@@ -78,6 +109,15 @@ function wrapHtmlWithShell(html, req) {
   let headerTitle = "Operations";
   if (pathFull === "/admin" || pathFull === "/admin/") headerTitle = "Mission Control";
   else if (pathFull === "/merchant" || pathFull === "/merchant/") headerTitle = "Merchant Deck";
+  else if (pathFull.startsWith("/orders/qris")) headerTitle = "Generate QRIS";
+  else if (pathFull.startsWith("/orders")) headerTitle = "Orders";
+  else if (pathFull.startsWith("/admin/settlement/ledger")) headerTitle = "Riwayat Saldo";
+  else if (pathFull.startsWith("/admin/xy")) headerTitle = "XY Platform";
+  else if (pathFull.startsWith("/admin/settings")) headerTitle = "Settings";
+
+  const safePath = escapeHtml(pathFull);
+  const safeHeaderTitle = escapeHtml(headerTitle);
+  const safeWorkspaceBadge = escapeHtml(workspaceBadge);
 
   const shellBody = (isAuthPage || !isLoggedIn)
     ? `
@@ -94,7 +134,7 @@ function wrapHtmlWithShell(html, req) {
     <div class="shell-drawer-backdrop" id="shell-drawer-backdrop" aria-hidden="true"></div>
     <aside class="shell-sidebar" id="shell-drawer" aria-label="Navigasi utama">
       <div class="shell-sidebar-top">
-        <a class="brand" href="${brandHref}">Saporsi Core</a>
+        <a class="brand" href="${brandHref}">Samakan Core</a>
         <button type="button" class="shell-drawer-close" id="shell-drawer-close" aria-label="Tutup menu">
           <span class="shell-drawer-close-icon" aria-hidden="true"></span>
         </button>
@@ -108,20 +148,20 @@ function wrapHtmlWithShell(html, req) {
           <span class="shell-hamburger" aria-hidden="true"><span></span><span></span><span></span></span>
         </button>
         <div class="shell-mobile-brand">
-          <span class="shell-mobile-title">Saporsi</span>
-          <span class="shell-mobile-sub">${workspaceBadge}</span>
+          <span class="shell-mobile-title">Samakan</span>
+          <span class="shell-mobile-sub">${safeWorkspaceBadge}</span>
         </div>
       </div>
       <header class="shell-header">
-        <h1>${headerTitle}</h1>
-        <p class="shell-header-path">${pathFull}</p>
+        <h1>${safeHeaderTitle}</h1>
+        <p class="shell-header-path">${safePath}</p>
       </header>
       <section class="shell-content">${bodyInner}</section>
     </main>
   </div>
-  <script src="/public/js/shell-nav.js" defer></script>
-  <script src="/public/js/table-mobile-cards.js" defer></script>
-  <script src="/public/js/machine-status-alerts.js" defer></script>
+  <script src="/public/js/shell-nav.js?v=20260815a" defer></script>
+  <script src="/public/js/table-mobile-cards.js?v=20260815a" defer></script>
+  <script src="/public/js/machine-status-alerts.js?v=20260815a" defer></script>
 </body>`;
 
   return html.replace(/<body[^>]*>[\s\S]*?<\/body>/i, shellBody);
@@ -148,12 +188,11 @@ app.use((req, res, next) => {
   res.render = (view, locals = {}, callback) => {
     const renderLocals = typeof locals === "function" ? {} : locals;
     const renderCallback = typeof locals === "function" ? locals : callback;
-    const headExtras = `  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&amp;family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&amp;display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/public/theme-v2.css" />
+    // Font eksternal di-load via /public/js/shell-fonts.js (non-blocking).
+    const headExtras = `  <link rel="stylesheet" href="/public/theme-v2.css?v=20260810a" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#ff8a00" />`;
+  <meta name="theme-color" content="#2563eb" />
+  <script src="/public/js/shell-fonts.js?v=20260815a" defer></script>`;
     const renderCb = (err, html) => {
       if (err) {
         if (typeof renderCallback === "function") return renderCallback(err);
@@ -201,8 +240,7 @@ const adminRoutes = require("./routes/admin");
 const merchantRoutes = require("./routes/merchant");
 const ordersRoutes = require("./routes/merchant/orders");
 const vendor = require("./routes/vendor");
-
-// const apiRoutes = require("./routes/api");
+const apiRoutes = require("./routes/api");
 
 // Landing / Health
 app.get("/", (req, res) => {
@@ -212,7 +250,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   return res.status(200).json({
     ok: true,
-    service: "saporsi-core",
+    service: "samakan-core",
     time: new Date().toISOString(),
   });
 });
@@ -222,7 +260,28 @@ app.use("/admin", adminRoutes);
 app.use("/merchant", merchantRoutes);
 app.use("/orders", ordersRoutes);
 app.use("/vendor", vendor);
-// app.use("/api", apiRoutes);
+
+// Kiosk browser (Ionic) di origin lain butuh CORS + preflight OPTIONS tanpa token.
+app.use("/api", (req, res, next) => {
+  const origin = String(req.headers.origin || "").trim();
+  if (origin) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Accept, X-Kiosk-Internal-Token"
+  );
+  res.setHeader("Access-Control-Max-Age", "86400");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  return next();
+});
+app.use("/api", apiRoutes);
 
 // =========================
 // 404 Handler
@@ -249,6 +308,33 @@ app.use((err, req, res, next) => {
 // Server Start
 // =========================
 const PORT = Number(process.env.PORT || 3000);
-app.listen(PORT, () => {
-  console.log(`Saporsi Core running on port ${PORT}`);
+
+function assertSecurityConfig() {
+  const jwt = String(process.env.JWT_SECRET || "");
+  const kiosk = String(process.env.KIOSK_API_INTERNAL_TOKEN || "");
+  const vendorTok = String(process.env.VENDOR_PAYMENT_INTERNAL_TOKEN || "");
+  const weak = [];
+  if (jwt.length < 24 || jwt === "supersecretlongstring") weak.push("JWT_SECRET");
+  if (!kiosk || kiosk === "dev-kiosk-token" || kiosk === "change-me-kiosk-token") {
+    weak.push("KIOSK_API_INTERNAL_TOKEN");
+  }
+  if (!vendorTok) weak.push("VENDOR_PAYMENT_INTERNAL_TOKEN");
+  if (weak.length) {
+    const msg = `[security] Weak/missing secrets: ${weak.join(", ")}. Rotate before exposing this host.`;
+    if (process.env.NODE_ENV === "production") {
+      console.warn(msg);
+    } else {
+      console.warn(msg);
+    }
+  }
+}
+
+assertSecurityConfig();
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Samakan Core running on port ${PORT}`);
 });
+
+
+
+

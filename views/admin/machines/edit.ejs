@@ -66,7 +66,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Edit Machine</div>
+  <div class="topbar">Samakan Admin • Edit Machine</div>
 
   <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -159,6 +159,15 @@
           <% }) %>
         </select>
         <div class="hint">Kamu masih bisa pilih lokasi inactive (untuk data historis), tapi idealnya aktif.</div>
+
+        <label for="merchant_id">Merchant</label>
+        <select id="merchant_id" name="merchant_id" required>
+          <option value="">-- pilih merchant --</option>
+          <% (merchants || []).forEach(function(m){ %>
+            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+          <% }) %>
+        </select>
+        <div class="hint">Wajib. Satu mesin harus ditautkan ke satu merchant (portal, QRIS, settlement).</div>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">

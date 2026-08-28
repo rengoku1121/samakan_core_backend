@@ -1,10 +1,10 @@
 {
-  "name": "Saporsi Core",
-  "short_name": "Saporsi",
+  "name": "Samakan Core",
+  "short_name": "Samakan",
   "start_url": "/admin",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#ff8a00",
-  "description": "Saporsi Core admin operations.",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "description": "Samakan Core admin operations.",
   "icons": []
 }

@@ -1,6 +1,6 @@
 /**
  * One-time: add merchants.merchant_code (MER-000001, …).
- * Run from saporsi_core_backend:  node scripts/migrate-merchant-code.js
+ * Run from samakan_core_backend:  node scripts/migrate-merchant-code.js
  */
 require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") });
 const { pool } = require("../utils/db");

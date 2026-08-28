@@ -152,6 +152,40 @@
     }
     .select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
     .muted{color:var(--muted);font-size:13px}
+    .action-cell{position:relative;min-width:300px}
+    .action-row{
+      display:flex !important;
+      flex-direction:row !important;
+      flex-wrap:nowrap !important;
+      align-items:center !important;
+      gap:8px !important;
+    }
+    /* form ikut flex parent, jangan jadi block penuh */
+    .action-row form{display:contents}
+    .saldo-box{
+      display:none;
+      position:absolute;
+      top:calc(100% + 6px);
+      right:0;
+      z-index:30;
+      min-width:220px;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px dashed #99f6e4;
+      background:#f0fdfa;
+      color:#0f172a;
+      font-size:12px;
+      line-height:1.5;
+      box-shadow:0 10px 24px rgba(0,0,0,.08);
+      white-space:normal;
+    }
+    .saldo-box.is-open{display:block}
+    .saldo-k{font-weight:800;color:#0f766e}
+    .btn-saldo.is-open{
+      border-color:#99f6e4 !important;
+      background:#f0fdfa !important;
+      color:#0f766e !important;
+    }
 
     .modal-overlay{
       position:fixed;inset:0;background:rgba(17,24,39,.5);z-index:100000;
@@ -177,7 +211,7 @@
 <body>
   <% const archQs = (typeof archivedOnly !== 'undefined' && archivedOnly) ? '&archived=1' : ''; %>
   <div class="topbar">
-    Saporsi Admin • Merchants
+    Samakan Admin • Merchants
     <div class="sub">Kelola partner merchant (buat, edit, aktif/nonaktif)</div>
   </div>
 
@@ -229,7 +263,7 @@
                 <th style="width:150px;">Status</th>
               <% } %>
               <th style="width:230px;">Updated</th>
-              <th style="width:180px;">Action</th>
+              <th style="min-width:320px;width:320px;">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -250,15 +284,27 @@
                   </td>
                 <% } %>
                 <td class="mono"><%= m.updated_at %></td>
-                <td style="white-space:nowrap;">
-                  <a class="btn btn-ghost" style="padding:8px 10px;" href="/admin/merchants/<%= m.id %>/edit"><%= (typeof archivedOnly !== 'undefined' && archivedOnly) ? 'Detail / Pulihkan' : 'Edit' %></a>
-                  <% if (!(typeof archivedOnly !== 'undefined' && archivedOnly)) { %>
-                    <% const sdLabel = [m.merchant_code || '—', m.name || ''].join(' · ').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); %>
-                    <form class="js-soft-delete-form" method="POST" action="/admin/merchants/<%= m.id %>/soft-delete" style="display:inline;">
-                      <button type="button" class="btn btn-ghost js-open-soft-delete" style="padding:8px 10px;color:#b91c1c;border-color:#fecaca;"
-                        data-merchant="<%= sdLabel %>">Hapus</button>
-                    </form>
-                  <% } %>
+                <td class="action-cell">
+                  <div class="action-row">
+                    <a class="btn btn-ghost" style="padding:8px 10px;" href="/admin/merchants/<%= m.id %>/edit"><%= (typeof archivedOnly !== 'undefined' && archivedOnly) ? 'Detail / Pulihkan' : 'Edit' %></a>
+                    <% if (!(typeof archivedOnly !== 'undefined' && archivedOnly)) { %>
+                      <% const sdLabel = [m.merchant_code || '—', m.name || ''].join(' · ').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); %>
+                      <form class="js-soft-delete-form" method="POST" action="/admin/merchants/<%= m.id %>/soft-delete">
+                        <button type="button" class="btn btn-ghost js-open-soft-delete" style="padding:8px 10px;color:#b91c1c;border-color:#fecaca;"
+                          data-merchant="<%= sdLabel %>">Hapus</button>
+                      </form>
+                    <% } %>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-saldo js-toggle-saldo"
+                      style="padding:8px 10px;"
+                      data-saldo-target="saldo-box-<%= m.id %>"
+                      aria-expanded="false"
+                    >Show Saldo</button>
+                  </div>
+                  <div id="saldo-box-<%= m.id %>" class="saldo-box mono" hidden>
+                    <div><span class="saldo-k">Saldo Merchant:</span> Rp <b><%= new Intl.NumberFormat("id-ID").format(m.balance || 0) %></b></div>
+                  </div>
                 </td>
               </tr>
             <% }) %>
@@ -313,5 +359,6 @@
     </div>
   </div>
   <script src="/public/js/admin-merchant-soft-delete.js" defer></script>
+  <script src="/public/js/admin-merchant-saldo-toggle.js" defer></script>
 </body>
 </html>

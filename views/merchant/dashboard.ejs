@@ -5,43 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><%= title %></title>
   <style>
-    :root{--bg:#fff6ec;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--orange:#ff8a00;--orange2:#ffb866;--shadow:0 18px 45px rgba(0,0,0,.08);}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
-    .top{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:18px 22px;font-weight:900}
-    .wrap{max-width:980px;margin:0 auto;padding:22px}
-    .hero{background:#fff;border:1px solid var(--border);border-radius:18px;padding:18px;box-shadow:var(--shadow);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
-    .hero h1{margin:0;font-size:22px}
-    .muted{color:var(--muted);font-size:13px}
-    .logout{display:inline-flex;text-decoration:none;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:#7c2d12;font-weight:900}
-    .grid{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:var(--shadow);text-decoration:none;color:inherit;transition:.15s}
-    .card:hover{transform:translateY(-2px);background:#fffaf4}
-    .card h3{margin:0 0 6px;font-size:16px}
-    .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}
+    .merchant-dash { width: 100%; }
+    .merchant-dash-intro {
+      margin: 0 0 20px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+    }
+    .merchant-dash-intro h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .merchant-dash-intro p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #64748b;
+    }
+    .merchant-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .merchant-stat {
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .merchant-stat-k {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 10px;
+    }
+    .merchant-stat-v {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #1e293b;
+      line-height: 1.15;
+    }
+    .merchant-stat-sub {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.45;
+    }
+    .merchant-stat-note {
+      margin-top: 18px;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #64748b;
+      border-radius: 12px;
+      border: 1px dashed #cbd5e1;
+      background: #f8fafc;
+    }
   </style>
 </head>
 <body>
-  <div class="top">Saporsi Core • Merchant Console</div>
-  <div class="wrap">
-    <section class="hero">
-      <div>
-        <h1>Welcome back, <%= user.role %></h1>
-        <div class="muted">Kelola transaksi merchant dengan workflow yang sederhana.</div>
-      </div>
-      <a class="logout" href="/auth/logout">Logout</a>
+  <div class="merchant-dash">
+    <section class="merchant-dash-intro">
+      <h2>Selamat datang<% if (user && user.role) { %>, <%= user.role %><% } %></h2>
+      <p>Ringkasan order untuk merchant Anda. Gunakan menu di kiri untuk daftar order dan generate QRIS.</p>
     </section>
 
-    <section class="grid">
-      <a class="card" href="/orders">
-        <h3>Orders</h3>
-        <p>Lihat riwayat order dan status pembayaran terbaru.</p>
-      </a>
-      <a class="card" href="/orders/temp">
-        <h3>Generate QRIS</h3>
-        <p>Buat order dan generate QRIS pembayaran dari machine slot.</p>
-      </a>
+    <section class="merchant-stats" aria-label="Statistik order">
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">Total order</div>
+        <div class="merchant-stat-v"><%= stats.total_orders %></div>
+        <div class="merchant-stat-sub">Semua waktu</div>
+      </article>
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">Nominal menunggu bayar</div>
+        <div class="merchant-stat-v" style="font-size:22px;"><%= statsFmt.pending_amount %></div>
+        <div class="merchant-stat-sub"><%= stats.pending_count %> order berstatus PENDING</div>
+      </article>
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">Sukses bayar</div>
+        <div class="merchant-stat-v"><%= stats.paid_flow_count %></div>
+        <div class="merchant-stat-sub">Sudah terbayar (PAID / DISPENSING / DISPENSED). Sudah keluar mesin: <strong><%= stats.dispensed_count %></strong></div>
+      </article>
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">QRIS / ref pembayaran</div>
+        <div class="merchant-stat-v"><%= stats.qris_recorded_count %></div>
+        <div class="merchant-stat-sub">Order yang punya payment_ref atau payment_provider di database</div>
+      </article>
     </section>
+
+    <% if (balance) { %>
+    <section class="merchant-stats" style="margin-top:16px;" aria-label="Saldo merchant">
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">Saldo tersedia</div>
+        <div class="merchant-stat-v" style="font-size:22px;"><%= balance.balance_fmt %></div>
+        <div class="merchant-stat-sub">Total net setelah fee settlement</div>
+      </article>
+      <article class="merchant-stat">
+        <div class="merchant-stat-k">Total gross settled</div>
+        <div class="merchant-stat-v" style="font-size:18px;"><%= balance.total_gross_fmt %></div>
+        <div class="merchant-stat-sub">Fee Midtrans: <%= balance.total_midtrans_fee_fmt %></div>
+      </article>
+    </section>
+    <% } %>
+
+    <p class="merchant-stat-note">
+      Saldo dihitung dari order yang sudah di-settle oleh admin. Lihat riwayat lengkap di halaman <a href="/merchant/balance" style="color:#2563eb;">Saldo</a>.
+    </p>
   </div>
 </body>
 </html>

@@ -13,23 +13,33 @@
     .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
     .head{padding:16px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;}
     h1{margin:0;font-size:20px}
-    .muted{color:var(--muted);font-size:13px}
+    .muted{color:#64748b;font-size:13px}
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid var(--border);cursor:pointer;text-decoration:none;background:#fff;color:#7c2d12}
     .btn:hover{background:#fff7ed}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:16px;}
     @media(max-width:900px){.grid{grid-template-columns:1fr}}
-    .box{border:1px solid #f1f5f9;border-radius:14px;padding:12px;background:#fffdf9}
+    .box{border:1px solid #f1f5f9;border-radius:14px;padding:12px;background:#fffdf9;color:#0f172a}
     .k{font-size:12px;color:#7c2d12;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
-    .v{font-size:14px;font-weight:800}
+    .v{font-size:14px;font-weight:800;color:#0f172a}
     table{width:100%;border-collapse:collapse}
     thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12;background:#fff2e5;border-bottom:1px solid #f1caa2;padding:12px 14px;}
-    tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;vertical-align:middle;}
+    tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;vertical-align:middle;color:#0f172a;}
     tbody tr:nth-child(2n){background:#fffdf9}
     .mono{font-variant-numeric:tabular-nums}
+    .alert{margin:16px;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
+    .alert-err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    .alert-warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
+    .refund-box{margin:0 16px 16px;padding:14px;border-radius:14px;background:#fef2f2;border:1px solid #fecaca;}
+    .refund-box h3{margin:0 0 8px;font-size:14px;color:#991b1b}
+    .refund-box form{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+    .refund-box label{display:block;font-size:12px;font-weight:900;color:#991b1b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+    .refund-box input{padding:10px 12px;border-radius:10px;border:1px solid #fecaca;background:#fff;font-size:13px;min-width:220px;}
+    .refund-box .btn-danger{background:#dc2626;color:#fff;border-color:#dc2626;}
+    .refund-box .btn-danger:hover{background:#b91c1c}
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Order Detail</div>
+  <div class="topbar">Samakan Admin • Order Detail</div>
   <div class="wrap">
     <div class="card">
       <div class="head">
@@ -38,10 +48,42 @@
           <div class="muted">Order ID: <b>#<%= order.id %></b> • Status: <b><%= order.status %></b></div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a class="btn" href="/admin/orders/reconciliation">Reconciliation</a>
           <a class="btn" href="/admin/orders">Back</a>
           <a class="btn" href="/admin">Dashboard</a>
         </div>
       </div>
+
+      <% if (typeof queryError !== 'undefined' && queryError) { %>
+        <div class="alert alert-err"><%= queryError %></div>
+      <% } %>
+
+      <% if (order.status === 'DISPENSE_FAILED') { %>
+        <div class="refund-box">
+          <h3>Order gagal dispense — putuskan tindak lanjut</h3>
+          <div class="muted" style="margin-bottom:10px;">
+            Pembayaran sudah masuk tapi produk gagal keluar dari mesin (<%= order.dispense_failure_reason || 'alasan tidak tercatat' %>).
+            Cek fisik mesin terlebih dahulu. Jika produk tidak bisa diberikan, catat refund manual di sini (refund Midtrans/bank tetap diproses lewat dashboard masing-masing, ini hanya pencatatan).
+          </div>
+          <form method="POST" action="/admin/orders/<%= order.id %>/refund">
+            <div>
+              <label>Referensi Refund</label>
+              <input type="text" name="refund_reference" placeholder="mis. nomor referensi bank/Midtrans" />
+            </div>
+            <div>
+              <label>Catatan</label>
+              <input type="text" name="refund_notes" placeholder="catatan admin" />
+            </div>
+            <button class="btn btn-danger" type="submit">Catat Refund</button>
+          </form>
+        </div>
+      <% } else if (order.status === 'REFUNDED') { %>
+        <div class="alert alert-warn">
+          Order ini sudah di-refund pada <b><%= order.refunded_at_fmt %></b>.
+          Referensi: <b><%= order.refund_reference || '-' %></b>
+          <% if (order.refund_notes) { %> • Catatan: <%= order.refund_notes %><% } %>
+        </div>
+      <% } %>
 
       <div class="grid">
         <div class="box">
@@ -81,6 +123,19 @@
         <div class="box">
           <div class="k">Currency</div>
           <div class="v"><%= order.currency %></div>
+        </div>
+
+        <div class="box">
+          <div class="k">Dispensed</div>
+          <div class="v mono"><%= order.dispensed_at_fmt %></div>
+        </div>
+        <div class="box">
+          <div class="k">Dispense Failure</div>
+          <div class="v"><%= order.dispense_failure_reason || "-" %></div>
+        </div>
+        <div class="box">
+          <div class="k">Refund</div>
+          <div class="v mono"><%= order.refunded_at_fmt %> <span class="muted"><%= order.refund_reference ? ('· ' + order.refund_reference) : '' %></span></div>
         </div>
       </div>
 

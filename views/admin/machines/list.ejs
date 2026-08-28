@@ -49,7 +49,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Machines</div>
+  <div class="topbar">Samakan Admin • Machines</div>
 
   <div class="wrap">
     <div class="header">
@@ -84,6 +84,7 @@
               <th>Name</th>
               <th style="width:120px;">Kategori</th>
               <th>Location</th>
+              <th>Merchant</th>
               <th style="width:120px;">Status</th>
               <th style="width:200px;">Aksi</th>
             </tr>
@@ -96,6 +97,7 @@
                 <td><%= m.name || '-' %></td>
                 <td class="mono"><%= m.category || '-' %></td>
                 <td><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(arsip)</span><% } %></td>
+                <td class="muted"><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %></td>
                 <td>
                   <% if (m.is_active) { %>
                     <span class="badge on"><span class="dot"></span> Active</span>

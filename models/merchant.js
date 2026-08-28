@@ -110,17 +110,18 @@ exports.findByName = async (name) => {
   return rows[0] || null;
 };
 
-exports.createWithAutoCode = async ({ name, is_active }) => {
-  const conn = await pool.getConnection();
+exports.createWithAutoCode = async ({ name, is_active }, conn) => {
+  const ownConn = !conn;
+  const executor = conn || (await pool.getConnection());
   try {
-    const [[lockRow]] = await conn.query(
-      "SELECT GET_LOCK('saporsi_merchant_code', 10) AS got"
+    const [[lockRow]] = await executor.query(
+      "SELECT GET_LOCK('samakan_merchant_code', 10) AS got"
     );
     if (!lockRow || Number(lockRow.got) !== 1) {
       throw new Error("Could not acquire merchant code lock");
     }
 
-    const [maxRows] = await conn.query(
+    const [maxRows] = await executor.query(
       `
       SELECT COALESCE(MAX(CAST(SUBSTRING(merchant_code, 5) AS UNSIGNED)), 0) AS n
       FROM merchants
@@ -133,7 +134,7 @@ exports.createWithAutoCode = async ({ name, is_active }) => {
     }
     const merchant_code = `MER-${String(next).padStart(6, "0")}`;
 
-    const [result] = await conn.query(
+    const [result] = await executor.query(
       `
       INSERT INTO merchants (
         merchant_code,
@@ -147,9 +148,9 @@ exports.createWithAutoCode = async ({ name, is_active }) => {
     return { id: result.insertId, merchant_code };
   } finally {
     try {
-      await conn.query("SELECT RELEASE_LOCK('saporsi_merchant_code')");
+      await executor.query("SELECT RELEASE_LOCK('samakan_merchant_code')");
     } catch (_) {}
-    conn.release();
+    if (ownConn) executor.release();
   }
 };
 

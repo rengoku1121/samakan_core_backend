@@ -34,11 +34,15 @@
     .b-paid{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
     .b-failed{border-color:#fecaca;background:#fef2f2;color:#991b1b}
     .b-other{border-color:#e5e7eb;background:#f9fafb;color:#374151}
+    .b-settled{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
+    .b-not-settled{border-color:#fde68a;background:#fffbeb;color:#92400e}
+    .b-refunded{border-color:#e5e7eb;background:#f3f4f6;color:#374151}
     .pager{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px 16px;}
+    .settlement-ref{margin-top:4px;font-size:12px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;display:block}
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Orders</div>
+  <div class="topbar">Samakan Admin • Orders</div>
   <div class="wrap">
     <div class="header">
       <div>
@@ -46,7 +50,18 @@
         <div class="muted">Total: <b><%= total %></b></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn btn-ghost" href="/admin/orders/reconciliation">Reconciliation</a>
         <a class="btn btn-ghost" href="/admin">Dashboard</a>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="toolbar" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div class="muted">Belum settle: <b><%= unsettled.count %></b> order • Rp <b><%= unsettled.amount_fmt %></b></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a class="btn btn-primary" href="/admin/settlement/upload">Upload Settlement</a>
+          <a class="btn btn-ghost" href="/admin/settlement/force">Force Settlement</a>
+        </div>
       </div>
     </div>
 
@@ -57,7 +72,7 @@
             <label>Status</label>
             <select name="status">
               <option value="" <%= filters.status ? "" : "selected" %>>All</option>
-              <% ["PENDING","PAID","DISPENSING","DISPENSED","FAILED","EXPIRED","CANCELLED","REFUNDED"].forEach(function(s){ %>
+              <% ["PENDING","PAID","PAID_ITEM_MISSING","PAID_STOCK_FAILED","DISPENSING","DISPENSED","DISPENSE_FAILED","FAILED","EXPIRED","CANCELLED","REFUNDED"].forEach(function(s){ %>
                 <option value="<%= s %>" <%= filters.status === s ? "selected" : "" %>><%= s %></option>
               <% }) %>
             </select>
@@ -87,6 +102,11 @@
             </select>
           </div>
 
+          <div>
+            <label>Settlement Ref</label>
+            <input type="text" name="settlement_ref" value="<%= filters.settlement_ref || '' %>" placeholder="e.g. STL-20260508" />
+          </div>
+
 
           <div>
             <label>Limit</label>
@@ -112,12 +132,16 @@
             <th>Total</th>
             <th>Created</th>
             <th>Paid</th>
+            <th>Settlement</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          <% (rows || []).forEach(function(r){ 
-              const cls = r.status === "PENDING" ? "b-pending" : (r.status === "PAID" || r.status === "DISPENSED" ? "b-paid" : (r.status === "FAILED" ? "b-failed" : "b-other"));
+          <% (rows || []).forEach(function(r){
+              const cls = (r.status === "PENDING" || r.status === "DISPENSING") ? "b-pending"
+                : (r.status === "PAID" || r.status === "DISPENSED" ? "b-paid"
+                : ((r.status === "FAILED" || r.status === "DISPENSE_FAILED" || r.status === "PAID_ITEM_MISSING" || r.status === "PAID_STOCK_FAILED") ? "b-failed"
+                : (r.status === "REFUNDED" ? "b-refunded" : "b-other")));
           %>
             <tr>
               <td class="mono"><b><%= r.order_code %></b><div class="muted">#<%= r.id %></div></td>
@@ -127,11 +151,17 @@
               <td class="mono">Rp <b><%= r.total_fmt %></b></td>
               <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
+              <td class="mono">
+                <span class="badge <%= r.settlement_status_label === 'SETTLED' ? 'b-settled' : 'b-not-settled' %>"><%= r.settlement_status_label %></span>
+                <% if (r.settlement_ref) { %>
+                  <div class="muted mono settlement-ref" title="<%= r.settlement_ref %>"><%= r.settlement_ref %></div>
+                <% } %>
+              </td>
               <td><a class="btn btn-ghost" href="/admin/orders/<%= r.id %>">Detail</a></td>
             </tr>
           <% }) %>
           <% if (!rows || rows.length === 0) { %>
-            <tr><td colspan="8" class="muted" style="padding:16px;">Tidak ada data.</td></tr>
+            <tr><td colspan="9" class="muted" style="padding:16px;">Tidak ada data.</td></tr>
           <% } %>
         </tbody>
       </table>
@@ -142,7 +172,7 @@
           <%
             const prevPage = Math.max(1, page - 1);
             const nextPage = Math.min(totalPages, page + 1);
-            const qsBase = `status=${encodeURIComponent(filters.status||"")}&merchant_id=${encodeURIComponent(filters.merchant_id||"")}&machine_id=${encodeURIComponent(filters.machine_id||"")}&limit=${encodeURIComponent(limit)}`;
+            const qsBase = `status=${encodeURIComponent(filters.status||"")}&merchant_id=${encodeURIComponent(filters.merchant_id||"")}&machine_id=${encodeURIComponent(filters.machine_id||"")}&settlement_ref=${encodeURIComponent(filters.settlement_ref||"")}&limit=${encodeURIComponent(limit)}`;
           %>
           <a class="btn btn-ghost" href="/admin/orders?<%= qsBase %>&page=<%= prevPage %>">Prev</a>
           <a class="btn btn-ghost" href="/admin/orders?<%= qsBase %>&page=<%= nextPage %>">Next</a>

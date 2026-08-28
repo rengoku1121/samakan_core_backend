@@ -6,7 +6,7 @@
 --   deleted_at  → soft delete / arsip
 --
 -- CARA TERMUDAH (disarankan):
---   cd saporsi_core_backend
+--   cd samakan_core_backend
 --   npm run migrate:location-parent-soft-delete
 --
 -- Skrip Node otomatis:

@@ -3,7 +3,7 @@ const pushSubscriptionModel = require("../models/push-subscription");
 
 const vapidPublicKey = String(process.env.VAPID_PUBLIC_KEY || "").trim();
 const vapidPrivateKey = String(process.env.VAPID_PRIVATE_KEY || "").trim();
-const vapidSubject = String(process.env.VAPID_SUBJECT || "mailto:admin@saporsi.local").trim();
+const vapidSubject = String(process.env.VAPID_SUBJECT || "mailto:admin@samakan.local").trim();
 const configured = Boolean(vapidPublicKey && vapidPrivateKey);
 
 if (configured) {

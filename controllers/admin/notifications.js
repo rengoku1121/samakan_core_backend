@@ -1,9 +1,16 @@
 const realtimeEvents = require("../../utils/realtime-events");
 const pushSubscriptionModel = require("../../models/push-subscription");
 const pushNotifier = require("../../utils/push-notifier");
+/** Role portal admin yang boleh terima Web Push (machine down, dll.). */
 const canReceivePushByRole = (role) => {
   const r = String(role || "").trim().toLowerCase();
-  return r === "superadmin" || r === "owner" || r === "1";
+  return (
+    r === "admin" ||
+    r === "staff" ||
+    r === "superadmin" ||
+    r === "owner" ||
+    r === "1"
+  );
 };
 
 exports.stream = (req, res) => {

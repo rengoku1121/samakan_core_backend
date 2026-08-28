@@ -65,7 +65,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • New Machine</div>
+  <div class="topbar">Samakan Admin • New Machine</div>
 
   <div class="wrap">
     <h1>Tambah Machine</h1>
@@ -84,7 +84,7 @@
         <div class="hint">Disarankan pakai serial number atau asset code internal.</div>
 
         <label for="name">Machine Name (optional)</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Saporsi Soetta T3 #1" />
+        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Samakan Soetta T3 #1" />
         <div class="hint">Nama untuk memudahkan tim operasional.</div>
 
         <label for="category">Kategori</label>
@@ -153,6 +153,15 @@
           <% }) %>
         </select>
         <div class="hint">Lokasi wajib, karena mesin harus “ditaruh di mana”.</div>
+
+        <label for="merchant_id">Merchant</label>
+        <select id="merchant_id" name="merchant_id" required>
+          <option value="">-- pilih merchant --</option>
+          <% (merchants || []).forEach(function(m){ %>
+            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+          <% }) %>
+        </select>
+        <div class="hint">Wajib. Satu mesin harus ditautkan ke satu merchant (portal, QRIS, settlement).</div>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">

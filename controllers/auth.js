@@ -27,7 +27,7 @@ exports.login = async (req, res, next) => {
     if (!user || !user.is_active) {
       return res.status(401).render("auth/login", {
         title: "Login",
-        error: "Akun tidak ditemukan atau tidak aktif",
+        error: "Identifier atau password salah",
         value: { identifier },
       });
     }
@@ -36,7 +36,7 @@ exports.login = async (req, res, next) => {
     if (!match) {
       return res.status(401).render("auth/login", {
         title: "Login",
-        error: "Password salah",
+        error: "Identifier atau password salah",
         value: { identifier },
       });
     }
@@ -49,14 +49,22 @@ exports.login = async (req, res, next) => {
       merchant_id: user.merchant_id || null,
     });
 
+    // COOKIE_SECURE=0 → izinkan HTTP lokal meski NODE_ENV=production
+    const cookieSecure =
+      String(process.env.COOKIE_SECURE || "").trim() === "0"
+        ? false
+        : String(process.env.COOKIE_SECURE || "").trim() === "1"
+          ? true
+          : process.env.NODE_ENV === "production";
+
     res.cookie("access_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: cookieSecure,
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     });
 
-    if (user.role === "admin" || user.role === "staff") {
+    if (user.role === "admin" || user.role === "staff" || user.role === "superadmin") {
       return res.redirect("/admin");
     }
     return res.redirect("/merchant");

@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Notifikasi";
   const options = {
     body: data.body || "Ada update baru.",
-    tag: data.tag || "saporsi-notif",
+    tag: data.tag || "samakan-notif",
     data: { url: data.url || "/admin" },
     renotify: true,
   };

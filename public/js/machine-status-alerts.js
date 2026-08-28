@@ -68,8 +68,10 @@
     }
   }
 
-  if (window.EventSource) {
+  // Satu EventSource per tab — tutup saat pindah halaman supaya koneksi tidak menumpuk.
+  if (window.EventSource && !window.__samakanMachineSse) {
     var source = new EventSource("/admin/notifications/stream");
+    window.__samakanMachineSse = source;
     source.addEventListener("machine_down", function (event) {
       var payload = {};
       try {
@@ -78,6 +80,14 @@
         payload = {};
       }
       handleMachineDownPayload(payload);
+    });
+    window.addEventListener("pagehide", function () {
+      try {
+        source.close();
+      } catch (_) {
+        // noop
+      }
+      window.__samakanMachineSse = null;
     });
   }
 

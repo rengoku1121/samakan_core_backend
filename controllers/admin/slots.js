@@ -3,12 +3,29 @@ const slotModel = require("../../models/slot");
 const machineModel = require("../../models/machine");
 const productModel = require("../../models/product");
 const { formatDateId } = require("../../helper-function/format-date");
+const {
+  normalizeSlotCode,
+  isLayoutSlotCode,
+  layoutExample,
+} = require("../../helper-function/slot-code");
 
 const toInt = (v, def) => {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
 };
 const clean = (v) => String(v || "").trim();
+const cleanDate = (v) => {
+  const s = clean(v);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+};
+
+const defaultExpiresFromShelfLifeDays = (days) => {
+  const n = Number(days);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 const parsePriceNullable = (v) => {
   const raw = clean(v);
@@ -26,6 +43,35 @@ const parseUInt = (v, def, allowNull = false) => {
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return def;
   return Math.floor(n);
+};
+
+/**
+ * slot_code dikirim apa adanya ke VMC sebagai selection number, jadi harus
+ * memakai penomoran fisik mesin supaya barang yang keluar sesuai katalog.
+ */
+const validateSlotCode = (raw) => {
+  const normalized = normalizeSlotCode(raw);
+  if (!normalized) {
+    return {
+      slot_code: String(raw || "").trim(),
+      error: `Slot code harus angka nomor slot mesin (contoh: ${layoutExample()}).`,
+    };
+  }
+  if (!isLayoutSlotCode(normalized)) {
+    return {
+      slot_code: normalized,
+      error: `Slot ${normalized} tidak ada di mesin. Gunakan nomor: ${layoutExample()}.`,
+    };
+  }
+  return { slot_code: normalized, error: null };
+};
+
+/** Kapasitas baris diisi → stok fisik tidak boleh lebih besar. */
+const validateStockVsCapacity = (stock, capacity) => {
+  if (capacity !== null && stock > capacity) {
+    return "Stok tidak boleh melebihi kapasitas baris mesin.";
+  }
+  return null;
 };
 
 exports.pickMachine = async (req, res, next) => {
@@ -49,7 +95,7 @@ exports.list = async (req, res, next) => {
     if (!machine_id) return res.redirect("/admin/slots");
 
     const page = Math.max(1, toInt(req.query.page, 1));
-    const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 20)));
+    const limit = Math.min(100, Math.max(5, toInt(req.query.limit, 50)));
     const offset = (page - 1) * limit;
 
     const [total, rows, machines] = await Promise.all([
@@ -62,9 +108,13 @@ exports.list = async (req, res, next) => {
 
     const formattedRows = rows.map((r) => {
       const finalPrice = r.slot_price === null ? r.product_base_price : r.slot_price;
+      const exp = r.expires_at
+        ? String(r.expires_at).slice(0, 10)
+        : "";
       return {
         ...r,
         updated_at_fmt: formatDateId(r.updated_at),
+        expires_at_short: exp || "-",
         final_price: finalPrice,
         final_price_fmt: new Intl.NumberFormat("id-ID").format(finalPrice || 0),
         product_price_fmt: new Intl.NumberFormat("id-ID").format(r.product_base_price || 0),
@@ -113,6 +163,7 @@ exports.renderNew = async (req, res, next) => {
         slot_price: "",
         stock: "0",
         capacity: "",
+        expires_at: "",
         is_active: 1,
       },
     });
@@ -125,7 +176,8 @@ exports.renderNew = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   try {
     const machine_id = toInt(req.body.machine_id, 0);
-    const slot_code = clean(req.body.slot_code).toUpperCase();
+    const codeCheck = validateSlotCode(req.body.slot_code);
+    const slot_code = codeCheck.slot_code;
     const product_id = toInt(req.body.product_id, 0);
     const slot_price = parsePriceNullable(req.body.slot_price); // null = pakai harga product
     const stock = parseUInt(req.body.stock, 0, false);
@@ -155,18 +207,26 @@ exports.create = async (req, res, next) => {
           slot_price: clean(req.body.slot_price),
           stock: String(stock),
           capacity: clean(req.body.capacity),
+          expires_at: cleanDate(req.body.expires_at) || "",
           is_active,
         },
       });
     };
 
-    if (!slot_code) return rerender(400, "Slot code wajib diisi (contoh: A1 / 01 / L-07).");
+    if (codeCheck.error) return rerender(400, codeCheck.error);
     if (!product_id) return rerender(400, "Product wajib dipilih.");
     if (slot_price === "INVALID") return rerender(400, "Slot price harus angka (atau kosong untuk pakai harga product).");
-    if (capacity !== null && stock > capacity) return rerender(400, "Stock tidak boleh lebih besar dari capacity.");
+    const capErr = validateStockVsCapacity(stock, capacity);
+    if (capErr) return rerender(400, capErr);
 
     const existing = await slotModel.findByMachineAndCode({ machine_id, slot_code });
     if (existing) return rerender(409, "Slot code ini sudah ada di machine tersebut.");
+
+    let expires_at = cleanDate(req.body.expires_at);
+    if (!expires_at) {
+      const prodRow = await productModel.findById(product_id);
+      expires_at = defaultExpiresFromShelfLifeDays(prodRow?.shelf_life_days) || null;
+    }
 
     await slotModel.create({
       machine_id,
@@ -175,6 +235,7 @@ exports.create = async (req, res, next) => {
       slot_price: slot_price === null ? null : slot_price,
       stock,
       capacity,
+      expires_at,
       is_active,
     });
 
@@ -197,11 +258,12 @@ exports.create = async (req, res, next) => {
           machine,
           products,
           value: {
-            slot_code: clean(req.body.slot_code).toUpperCase(),
+            slot_code: validateSlotCode(req.body.slot_code).slot_code,
             product_id: clean(req.body.product_id),
             slot_price: clean(req.body.slot_price),
             stock: clean(req.body.stock),
             capacity: clean(req.body.capacity),
+            expires_at: cleanDate(req.body.expires_at) || "",
             is_active: req.body.is_active === "0" ? 0 : 1,
           },
         });
@@ -241,6 +303,7 @@ exports.renderEdit = async (req, res, next) => {
         slot_price: slot.slot_price === null ? "" : String(slot.slot_price),
         stock: String(slot.stock ?? 0),
         capacity: slot.capacity === null ? "" : String(slot.capacity),
+        expires_at: slot.expires_at ? String(slot.expires_at).slice(0, 10) : "",
         is_active: slot.is_active ? 1 : 0,
       },
     });
@@ -258,17 +321,36 @@ exports.update = async (req, res, next) => {
     if (!current) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
 
     const machine_id = toInt(req.body.machine_id, 0);
-    const slot_code = clean(req.body.slot_code).toUpperCase();
+    // Kode lama di luar denah tetap bisa diedit selama tidak diubah,
+    // supaya stok slot warisan masih bisa dirapikan.
+    const keepLegacyCode = clean(req.body.slot_code) === clean(current.slot_code);
+    const codeCheck = keepLegacyCode
+      ? { slot_code: current.slot_code, error: null }
+      : validateSlotCode(req.body.slot_code);
+    const slot_code = codeCheck.slot_code;
     const product_id = toInt(req.body.product_id, 0);
     const slot_price = parsePriceNullable(req.body.slot_price);
     const stock = parseUInt(req.body.stock, 0, false);
     const capacity = parseUInt(req.body.capacity, null, true);
     const is_active = req.body.is_active === "0" ? 0 : 1;
+    const expires_at_input = cleanDate(req.body.expires_at) || "";
 
     const [machines, products] = await Promise.all([
       machineModel.listAllForSelect(),
       productModel.listAllForSelect(),
     ]);
+
+    const editFormValue = (over = {}) => ({
+      machine_id: String(machine_id || ""),
+      slot_code,
+      product_id: String(product_id || ""),
+      slot_price: clean(req.body.slot_price),
+      stock: String(stock),
+      capacity: clean(req.body.capacity),
+      expires_at: expires_at_input,
+      is_active,
+      ...over,
+    });
 
     if (!machine_id) {
       return res.status(400).render("admin/slots/edit", {
@@ -278,18 +360,18 @@ exports.update = async (req, res, next) => {
         slot: current,
         machines,
         products,
-        value: { machine_id: "", slot_code, product_id: String(product_id || ""), slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+        value: editFormValue({ machine_id: "" }),
       });
     }
-    if (!slot_code) {
+    if (codeCheck.error) {
       return res.status(400).render("admin/slots/edit", {
         title: "Edit Slot",
         user: req.user,
-        error: "Slot code wajib diisi.",
+        error: codeCheck.error,
         slot: current,
         machines,
         products,
-        value: { machine_id: String(machine_id), slot_code, product_id: String(product_id || ""), slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+        value: editFormValue(),
       });
     }
     if (!product_id) {
@@ -300,7 +382,7 @@ exports.update = async (req, res, next) => {
         slot: current,
         machines,
         products,
-        value: { machine_id: String(machine_id), slot_code, product_id: "", slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+        value: editFormValue({ product_id: "" }),
       });
     }
     if (slot_price === "INVALID") {
@@ -311,18 +393,19 @@ exports.update = async (req, res, next) => {
         slot: current,
         machines,
         products,
-        value: { machine_id: String(machine_id), slot_code, product_id: String(product_id), slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+        value: editFormValue(),
       });
     }
-    if (capacity !== null && stock > capacity) {
+    const capErrEdit = validateStockVsCapacity(stock, capacity);
+    if (capErrEdit) {
       return res.status(400).render("admin/slots/edit", {
         title: "Edit Slot",
         user: req.user,
-        error: "Stock tidak boleh lebih besar dari capacity.",
+        error: capErrEdit,
         slot: current,
         machines,
         products,
-        value: { machine_id: String(machine_id), slot_code, product_id: String(product_id), slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+        value: editFormValue(),
       });
     }
 
@@ -337,7 +420,7 @@ exports.update = async (req, res, next) => {
           slot: current,
           machines,
           products,
-          value: { machine_id: String(machine_id), slot_code, product_id: String(product_id), slot_price: clean(req.body.slot_price), stock: String(stock), capacity: clean(req.body.capacity), is_active },
+          value: editFormValue(),
         });
       }
     }
@@ -347,9 +430,10 @@ exports.update = async (req, res, next) => {
       machine_id,
       slot_code,
       product_id,
-      slot_price: slot_price === null ? null : slot_price,
+      price: slot_price === null ? null : slot_price,
       stock,
       capacity,
+      expires_at: expires_at_input || null,
       is_active,
     });
 

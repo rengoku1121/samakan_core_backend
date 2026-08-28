@@ -33,10 +33,13 @@
     .dot{width:8px;height:8px;border-radius:999px}
     .on{background:#ecfdf5;color:#065f46;border-color:#bbf7d0}.on .dot{background:#10b981}
     .off{background:#fef2f2;color:#991b1b;border-color:#fecaca}.off .dot{background:#ef4444}
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;background:#fff;flex-wrap:wrap;}
+    .pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .select{padding:8px 10px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:900;font-size:13px;color:#374151;}
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Slots</div>
+  <div class="topbar">Samakan Admin • Slots</div>
 
   <div class="wrap">
     <div class="header">
@@ -77,6 +80,7 @@
             <th>Product</th>
             <th style="width:200px;">Price</th>
             <th style="width:120px;">Stock</th>
+            <th style="width:120px;">Exp</th>
             <th style="width:150px;">Status</th>
             <th style="width:110px;">Action</th>
           </tr>
@@ -96,6 +100,7 @@
               <td class="mono">
                 <b><%= s.stock %></b><% if (s.capacity !== null) { %><span class="muted"> / <%= s.capacity %></span><% } %>
               </td>
+              <td class="mono muted"><%= s.expires_at_short %></td>
               <td>
                 <% if (s.is_active) { %>
                   <span class="badge on"><span class="dot"></span> Active</span>
@@ -106,8 +111,36 @@
               <td><a class="btn btn-ghost" style="padding:8px 10px;" href="/admin/slots/<%= s.id %>/edit">Edit</a></td>
             </tr>
           <% }) %>
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+
+      <div class="footer">
+        <div class="muted">
+          <% const start = (page - 1) * limit + 1; %>
+          <% const end = (page - 1) * limit + (rows ? rows.length : 0); %>
+          <% if (rows && rows.length) { %>
+            Showing <b><%= start %></b>–<b><%= end %></b> of <b><%= total %></b>
+          <% } else { %>
+            Showing 0 of <b><%= total %></b>
+          <% } %>
+        </div>
+        <div class="pager">
+          <label class="muted">Limit</label>
+          <select class="select" onchange="location.href='/admin/slots/list?machine_id=<%= machine_id %>&page=1&limit=' + this.value;">
+            <option value="20" <%= Number(limit) === 20 ? 'selected' : '' %>>20</option>
+            <option value="50" <%= Number(limit) === 50 ? 'selected' : '' %>>50</option>
+            <option value="100" <%= Number(limit) === 100 ? 'selected' : '' %>>100</option>
+          </select>
+          <% const prev = page > 1 ? page - 1 : 1; %>
+          <% const next = page < totalPages ? page + 1 : totalPages; %>
+          <% if (page > 1) { %>
+            <a class="btn btn-primary" href="/admin/slots/list?machine_id=<%= machine_id %>&page=<%= prev %>&limit=<%= limit %>">Prev</a>
+          <% } %>
+          <% if (page < totalPages) { %>
+            <a class="btn btn-primary" href="/admin/slots/list?machine_id=<%= machine_id %>&page=<%= next %>&limit=<%= limit %>">Next</a>
+          <% } %>
+        </div>
+      </div>
     </div>
   </div>
 </body>

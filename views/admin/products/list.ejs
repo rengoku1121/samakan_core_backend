@@ -45,7 +45,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Products</div>
+  <div class="topbar">Samakan Admin • Products</div>
 
   <div class="wrap">
     <div class="header">
@@ -75,6 +75,8 @@
               <th style="width:180px;">SKU</th>
               <th>Name</th>
               <th style="width:160px;">Price</th>
+              <th style="width:110px;">Shelf</th>
+              <th style="width:120px;">Panas</th>
               <th style="width:150px;">Status</th>
               <th style="width:110px;">Action</th>
             </tr>
@@ -89,6 +91,8 @@
                   <div class="muted" style="margin-top:4px;">Updated: <%= p.updated_at_fmt %></div>
                 </td>
                 <td class="mono">Rp <%= p.price_fmt %></td>
+                <td class="mono"><%= p.shelf_life_label %></td>
+                <td class="mono"><%= p.heating_label %></td>
                 <td>
                   <% if (p.is_active) { %>
                     <span class="badge on"><span class="dot"></span> Active</span>

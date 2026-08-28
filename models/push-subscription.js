@@ -52,7 +52,7 @@ exports.listActive = async () => {
     LEFT JOIN users u ON u.id = ps.user_id
     WHERE ps.is_active = 1
       AND u.is_active = 1
-      AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('superadmin', 'owner', '1')
+      AND LOWER(TRIM(COALESCE(u.role, ''))) IN ('admin', 'staff', 'superadmin', 'owner', '1')
     ORDER BY ps.id DESC
     LIMIT 5000
   `;

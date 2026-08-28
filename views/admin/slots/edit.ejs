@@ -32,10 +32,11 @@
     .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
     @media (max-width:860px){.grid{grid-template-columns:1fr}}
     .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#374151;font-weight:900;font-size:12px;}
+    .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Edit Slot</div>
+  <div class="topbar">Samakan Admin • Edit Slot</div>
 
   <div class="wrap">
     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
@@ -69,7 +70,17 @@
 
           <div>
             <label for="slot_code">Slot Code</label>
-            <input id="slot_code" name="slot_code" value="<%= value?.slot_code || '' %>" required />
+            <% const currentCode = String(value?.slot_code || ''); %>
+            <select id="slot_code" name="slot_code" required>
+              <option value="">-- pilih nomor slot --</option>
+              <% if (currentCode && !(slotCodes || []).includes(currentCode)) { %>
+                <option value="<%= currentCode %>" selected><%= currentCode %> (di luar denah mesin)</option>
+              <% } %>
+              <% (slotCodes || []).forEach(function(code){ %>
+                <option value="<%= code %>" <%= currentCode === code ? 'selected' : '' %>><%= code %></option>
+              <% }) %>
+            </select>
+            <div class="hint"><%= slotCodeHint %></div>
           </div>
 
           <div>
@@ -91,7 +102,36 @@
 
           <div>
             <label for="stock">Stock</label>
-            <input id="stock" name="stock" value="<%= value?.stock || '0' %>" />
+            <input
+              id="stock"
+              name="stock"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              value="<%= value?.stock || '0' %>"
+              required
+            />
+            <div class="hint" style="margin-top:6px;color:var(--muted);font-size:12.5px;">Jika kapasitas diisi, stok tidak boleh melebihi kapasitas baris mesin.</div>
+          </div>
+
+          <div>
+            <label for="capacity">Kapasitas baris mesin (opsional)</label>
+            <input
+              id="capacity"
+              name="capacity"
+              type="number"
+              min="0"
+              step="1"
+              inputmode="numeric"
+              value="<%= value?.capacity || '' %>"
+              placeholder="kosong = tidak dibatasi"
+            />
+          </div>
+
+          <div>
+            <label for="expires_at">Kedaluwarsa stok</label>
+            <input id="expires_at" type="date" name="expires_at" value="<%= value?.expires_at || '' %>" />
           </div>
 
           <div>
@@ -111,5 +151,6 @@
       </form>
     </div>
   </div>
+  <script src="/public/js/slot-stock-capacity.js" defer></script>
 </body>
 </html>

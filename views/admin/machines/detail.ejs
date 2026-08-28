@@ -15,11 +15,11 @@
     .wrap{max-width:720px;margin:0 auto;padding:22px;}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;}
     h1{margin:0 0 6px;font-size:22px}
-    .muted{color:var(--muted);font-size:13px}
+    .muted{color:#64748b;font-size:13px}
     .idpill{display:inline-flex;margin-top:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);font-size:12px;font-weight:800;color:#374151}
     dl{margin:18px 0 0;padding:0}
     dt{margin:14px 0 4px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#7c2d12}
-    dd{margin:0;padding:12px 14px;background:#fffdf9;border:1px solid #f1e7dc;border-radius:12px;font-size:14px;line-height:1.45}
+    dd{margin:0;padding:12px 14px;background:#fffdf9;border:1px solid #f1e7dc;border-radius:12px;font-size:14px;line-height:1.45;color:#0f172a}
     .mono{font-variant-numeric:tabular-nums}
     .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid var(--border);}
     .dot{width:8px;height:8px;border-radius:999px}
@@ -33,7 +33,7 @@
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Admin • Machine Detail</div>
+  <div class="topbar">Samakan Admin • Machine Detail</div>
 
   <div class="wrap">
     <h1><%= m.code %></h1>
@@ -56,6 +56,9 @@
 
         <dt>Lokasi</dt>
         <dd><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(lokasi arsip)</span><% } %></dd>
+
+        <dt>Merchant</dt>
+        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %></dd>
 
         <dt>Tanggal dibuat pabrik</dt>
         <dd class="mono"><%= m.manufactured_at_fmt %></dd>
@@ -83,6 +86,23 @@
 
         <dt>Total downtime</dt>
         <dd class="mono"><%= m.total_downtime_hours_fmt %></dd>
+
+        <dt>Heartbeat terakhir (Kiosk API)</dt>
+        <dd class="mono">
+          <%= m.last_heartbeat_at_fmt %>
+          <% if (m.last_heartbeat_app_version) { %> <span class="muted">· APK v<%= m.last_heartbeat_app_version %></span><% } %>
+        </dd>
+
+        <dt>Crash terakhir (kiosk hardening Fase 7)</dt>
+        <dd class="mono">
+          <% if (m.last_crash_at) { %>
+            <span class="badge off"><span class="dot"></span> <%= m.last_crash_at_fmt %></span>
+            <span class="muted">· <%= m.last_crash_source || 'unknown' %></span>
+            <% if (m.last_crash_message) { %><div style="margin-top:6px;font-weight:400;"><%= m.last_crash_message %></div><% } %>
+          <% } else { %>
+            <span class="badge on"><span class="dot"></span> Belum ada crash tercatat</span>
+          <% } %>
+        </dd>
 
         <dt>Dibuat (record)</dt>
         <dd class="mono"><%= m.created_at %></dd>

@@ -56,24 +56,29 @@ exports.requireAuth = async (req, res, next) => {
     // optional but strongly recommended: role must match token
     if (dbUser.role !== tokenRole) return deny(req, res);
 
-    // if merchant, merchant_id must match
+    // if merchant, merchant_id in token must match DB (normalize: JWT number vs MySQL string)
     const dbMerchantId = dbUser.merchant_id ?? null;
-    if (dbUser.role === "merchant" && dbMerchantId !== tokenMerchantId) {
+    const normMid = (v) => {
+      if (v == null || v === "") return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    if (dbUser.role === "merchant" && normMid(dbMerchantId) !== normMid(tokenMerchantId)) {
       return deny(req, res);
     }
 
     // merchant soft-deleted or missing merchant row
     if (dbUser.role === "merchant") {
-      if (!dbMerchantId || dbUser.merchant_deleted_at != null) {
+      if (normMid(dbMerchantId) == null || dbUser.merchant_deleted_at != null) {
         return deny(req, res);
       }
     }
 
-    // attach user for downstream use
+    // attach user for downstream use (merchant_id selalu number untuk query konsisten)
     req.user = {
       id: String(dbUser.id),
       role: dbUser.role,
-      merchant_id: dbMerchantId,
+      merchant_id: normMid(dbMerchantId),
     };
 
     return next();
@@ -84,7 +89,13 @@ exports.requireAuth = async (req, res, next) => {
 
 exports.requireRole = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const role = String(req.user?.role || "").toLowerCase();
+    const allowed = roles.map((r) => String(r || "").toLowerCase());
+    const isSuperAdmin = role === "superadmin";
+    const adminRouteRequested = allowed.includes("admin") || allowed.includes("staff");
+    const canAccess = Boolean(req.user) && (allowed.includes(role) || (isSuperAdmin && adminRouteRequested));
+
+    if (!canAccess) {
       const accept = String(req.headers.accept || "");
       if (!accept.includes("application/json")) {
         return res.status(403).render("errors/403", {

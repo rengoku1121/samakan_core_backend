@@ -6,20 +6,39 @@
   <title><%= title %></title>
   <style>
     .dash-head { display:flex; justify-content:space-between; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:14px; }
-    .dash-head h2 { margin:0; font-size:24px; }
-    .muted { color:#7a6f67; font-size:13px; }
+    .dash-head h2 { margin:0; font-size:22px; font-weight:700; color:#1e293b; }
+    .muted { color:#64748b; font-size:13px; }
     .filter { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
     .field { display:grid; gap:5px; }
-    .field label { font-size:12px; color:#7a6f67; }
-    .field input { min-width:160px; padding:9px 10px; border-radius:10px; border:1px solid #eadfd2; }
-    .btn { border:0; border-radius:10px; padding:10px 12px; color:#fff; font-weight:700; cursor:pointer; background:linear-gradient(135deg,#8b5cf6,#ec4899); }
+    .field label { font-size:12px; color:#64748b; font-weight:500; }
+    .field input { min-width:160px; padding:9px 10px; border-radius:10px; border:1px solid #e2e8f0; background:#fff; color:#1e293b; }
+    .btn { border:0; border-radius:10px; padding:10px 14px; color:#fff; font-weight:600; cursor:pointer; background:#2563eb; box-shadow:0 2px 8px rgba(37,99,235,0.15); }
+    .btn:hover { background:#1d4ed8; }
     .stats { display:grid; grid-template-columns:repeat(3, minmax(180px, 1fr)); gap:10px; margin-bottom:14px; }
-    .stats-owner { display:grid; grid-template-columns:repeat(6, minmax(150px, 1fr)); gap:10px; margin-bottom:14px; }
-    .stat { border:1px solid #eadfd2; border-radius:14px; background:#fffaf4; padding:14px; }
-    .stat b { display:block; font-size:12px; color:#7a6f67; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
-    .stat h3 { margin:0; font-size:28px; line-height:1.2; color:#2b2420; }
+    .stats-owner { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; margin-bottom:14px; }
+    .stat { border:1px solid #e2e8f0; border-radius:14px; background:#fff; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.03); }
+    .stat b { display:block; font-size:11px; color:#64748b; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
+    .stat h3 { margin:0; font-size:26px; line-height:1.2; color:#1e293b; font-weight:700; }
+    .charts { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-bottom:14px; }
+    .chart-card {
+      border:1px solid #e2e8f0; border-radius:14px; background:#fff;
+      padding:16px 16px 12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);
+      min-height:320px; display:flex; flex-direction:column;
+    }
+    .chart-card h3 { margin:0 0 4px; font-size:15px; font-weight:700; color:#1e293b; }
+    .chart-card .chart-sub { margin:0 0 12px; font-size:12px; color:#64748b; }
+    .chart-wrap { position:relative; flex:1; min-height:240px; }
+    .chart-full { grid-column:1 / -1; }
+    .chart-empty {
+      flex:1; display:flex; align-items:center; justify-content:center;
+      color:#94a3b8; font-size:13px; border:1px dashed #e2e8f0; border-radius:12px;
+      min-height:220px; background:#f8fafc;
+    }
     @media (max-width: 1100px) { .stats-owner{grid-template-columns:repeat(3, minmax(140px, 1fr));} }
-    @media (max-width: 900px) { .stats, .stats-owner{grid-template-columns:1fr;} }
+    @media (max-width: 900px) {
+      .stats, .stats-owner, .charts { grid-template-columns:1fr; }
+      .chart-full { grid-column:auto; }
+    }
   </style>
 </head>
 <body>
@@ -47,12 +66,44 @@
       <h3>Rp <%= summary.turnoverFmt %></h3>
     </article>
     <article class="stat">
-      <b>Profit</b>
+      <b>Owner fee</b>
       <h3>Rp <%= summary.profitFmt %></h3>
     </article>
     <article class="stat">
       <b>Transactions</b>
       <h3><%= summary.transactions %></h3>
+    </article>
+  </section>
+
+  <section class="charts">
+    <article class="chart-card">
+      <h3>Omzet harian</h3>
+      <p class="chart-sub">Turnover (Rp) &amp; jumlah transaksi paid</p>
+      <% if (!charts.daily || !charts.daily.length) { %>
+        <div class="chart-empty">Belum ada data di rentang ini</div>
+      <% } else { %>
+        <div class="chart-wrap"><canvas id="chart-daily" aria-label="Omzet harian"></canvas></div>
+      <% } %>
+    </article>
+
+    <article class="chart-card">
+      <h3>Status order</h3>
+      <p class="chart-sub">Distribusi status di rentang tanggal</p>
+      <% if (!charts.status || !charts.status.length) { %>
+        <div class="chart-empty">Belum ada order</div>
+      <% } else { %>
+        <div class="chart-wrap"><canvas id="chart-status" aria-label="Status order"></canvas></div>
+      <% } %>
+    </article>
+
+    <article class="chart-card chart-full">
+      <h3>Produk terlaris</h3>
+      <p class="chart-sub">Top 8 berdasarkan qty (order paid / dispensed)</p>
+      <% if (!charts.topProducts || !charts.topProducts.length) { %>
+        <div class="chart-empty">Belum ada penjualan produk di rentang ini</div>
+      <% } else { %>
+        <div class="chart-wrap" style="min-height:280px;"><canvas id="chart-products" aria-label="Produk terlaris"></canvas></div>
+      <% } %>
     </article>
   </section>
 
@@ -81,7 +132,14 @@
       <b>Slots Active</b>
       <h3><%= ownerStats.slotsActive %></h3>
     </article>
+    <article class="stat">
+      <b>Total Saldo Merchant</b>
+      <h3>Rp <%= ownerStats.totalMerchantBalanceFmt %></h3>
+    </article>
   </section>
 
+  <script type="application/json" id="dash-charts-data"><%- JSON.stringify(charts || { daily: [], status: [], topProducts: [] }).replace(/</g, '\\u003c') %></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
+  <script src="/public/js/admin-dashboard-charts.js?v=20260815a" defer></script>
 </body>
 </html>

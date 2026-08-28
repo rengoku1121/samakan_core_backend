@@ -17,6 +17,15 @@ const parsePrice = (v) => {
   return x >= 0 ? x : null;
 };
 
+/** Kosong = null; angka 1–3650 hari; selain itu "INVALID". */
+const parseShelfLifeDays = (v) => {
+  const raw = clean(v);
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 3650) return "INVALID";
+  return n;
+};
+
 exports.list = async (req, res, next) => {
   try {
     const page = Math.max(1, toInt(req.query.page, 1));
@@ -34,6 +43,11 @@ exports.list = async (req, res, next) => {
       ...r,
       updated_at_fmt: formatDateId(r.updated_at),
       price_fmt: new Intl.NumberFormat("id-ID").format(r.price || 0),
+      shelf_life_label:
+        r.shelf_life_days != null && Number(r.shelf_life_days) > 0
+          ? `${r.shelf_life_days} hari`
+          : "—",
+      heating_label: r.requires_heating ? "Wajib panas" : "Opsional",
     }));
 
     return res.render("admin/products/list", {
@@ -55,7 +69,7 @@ exports.renderNew = async (req, res) => {
     title: "New Product",
     user: req.user,
     error: null,
-    value: { sku: "", name: "", price: "", is_active: 1 },
+    value: { sku: "", name: "", price: "", shelf_life_days: "", requires_heating: 1, is_active: 1 },
   });
 };
 
@@ -64,14 +78,25 @@ exports.create = async (req, res, next) => {
     const sku = clean(req.body.sku);
     const name = clean(req.body.name);
     const price = parsePrice(req.body.price);
+    const shelf_life_days = parseShelfLifeDays(req.body.shelf_life_days);
+    const requires_heating = req.body.requires_heating === "0" ? 0 : 1;
     const is_active = req.body.is_active === "0" ? 0 : 1;
+
+    const val = () => ({
+      sku,
+      name,
+      price: clean(req.body.price),
+      shelf_life_days: clean(req.body.shelf_life_days),
+      requires_heating,
+      is_active,
+    });
 
     if (!sku) {
       return res.status(400).render("admin/products/new", {
         title: "New Product",
         user: req.user,
         error: "SKU wajib diisi (unik).",
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: val(),
       });
     }
     if (!name) {
@@ -79,7 +104,7 @@ exports.create = async (req, res, next) => {
         title: "New Product",
         user: req.user,
         error: "Nama produk wajib diisi.",
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: val(),
       });
     }
     if (price === null) {
@@ -87,7 +112,15 @@ exports.create = async (req, res, next) => {
         title: "New Product",
         user: req.user,
         error: "Price harus angka (contoh: 15000).",
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: val(),
+      });
+    }
+    if (shelf_life_days === "INVALID") {
+      return res.status(400).render("admin/products/new", {
+        title: "New Product",
+        user: req.user,
+        error: "Shelf life (hari) harus angka 1–3650 atau kosong.",
+        value: val(),
       });
     }
 
@@ -97,11 +130,11 @@ exports.create = async (req, res, next) => {
         title: "New Product",
         user: req.user,
         error: "SKU sudah ada. Gunakan SKU lain.",
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: val(),
       });
     }
 
-    await productModel.create({ sku, name, price, is_active });
+    await productModel.create({ sku, name, price, shelf_life_days, requires_heating, is_active });
     return res.redirect("/admin/products");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
@@ -113,6 +146,8 @@ exports.create = async (req, res, next) => {
           sku: clean(req.body.sku),
           name: clean(req.body.name),
           price: clean(req.body.price),
+          shelf_life_days: clean(req.body.shelf_life_days),
+          requires_heating: req.body.requires_heating === "0" ? 0 : 1,
           is_active: req.body.is_active === "0" ? 0 : 1,
         },
       });
@@ -138,6 +173,11 @@ exports.renderEdit = async (req, res, next) => {
         sku: product.sku || "",
         name: product.name || "",
         price: String(product.price ?? ""),
+        shelf_life_days:
+          product.shelf_life_days != null && product.shelf_life_days !== ""
+            ? String(product.shelf_life_days)
+            : "",
+        requires_heating: product.requires_heating ? 1 : 0,
         is_active: product.is_active ? 1 : 0,
       },
     });
@@ -157,7 +197,18 @@ exports.update = async (req, res, next) => {
     const sku = clean(req.body.sku);
     const name = clean(req.body.name);
     const price = parsePrice(req.body.price);
+    const shelf_life_days = parseShelfLifeDays(req.body.shelf_life_days);
+    const requires_heating = req.body.requires_heating === "0" ? 0 : 1;
     const is_active = req.body.is_active === "0" ? 0 : 1;
+
+    const valEdit = () => ({
+      sku,
+      name,
+      price: clean(req.body.price),
+      shelf_life_days: clean(req.body.shelf_life_days),
+      requires_heating,
+      is_active,
+    });
 
     if (!sku) {
       return res.status(400).render("admin/products/edit", {
@@ -165,7 +216,7 @@ exports.update = async (req, res, next) => {
         user: req.user,
         error: "SKU wajib diisi (unik).",
         product,
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: valEdit(),
       });
     }
     if (!name) {
@@ -174,7 +225,7 @@ exports.update = async (req, res, next) => {
         user: req.user,
         error: "Nama produk wajib diisi.",
         product,
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: valEdit(),
       });
     }
     if (price === null) {
@@ -183,7 +234,16 @@ exports.update = async (req, res, next) => {
         user: req.user,
         error: "Price harus angka (contoh: 15000).",
         product,
-        value: { sku, name, price: clean(req.body.price), is_active },
+        value: valEdit(),
+      });
+    }
+    if (shelf_life_days === "INVALID") {
+      return res.status(400).render("admin/products/edit", {
+        title: "Edit Product",
+        user: req.user,
+        error: "Shelf life (hari) harus angka 1–3650 atau kosong.",
+        product,
+        value: valEdit(),
       });
     }
 
@@ -195,12 +255,12 @@ exports.update = async (req, res, next) => {
           user: req.user,
           error: "SKU sudah ada. Gunakan SKU lain.",
           product,
-          value: { sku, name, price: clean(req.body.price), is_active },
+          value: valEdit(),
         });
       }
     }
 
-    await productModel.updateById({ id, sku, name, price, is_active });
+    await productModel.updateById({ id, sku, name, price, shelf_life_days, requires_heating, is_active });
     return res.redirect("/admin/products");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
@@ -213,6 +273,8 @@ exports.update = async (req, res, next) => {
           sku: clean(req.body.sku),
           name: clean(req.body.name),
           price: clean(req.body.price),
+          shelf_life_days: clean(req.body.shelf_life_days),
+          requires_heating: req.body.requires_heating === "0" ? 0 : 1,
           is_active: req.body.is_active === "0" ? 0 : 1,
         },
       });

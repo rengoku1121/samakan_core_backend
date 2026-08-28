@@ -37,7 +37,7 @@
 </head>
 
 <body>
-  <div class="topbar">Saporsi Admin • New Merchant</div>
+  <div class="topbar">Samakan Admin • New Merchant</div>
 
   <div class="wrap">
     <h1>Tambah Merchant</h1>
@@ -54,6 +54,24 @@
         <label for="name">Merchant Name</label>
         <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Soto Haji Mamat" required />
         <div class="hint">Gunakan nama yang konsisten agar laporan tidak membingungkan.</div>
+
+        <label for="username">Username Login Merchant</label>
+        <input id="username" name="username" value="<%= value?.username || '' %>" placeholder="contoh: merchant.soto.mamat" required />
+        <div class="hint">Dipakai merchant untuk login ke dashboard merchant.</div>
+
+        <label for="email">Email Login Merchant</label>
+        <input id="email" name="email" type="email" value="<%= value?.email || '' %>" placeholder="contoh: owner@sotomamat.com" required />
+
+        <div class="row" style="margin-top:0;">
+          <div style="flex:1;min-width:220px;">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" value="<%= value?.password || '' %>" placeholder="minimal 6 karakter" required />
+          </div>
+          <div style="flex:1;min-width:220px;">
+            <label for="password_confirm">Konfirmasi Password</label>
+            <input id="password_confirm" name="password_confirm" type="password" value="<%= value?.password_confirm || '' %>" required />
+          </div>
+        </div>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">

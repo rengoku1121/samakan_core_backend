@@ -10,14 +10,14 @@
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     .topbar{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:16px 22px;font-weight:900;}
     .wrap{max-width:1200px;margin:0 auto;padding:22px;}
-    h1{margin:0 0 8px;font-size:22px}
+    .header{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;}
+    h1{margin:0;font-size:22px}
     .muted{color:var(--muted);font-size:13px}
     .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
     .toolbar{padding:14px 16px;border-bottom:1px solid #f1f5f9;background:#fff;}
     form{margin:0;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
     label{display:block;font-size:12px;font-weight:900;color:#7c2d12;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-    select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:700;font-size:13px;color:#374151;outline:none;min-width:180px;}
-    select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
+    input,select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:700;font-size:13px;color:#374151;outline:none;min-width:120px;}
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none}
     .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;box-shadow:0 14px 28px rgba(255,138,0,.28)}
     .btn-ghost{background:#fff;border:1px solid var(--border);color:#7c2d12}
@@ -26,86 +26,77 @@
     thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12;background:#fff2e5;border-bottom:1px solid #f1caa2;padding:12px 14px;}
     tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;vertical-align:middle;}
     tbody tr:nth-child(2n){background:#fffdf9}
-    tbody tr:hover{background:#fff4e6}
     .mono{font-variant-numeric:tabular-nums}
-    .pager{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px 16px;}
+    .badge{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid var(--border);background:#fff;}
+    .b-refund{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+    .b-stuck{border-color:#fde68a;background:#fffbeb;color:#92400e}
+    .callout{padding:14px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;color:#92400e;font-size:13px;}
   </style>
 </head>
 <body>
-  <div class="topbar">Saporsi Merchant • Orders</div>
+  <div class="topbar">Samakan Admin • Order Reconciliation</div>
   <div class="wrap">
-    <h1>Orders</h1>
-    <div class="muted">Total: <b><%= total %></b></div>
-
-    <div style="height:12px;"></div>
+    <div class="header">
+      <div>
+        <h1>Reconciliation</h1>
+        <div class="muted">Order yang butuh perhatian manual (refund/rekonsiliasi) - Fase 7.</div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn btn-ghost" href="/admin/orders">Semua Orders</a>
+        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+      </div>
+    </div>
 
     <div class="card">
       <div class="toolbar">
-        <form method="GET" action="/merchant/orders">
+        <form method="GET" action="/admin/orders/reconciliation">
           <div>
-            <label>Status</label>
-            <select name="status">
-              <option value="" <%= filters.status ? "" : "selected" %>>All</option>
-              <% ["PENDING","PAID","DISPENSING","DISPENSED","FAILED","EXPIRED","CANCELLED","REFUNDED"].forEach(function(s){ %>
-                <option value="<%= s %>" <%= filters.status === s ? "selected" : "" %>><%= s %></option>
-              <% }) %>
-            </select>
+            <label>Anggap stuck setelah (menit)</label>
+            <input type="number" name="stuck_after_minutes" value="<%= stuckAfterMinutes %>" min="1" />
           </div>
-
-          <div>
-            <label>Limit</label>
-            <select name="limit">
-              <% [10,20,30,50].forEach(function(n){ %>
-                <option value="<%= n %>" <%= String(limit) === String(n) ? "selected" : "" %>><%= n %></option>
-              <% }) %>
-            </select>
-          </div>
-
-          <button class="btn btn-primary" type="submit">Filter</button>
-          <a class="btn btn-ghost" href="/merchant/orders">Reset</a>
+          <button class="btn btn-primary" type="submit">Terapkan</button>
         </form>
+      </div>
+
+      <div class="callout">
+        <b>NEEDS_REFUND_DECISION</b>: order sudah dibayar (PAID) tapi dispense gagal (DISPENSE_FAILED) dan belum di-refund - putuskan retry fisik/produk pengganti/refund manual.
+        <br />
+        <b>STUCK_NO_DISPENSE_RESULT</b>: order sudah PAID lebih dari <%= stuckAfterMinutes %> menit tapi belum ada hasil dispense sama sekali - kemungkinan APK crash/putus jaringan permanen sebelum lapor hasil. Cek kondisi kiosk secara fisik.
       </div>
 
       <table>
         <thead>
           <tr>
             <th>Order</th>
+            <th>Merchant</th>
             <th>Machine</th>
+            <th>Alasan</th>
             <th>Status</th>
             <th>Total</th>
-            <th>Created</th>
             <th>Paid</th>
+            <th>Detail Gagal</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <% (rows || []).forEach(function(r){ %>
             <tr>
               <td class="mono"><b><%= r.order_code %></b><div class="muted">#<%= r.id %></div></td>
+              <td><b><%= r.merchant_name %></b><div class="muted mono"><%= r.merchant_code || "—" %></div></td>
               <td><b><%= r.machine_code %></b><div class="muted"><%= r.machine_name || "-" %></div></td>
-              <td class="mono"><b><%= r.status %></b></td>
+              <td><span class="badge <%= r.reconciliation_reason === 'NEEDS_REFUND_DECISION' ? 'b-refund' : 'b-stuck' %>"><%= r.reconciliation_reason %></span></td>
+              <td class="mono"><%= r.status %></td>
               <td class="mono">Rp <b><%= r.total_fmt %></b></td>
-              <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
+              <td class="muted"><%= r.dispense_failure_reason || "-" %></td>
+              <td><a class="btn btn-ghost" href="/admin/orders/<%= r.id %>">Detail</a></td>
             </tr>
           <% }) %>
           <% if (!rows || rows.length === 0) { %>
-            <tr><td colspan="6" class="muted" style="padding:16px;">Tidak ada data.</td></tr>
+            <tr><td colspan="9" class="muted" style="padding:16px;">Tidak ada order yang butuh perhatian. 🎉</td></tr>
           <% } %>
         </tbody>
       </table>
-
-      <div class="pager">
-        <div class="muted">Page <b><%= page %></b> / <b><%= totalPages %></b></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <%
-            const prevPage = Math.max(1, page - 1);
-            const nextPage = Math.min(totalPages, page + 1);
-            const qsBase = `status=${encodeURIComponent(filters.status||"")}&limit=${encodeURIComponent(limit)}`;
-          %>
-          <a class="btn btn-ghost" href="/merchant/orders?<%= qsBase %>&page=<%= prevPage %>">Prev</a>
-          <a class="btn btn-ghost" href="/merchant/orders?<%= qsBase %>&page=<%= nextPage %>">Next</a>
-        </div>
-      </div>
     </div>
   </div>
 </body>

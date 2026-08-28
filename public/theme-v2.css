@@ -1,60 +1,25 @@
-/* Saporsi Core — futuristic shell + auth (global) */
+/* Samakan Core — Cozy Modern Theme */
 
 :root {
-  --fx-bg0: #06060f;
-  --fx-bg1: #0c0c18;
-  --fx-surface: rgba(255, 255, 255, 0.035);
-  --fx-surface2: rgba(255, 255, 255, 0.07);
-  --fx-border: rgba(0, 245, 255, 0.12);
-  --fx-border2: rgba(167, 139, 250, 0.2);
-  --fx-cyan: #22d3ee;
-  --fx-violet: #a78bfa;
-  --fx-magenta: #f472b6;
-  --fx-text: #e2e8f0;
-  --fx-muted: #94a3b8;
-  --fx-radius: 14px;
-  --fx-radius-lg: 20px;
-  --fx-blur: 18px;
-  --fx-glow-cyan: 0 0 32px rgba(34, 211, 238, 0.22);
-  --fx-glow-violet: 0 0 40px rgba(167, 139, 250, 0.18);
-  --fx-font: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fx-display: "Orbitron", system-ui, sans-serif;
-  --fx-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --fx-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  /* Datatable: satu gelap seragam (hitam / near-black) */
-  --fx-table-bg: #050508;
-  --fx-table-head-bg: #050508;
-  --fx-table-border: rgba(255, 255, 255, 0.07);
-}
-
-@keyframes fx-grid-drift {
-  0% {
-    transform: perspective(800px) rotateX(62deg) translateY(0);
-  }
-  100% {
-    transform: perspective(800px) rotateX(62deg) translateY(48px);
-  }
-}
-
-@keyframes fx-aurora {
-  0%,
-  100% {
-    opacity: 0.45;
-    transform: scale(1) translate(0, 0);
-  }
-  50% {
-    opacity: 0.75;
-    transform: scale(1.08) translate(2%, -2%);
-  }
-}
-
-@keyframes fx-shimmer {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 200% 50%;
-  }
+  --s-bg: #f3ede6;
+  --s-surface: #fffaf4;
+  --s-border: #e7e0d8;
+  --s-border2: #d7ccbf;
+  --s-primary: #6f4ef6;
+  --s-primary-light: #eee8ff;
+  --s-text: #2f2a25;
+  --s-text2: #4f463f;
+  --s-muted: #7a6e64;
+  --s-radius: 12px;
+  --s-radius-lg: 16px;
+  --s-shadow-sm: 0 8px 20px rgba(59, 41, 22, 0.08);
+  --s-shadow: 0 16px 36px rgba(59, 41, 22, 0.13);
+  --s-shadow-lg: 0 24px 48px rgba(59, 41, 22, 0.18);
+  --s-font: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --s-display: "DM Sans", system-ui, sans-serif;
+  --s-success: #16a34a;
+  --s-danger: #dc2626;
+  --s-warn: #d97706;
 }
 
 * {
@@ -68,9 +33,9 @@ html {
 html,
 body {
   margin: 0 !important;
-  font-family: var(--fx-font) !important;
-  color: var(--fx-text) !important;
-  background: var(--fx-bg0) !important;
+  font-family: var(--s-font) !important;
+  color: var(--s-text) !important;
+  background: var(--s-bg) !important;
   min-height: 100%;
 }
 
@@ -83,28 +48,24 @@ body.shell-app::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 100% 80% at 10% -20%, rgba(34, 211, 238, 0.14), transparent 55%),
-    radial-gradient(ellipse 90% 70% at 100% 0%, rgba(167, 139, 250, 0.12), transparent 50%),
-    radial-gradient(ellipse 70% 50% at 50% 120%, rgba(244, 114, 182, 0.08), transparent 45%),
-    linear-gradient(180deg, var(--fx-bg0) 0%, var(--fx-bg1) 100%);
+    radial-gradient(circle at 10% -10%, rgba(124, 92, 255, 0.2), transparent 38%),
+    radial-gradient(circle at 100% 0%, rgba(255, 122, 89, 0.16), transparent 40%),
+    radial-gradient(circle at 30% 100%, rgba(122, 196, 179, 0.14), transparent 42%);
 }
 
 body.shell-app::after {
+  display: block !important;
   content: "";
   position: fixed;
-  inset: -40% 0 0 0;
-  z-index: 0;
+  inset: 0;
   pointer-events: none;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
-  background-size: 48px 48px;
-  animation: fx-grid-drift 22s linear infinite;
-  mask-image: linear-gradient(180deg, transparent, black 30%, transparent 95%);
+  background-image: linear-gradient(rgba(124, 92, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124, 92, 255, 0.04) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, transparent, black 20%, transparent 95%);
+  opacity: 0.35;
 }
 
 /* ========== App layout ========== */
@@ -113,7 +74,7 @@ body.shell-app::after {
   z-index: 1;
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 252px 1fr;
+  grid-template-columns: 240px 1fr;
 }
 
 /* Backdrop (mobile) */
@@ -122,11 +83,11 @@ body.shell-app::after {
   position: fixed;
   inset: 0;
   z-index: 99990;
-  background: rgba(2, 6, 23, 0.62);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   opacity: 0;
-  transition: opacity 0.38s var(--fx-ease-out);
+  transition: opacity 0.3s ease;
   pointer-events: none;
 }
 
@@ -139,13 +100,13 @@ body.shell-app::after {
 .shell-sidebar {
   position: relative;
   z-index: 2;
-  background: linear-gradient(175deg, rgba(12, 12, 24, 0.94) 0%, rgba(8, 8, 18, 0.98) 100%);
-  border-right: 1px solid var(--fx-border);
-  padding: 20px 16px;
+  background: linear-gradient(180deg, #fffdfa 0%, #f9f3ec 100%);
+  border-right: 1px solid var(--s-border);
+  padding: 20px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  box-shadow: var(--s-shadow-sm);
 }
 
 .shell-sidebar-top {
@@ -156,57 +117,49 @@ body.shell-app::after {
 }
 
 .shell-sidebar .brand {
-  font-family: var(--fx-display);
+  font-family: var(--s-display);
   font-weight: 700;
   font-size: 15px;
-  letter-spacing: 0.04em;
-  color: #fff !important;
+  letter-spacing: 0.01em;
+  color: #5d3fe2 !important;
   text-decoration: none;
-  border-radius: var(--fx-radius);
+  border-radius: var(--s-radius);
   padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.2), rgba(167, 139, 250, 0.25));
-  border: 1px solid var(--fx-border);
-  box-shadow: var(--fx-glow-cyan);
+  background: linear-gradient(135deg, #efe9ff, #e9f6ff);
+  border: 1px solid var(--s-border);
   flex: 1;
   min-width: 0;
-  transition:
-    transform 0.35s var(--fx-ease-spring),
-    box-shadow 0.35s ease,
-    border-color 0.35s ease;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .shell-sidebar .brand:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--fx-glow-cyan), var(--fx-glow-violet);
-  border-color: rgba(34, 211, 238, 0.35);
+  background: linear-gradient(135deg, #e4d9ff, #dff2ff);
+  transform: translateY(-1px);
 }
 
 .shell-drawer-close {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--fx-border);
-  background: var(--fx-surface2);
-  color: var(--fx-text);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--s-border);
+  background: var(--s-bg);
+  color: var(--s-text);
   cursor: pointer;
   flex-shrink: 0;
-  transition:
-    background 0.25s ease,
-    transform 0.3s var(--fx-ease-spring);
+  transition: background 0.2s ease;
 }
 
 .shell-drawer-close:hover {
-  background: rgba(244, 114, 182, 0.12);
-  transform: scale(1.05);
+  background: #fee2e2;
 }
 
 .shell-drawer-close-icon {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   position: relative;
 }
 
@@ -218,7 +171,7 @@ body.shell-app::after {
   top: 50%;
   width: 100%;
   height: 2px;
-  background: var(--fx-cyan);
+  background: var(--s-text2);
   border-radius: 2px;
 }
 
@@ -233,110 +186,96 @@ body.shell-app::after {
 .shell-nav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
 }
 
 .shell-nav a,
 .shell-logout {
   text-decoration: none !important;
-  color: var(--fx-text) !important;
+  color: var(--s-text2) !important;
   border: 1px solid transparent;
-  background: var(--fx-surface);
-  border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  transition:
-    background 0.28s ease,
-    border-color 0.28s ease,
-    transform 0.3s var(--fx-ease-spring),
-    box-shadow 0.28s ease;
+  background: transparent;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.shell-nav a:hover,
-.shell-logout:hover {
-  background: rgba(34, 211, 238, 0.08);
-  border-color: var(--fx-border);
-  transform: translateX(4px);
-  box-shadow: 0 0 20px rgba(34, 211, 238, 0.08);
+.shell-nav a:hover {
+  background: linear-gradient(135deg, #efe9ff, #f5f0ff);
+  color: #5d3fe2 !important;
 }
 
 .shell-logout {
   margin-top: auto;
-  border-color: rgba(244, 114, 182, 0.2);
-  background: rgba(244, 114, 182, 0.06);
+  color: var(--s-danger) !important;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
 }
 
 .shell-logout:hover {
-  background: rgba(244, 114, 182, 0.12);
-  box-shadow: 0 0 24px rgba(244, 114, 182, 0.12);
+  background: #fee2e2;
 }
 
 /* Mobile top bar */
 .shell-mobile-bar {
   display: none;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   padding: 12px 14px;
   margin: 0 0 10px 0;
   position: sticky;
   top: 0;
   z-index: 99996;
-  background: rgba(6, 6, 15, 0.72);
-  backdrop-filter: blur(var(--fx-blur));
-  -webkit-backdrop-filter: blur(var(--fx-blur));
-  border: 1px solid var(--fx-border);
-  border-radius: var(--fx-radius-lg);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  background: rgba(255, 252, 247, 0.93);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius-lg);
+  box-shadow: var(--s-shadow);
 }
 
 .shell-menu-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  border: 1px solid var(--fx-border);
-  background: linear-gradient(145deg, var(--fx-surface2), var(--fx-surface));
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--s-border);
+  background: var(--s-surface);
   cursor: pointer;
   flex-shrink: 0;
-  transition:
-    box-shadow 0.35s ease,
-    transform 0.35s var(--fx-ease-spring);
+  transition: background 0.2s ease;
 }
 
 .shell-menu-toggle:hover {
-  box-shadow: var(--fx-glow-cyan);
-  transform: scale(1.03);
+  background: var(--s-primary-light);
 }
 
 .shell-hamburger {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  width: 22px;
-  height: 18px;
+  gap: 5px;
+  width: 20px;
+  height: 16px;
 }
 
 .shell-hamburger span {
   display: block;
   height: 2px;
   width: 100%;
-  background: linear-gradient(90deg, var(--fx-cyan), var(--fx-violet));
+  background: var(--s-text2);
   border-radius: 2px;
-  transition:
-    transform 0.42s var(--fx-ease-out),
-    opacity 0.28s ease,
-    width 0.28s ease;
+  transition: transform 0.3s ease, opacity 0.2s ease, width 0.2s ease;
   transform-origin: center;
 }
 
 .shell-nav-is-open .shell-hamburger span:nth-child(1) {
-  transform: translateY(8px) rotate(45deg);
+  transform: translateY(7px) rotate(45deg);
 }
 
 .shell-nav-is-open .shell-hamburger span:nth-child(2) {
@@ -345,7 +284,7 @@ body.shell-app::after {
 }
 
 .shell-nav-is-open .shell-hamburger span:nth-child(3) {
-  transform: translateY(-8px) rotate(-45deg);
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 .shell-mobile-brand {
@@ -355,88 +294,71 @@ body.shell-app::after {
 }
 
 .shell-mobile-title {
-  font-family: var(--fx-display);
+  font-family: var(--s-display);
   font-weight: 700;
   font-size: 16px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: linear-gradient(90deg, var(--fx-cyan), var(--fx-violet));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--s-primary);
 }
 
 .shell-mobile-sub {
   font-size: 11px;
   font-weight: 600;
-  color: var(--fx-muted);
-  letter-spacing: 0.2em;
+  color: var(--s-muted);
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .shell-main {
-  padding: 14px 16px 24px;
+  padding: 16px 20px 28px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 
 .shell-header {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--fx-border);
-  border-radius: var(--fx-radius-lg);
-  padding: 18px 20px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
-  position: relative;
-  overflow: hidden;
+  background: linear-gradient(135deg, #fffdfa 0%, #f8f1ea 100%);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius-lg);
+  padding: 18px 22px;
+  box-shadow: var(--s-shadow-sm);
 }
 
 .shell-header::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--fx-cyan), var(--fx-violet), var(--fx-magenta), transparent);
-  background-size: 200% 100%;
-  animation: fx-shimmer 8s linear infinite;
-  opacity: 0.85;
+  display: none !important;
 }
 
 .shell-header h1 {
   margin: 0;
-  font-family: var(--fx-display);
-  font-size: 22px;
+  font-family: var(--s-display);
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: linear-gradient(105deg, #fff 0%, var(--fx-cyan) 55%, var(--fx-violet) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--s-text) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
 }
 
 .shell-header-path,
 .shell-header p.shell-header-path {
-  margin: 8px 0 0;
-  color: var(--fx-muted) !important;
+  margin: 4px 0 0;
+  color: var(--s-muted) !important;
   font-size: 12px;
   font-family: ui-monospace, "Cascadia Code", monospace;
-  opacity: 0.9;
 }
 
 .shell-content {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--fx-border);
-  border-radius: var(--fx-radius-lg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
-  padding: 18px;
+  background: linear-gradient(180deg, #fffdfa 0%, #fff8f2 100%);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius-lg);
+  box-shadow: var(--s-shadow);
+  padding: 20px;
   width: 100%;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: visible;
   flex: 1;
-  min-height: 0;
+  min-height: auto;
 }
 
 /* ========== Neutralize legacy page chrome inside shell ========== */
@@ -465,150 +387,172 @@ body.shell-app::after {
 .shell .footer,
 .shell .empty,
 .shell .point,
-.shell .brand,
 .shell .alert,
 .shell .banner-warn {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid var(--fx-border) !important;
-  border-radius: var(--fx-radius-lg) !important;
-  color: var(--fx-text) !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2) !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  border-radius: var(--s-radius) !important;
+  color: var(--s-text) !important;
+  box-shadow: var(--s-shadow-sm) !important;
 }
 
 .shell .toolbar {
-  margin-bottom: 12px !important;
+  margin-bottom: 8px !important;
 }
 
 .shell .meta,
 .shell .muted,
 .shell .sub,
 .shell .hint {
-  color: var(--fx-muted) !important;
+  color: var(--s-muted) !important;
 }
 
 .shell h1,
 .shell .header h1 {
-  font-family: var(--fx-display) !important;
-  color: var(--fx-text) !important;
+  font-family: var(--s-display) !important;
+  color: var(--s-text) !important;
 }
 
-.shell a:not(.shell-nav a):not(.shell-logout):not(.brand) {
-  color: var(--fx-cyan) !important;
-  transition: color 0.2s ease, text-shadow 0.2s ease;
+/* Jangan timpa warna teks pada tombol (.btn) */
+.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn) {
+  color: var(--s-primary) !important;
+  transition: color 0.2s ease;
 }
 
-.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):hover {
-  color: var(--fx-violet) !important;
-  text-shadow: 0 0 20px rgba(167, 139, 250, 0.35);
+.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn):hover {
+  color: #4c2fd6 !important;
+  text-shadow: none;
 }
 
 .shell input,
 .shell select,
 .shell textarea {
-  background: rgba(6, 8, 20, 0.65) !important;
-  border: 1px solid var(--fx-border) !important;
-  color: var(--fx-text) !important;
-  border-radius: 12px !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  color: var(--s-text) !important;
+  border-radius: 10px !important;
 }
 
 .shell input:focus,
 .shell select:focus,
 .shell textarea:focus {
-  border-color: rgba(34, 211, 238, 0.45) !important;
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15) !important;
+  border-color: var(--s-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
   outline: none !important;
 }
 
-.shell .btn,
+.shell .btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+.shell a.btn-primary,
 .shell .btn-primary,
 .shell button.btn-primary {
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.85), rgba(167, 139, 250, 0.9)) !important;
-  color: #0a0a12 !important;
+  background: #6f4ef6 !important;
+  color: #ffffff !important;
   border: 0 !important;
-  font-weight: 700 !important;
-  box-shadow: var(--fx-glow-cyan) !important;
-  transition:
-    transform 0.3s var(--fx-ease-spring),
-    filter 0.25s ease !important;
+  box-shadow: 0 2px 8px rgba(111, 78, 246, 0.25) !important;
 }
 
-.shell .btn:hover,
-.shell .btn-primary:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
+.shell a.btn-primary:hover,
+.shell .btn-primary:hover,
+.shell button.btn-primary:hover {
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  background: #5d3fe2 !important;
+  box-shadow: 0 4px 12px rgba(111, 78, 246, 0.3) !important;
+  filter: none;
 }
 
+.shell a.btn-ghost,
 .shell .btn-ghost,
 .shell .btn-secondary,
 .shell .logout {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid var(--fx-border) !important;
-  color: var(--fx-text) !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  color: var(--s-text2) !important;
+  box-shadow: none !important;
+}
+
+.shell a.btn-ghost:hover,
+.shell .btn-ghost:hover,
+.shell .btn-secondary:hover {
+  background: var(--s-bg) !important;
+  color: var(--s-text) !important;
 }
 
 .shell .btn-danger,
 .shell .btn-modal-danger {
-  background: linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(239, 68, 68, 0.28)) !important;
-  color: #ffe4e6 !important;
-  border: 1px solid rgba(244, 114, 182, 0.45) !important;
-  box-shadow: 0 0 28px rgba(244, 114, 182, 0.15) !important;
+  background: var(--s-danger) !important;
+  color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2) !important;
 }
 
 .shell .btn-link {
   background: transparent !important;
   border-color: transparent !important;
-  color: var(--fx-cyan) !important;
+  color: var(--s-primary) !important;
   box-shadow: none !important;
 }
 
 .shell .btn-modal-cancel {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid var(--fx-border) !important;
-  color: var(--fx-text) !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  color: var(--s-text2) !important;
 }
 
-/* Datatables — full dark, satu tone (override style di tiap halaman EJS) */
+/* Datatables */
 .shell table {
   border-collapse: collapse !important;
   width: 100% !important;
-  background: var(--fx-table-bg) !important;
-  color: var(--fx-text) !important;
+  background: var(--s-surface) !important;
+  color: var(--s-text) !important;
 }
 
 .shell thead,
 .shell tbody,
 .shell tfoot {
-  background: var(--fx-table-bg) !important;
+  background: var(--s-surface) !important;
 }
 
 .shell thead th {
-  background: var(--fx-table-head-bg) !important;
-  color: var(--fx-cyan) !important;
-  border-bottom: 1px solid var(--fx-border) !important;
+  background: var(--s-bg) !important;
+  color: var(--s-text2) !important;
+  border-bottom: 1px solid var(--s-border) !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
   box-shadow: none !important;
 }
 
 .shell tbody tr {
-  background: var(--fx-table-bg) !important;
+  background: var(--s-surface) !important;
 }
 
 .shell tbody tr:nth-child(odd),
 .shell tbody tr:nth-child(even),
 .shell tbody tr:nth-child(2n),
 .shell tbody tr:nth-child(2n + 1) {
-  background: var(--fx-table-bg) !important;
+  background: var(--s-surface) !important;
 }
 
 .shell tbody td {
   background: transparent !important;
   background-color: transparent !important;
-  border-bottom: 1px solid var(--fx-table-border) !important;
-  color: var(--fx-text) !important;
+  border-bottom: 1px solid var(--s-border) !important;
+  color: var(--s-text) !important;
 }
 
 .shell tbody tr:hover,
 .shell tbody tr:nth-child(2n):hover {
-  background: rgba(34, 211, 238, 0.06) !important;
+  background: #f1f5f9 !important;
 }
 
 .shell tbody tr:hover td {
@@ -619,10 +563,10 @@ body.shell-app::after {
 .shell .card table,
 .shell .toolbar + table,
 .shell table.dataTable {
-  background: var(--fx-table-bg) !important;
+  background: var(--s-surface) !important;
 }
 
-/* Mobile: tabel → stack kartu (butuh class fx-table-cards dari table-mobile-cards.js) */
+/* Mobile: table -> stack cards */
 @media (max-width: 900px) {
   .shell table.fx-table-cards {
     background: transparent !important;
@@ -643,17 +587,16 @@ body.shell-app::after {
   .shell table.fx-table-cards tbody tr {
     display: block !important;
     width: 100% !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 12px !important;
     padding: 14px 16px !important;
-    border-radius: var(--fx-radius-lg) !important;
-    border: 1px solid var(--fx-border) !important;
-    background: rgba(255, 255, 255, 0.045) !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
+    border-radius: var(--s-radius) !important;
+    border: 1px solid var(--s-border) !important;
+    background: var(--s-surface) !important;
+    box-shadow: var(--s-shadow-sm) !important;
   }
 
-  .shell table.fx-table-cards tbody tr:hover,
-  .shell table.fx-table-cards tbody tr:nth-child(2n):hover {
-    background: rgba(34, 211, 238, 0.07) !important;
+  .shell table.fx-table-cards tbody tr:hover {
+    background: #f8fafc !important;
   }
 
   .shell table.fx-table-cards tbody tr.fx-tr-span {
@@ -678,8 +621,8 @@ body.shell-app::after {
     display: block !important;
     width: 100% !important;
     border: 0 !important;
-    border-bottom: 1px solid var(--fx-table-border) !important;
-    padding: 10px 0 !important;
+    border-bottom: 1px solid var(--s-border) !important;
+    padding: 8px 0 !important;
     text-align: left !important;
     vertical-align: top !important;
   }
@@ -697,14 +640,13 @@ body.shell-app::after {
     content: attr(data-label);
     display: block;
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--fx-muted);
-    margin-bottom: 6px;
+    color: var(--s-muted);
+    margin-bottom: 4px;
   }
 
-  /* Baris aksi: beberapa tombol/form sejajar */
   .shell table.fx-table-cards tbody td:has(.btn),
   .shell table.fx-table-cards tbody td:has(form),
   .shell table.fx-table-cards tbody td:has(button) {
@@ -712,6 +654,10 @@ body.shell-app::after {
     flex-wrap: wrap !important;
     align-items: center !important;
     gap: 8px !important;
+  }
+
+  .shell table.fx-table-cards tbody td.action-cell {
+    display: block !important;
   }
 
   .shell table.fx-table-cards tbody td:has(.btn)::before,
@@ -724,42 +670,46 @@ body.shell-app::after {
   .shell table.fx-table-cards tbody td:has(form) form {
     display: inline-flex;
   }
+
+  .shell table.fx-table-cards tbody td.action-cell form {
+    display: contents !important;
+  }
 }
 
 .shell .badge.on {
-  background: rgba(34, 211, 238, 0.12) !important;
-  border-color: rgba(34, 211, 238, 0.35) !important;
-  color: var(--fx-cyan) !important;
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
 }
 
 .shell .badge.off {
-  background: rgba(244, 114, 182, 0.1) !important;
-  border-color: rgba(244, 114, 182, 0.3) !important;
-  color: var(--fx-magenta) !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #991b1b !important;
 }
 
 .shell .pill {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-color: var(--fx-border) !important;
-  color: var(--fx-text) !important;
+  background: var(--s-bg) !important;
+  border-color: var(--s-border) !important;
+  color: var(--s-text2) !important;
 }
 
 .shell .modal-overlay.is-open {
-  background: rgba(2, 6, 23, 0.75) !important;
-  backdrop-filter: blur(10px) !important;
+  background: rgba(15, 23, 42, 0.4) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
 .shell .modal-box {
-  background: linear-gradient(165deg, rgba(18, 18, 32, 0.98), rgba(10, 10, 22, 0.99)) !important;
-  border: 1px solid var(--fx-border) !important;
-  box-shadow: var(--fx-glow-violet), 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  box-shadow: var(--s-shadow-lg) !important;
 }
 
 .shell .modal-box h2 {
-  color: var(--fx-magenta) !important;
+  color: var(--s-danger) !important;
 }
 
-/* ========== Auth (login) futuristic ========== */
+/* ========== Auth (login) ========== */
 .shell-auth {
   position: relative;
   min-height: 100vh;
@@ -771,10 +721,7 @@ body.shell-app::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(34, 211, 238, 0.18), transparent 50%),
-    radial-gradient(ellipse 70% 50% at 90% 80%, rgba(244, 114, 182, 0.14), transparent 45%),
-    linear-gradient(165deg, #050510 0%, #0a0a18 50%, #06060f 100%);
+  background: linear-gradient(135deg, #f6f3ef 0%, #ede3d7 100%);
 }
 
 .shell-auth .auth-layout,
@@ -795,81 +742,72 @@ body.shell-app::after {
 .shell-auth .panel-hero {
   position: relative !important;
   padding: 56px 48px !important;
-  background: linear-gradient(155deg, rgba(34, 211, 238, 0.12) 0%, rgba(99, 102, 241, 0.18) 45%, rgba(244, 114, 182, 0.1) 100%) !important;
-  border: 1px solid var(--fx-border) !important;
+  background: linear-gradient(145deg, #7c5cff 0%, #4f46e5 45%, #ff7a59 100%) !important;
+  border: 0 !important;
   border-radius: 0 !important;
-  color: var(--fx-text) !important;
+  color: #fff !important;
   overflow: hidden !important;
-}
-
-.shell-auth .panel-hero::before {
-  animation: fx-aurora 14s ease-in-out infinite !important;
 }
 
 .shell-auth .panel-hero h1 {
   color: #fff !important;
-  font-family: var(--fx-display) !important;
-  letter-spacing: 0.04em;
+  font-family: var(--s-display) !important;
 }
 
 .shell-auth .panel-hero p {
-  color: var(--fx-muted) !important;
+  color: rgba(255,255,255,0.85) !important;
 }
 
 .shell-auth .logo-badge {
-  background: rgba(34, 211, 238, 0.2) !important;
-  border: 1px solid var(--fx-border) !important;
-  box-shadow: var(--fx-glow-cyan);
+  background: rgba(255,255,255,0.2) !important;
+  border: 1px solid rgba(255,255,255,0.3) !important;
 }
 
 .shell-auth .benefit {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border: 1px solid var(--fx-border) !important;
-  color: var(--fx-text) !important;
+  background: rgba(255,255,255,0.12) !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+  color: #fff !important;
 }
 
 .shell-auth .panel-form {
   padding: 56px 44px !important;
-  background: rgba(6, 6, 16, 0.5) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--s-surface) !important;
 }
 
 .shell-auth .panel-form h2 {
-  font-family: var(--fx-display) !important;
-  color: #fff !important;
-  letter-spacing: 0.06em;
+  font-family: var(--s-display) !important;
+  color: var(--s-text) !important;
 }
 
 .shell-auth .sub {
-  color: var(--fx-muted) !important;
+  color: var(--s-muted) !important;
 }
 
 .shell-auth .field label {
-  color: var(--fx-muted) !important;
+  color: var(--s-muted) !important;
 }
 
 .shell-auth .field input {
-  background: rgba(8, 10, 24, 0.8) !important;
-  border: 1px solid var(--fx-border) !important;
-  color: var(--fx-text) !important;
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  color: var(--s-text) !important;
 }
 
 .shell-auth .field input:focus {
-  border-color: rgba(34, 211, 238, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12) !important;
+  border-color: var(--s-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
 }
 
 .shell-auth .btn {
-  background: linear-gradient(135deg, var(--fx-cyan), var(--fx-violet)) !important;
-  color: #0a0a12 !important;
-  box-shadow: var(--fx-glow-cyan) !important;
+  background: var(--s-primary) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
 }
 
 .shell-auth .alert {
-  background: rgba(244, 114, 182, 0.1) !important;
-  border-color: rgba(244, 114, 182, 0.35) !important;
-  color: #fda4af !important;
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #991b1b !important;
 }
 
 /* ========== Mobile drawer ========== */
@@ -895,12 +833,12 @@ body.shell-app::after {
     top: 0;
     left: 0;
     bottom: 0;
-    width: min(300px, 88vw);
+    width: min(280px, 85vw);
     z-index: 99995;
     transform: translateX(-105%);
-    transition: transform 0.45s var(--fx-ease-out);
-    box-shadow: 16px 0 48px rgba(0, 0, 0, 0.5);
-    border-right: 1px solid var(--fx-border);
+    transition: transform 0.35s ease;
+    box-shadow: var(--s-shadow-lg);
+    border-right: 1px solid var(--s-border);
     overflow-y: auto;
   }
 
@@ -935,19 +873,251 @@ body.shell-app::after {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  body.shell-app::after,
-  .shell-header::before,
-  .shell-auth .panel-hero::before {
-    animation: none !important;
-  }
+/* ========== Settlement badge overrides ========== */
+.shell .badge.b-settled,
+.shell .b-settled {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
 
-  .shell-sidebar,
-  .shell-drawer-backdrop,
-  .shell-hamburger span,
-  .shell-menu-toggle,
-  .shell-nav a,
-  .shell-logout {
-    transition: none !important;
-  }
+.shell .badge.b-not-settled,
+.shell .b-not-settled {
+  background: #fef9c3 !important;
+  border-color: #fde047 !important;
+  color: #854d0e !important;
+}
+
+.shell .badge.b-pending,
+.shell .b-pending {
+  background: #fef9c3 !important;
+  border-color: #fde047 !important;
+  color: #854d0e !important;
+}
+
+.shell .badge.b-paid,
+.shell .b-paid {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+}
+
+.shell .badge.b-failed,
+.shell .b-failed {
+  background: #fef2f2 !important;
+  border-color: #fecaca !important;
+  color: #991b1b !important;
+}
+
+.shell .badge.b-other,
+.shell .b-other {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+/* Ledger net amount colors */
+.shell .net-positive {
+  color: var(--s-success) !important;
+}
+
+.shell .net-negative {
+  color: var(--s-danger) !important;
+}
+
+/* ========== Inline page style overrides ========== */
+/* Catch common page patterns that use orange-themed inline styles */
+
+.shell .stat,
+.shell .point,
+.shell article[class*="stat"] {
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  border-radius: var(--s-radius) !important;
+  box-shadow: var(--s-shadow-sm) !important;
+}
+
+.shell .stat b,
+.shell .stat h3,
+.shell article[class*="stat"] h3 {
+  color: var(--s-text) !important;
+}
+
+.shell .dash-head h2,
+.shell h2,
+.shell h3 {
+  color: var(--s-text) !important;
+}
+
+.shell .filter .field label {
+  color: var(--s-muted) !important;
+}
+
+.shell .filter .field input,
+.shell .filter .field select {
+  background: var(--s-surface) !important;
+  border: 1px solid var(--s-border) !important;
+  color: var(--s-text) !important;
+  border-radius: 10px !important;
+}
+
+.shell .wrap {
+  background: transparent !important;
+}
+
+.shell .topbar {
+  display: none !important;
+}
+
+.shell .pager a {
+  color: var(--s-text2) !important;
+}
+
+.shell .pager .muted {
+  color: var(--s-muted) !important;
+}
+
+/* Override form styles inside shell */
+.shell label {
+  color: var(--s-text2) !important;
+}
+
+.shell .hint {
+  color: var(--s-muted) !important;
+}
+
+/* Override detail pages */
+.shell dl dt,
+.shell .box dt,
+.shell dt {
+  color: var(--s-muted) !important;
+}
+
+.shell dl dd,
+.shell .box dd,
+.shell dd {
+  color: var(--s-text) !important;
+}
+
+.shell .k {
+  color: var(--s-muted) !important;
+}
+
+.shell .v,
+.shell .val {
+  color: var(--s-text) !important;
+}
+
+.shell .box {
+  background: var(--s-bg) !important;
+  border: 1px solid var(--s-border) !important;
+  border-radius: var(--s-radius) !important;
+  color: var(--s-text) !important;
+}
+
+.shell .head {
+  border-bottom: 1px solid var(--s-border) !important;
+}
+
+/* Override strong/b elements */
+.shell strong,
+.shell b {
+  color: inherit;
+}
+
+/* Override banner / alert */
+.shell .banner-warn {
+  background: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+
+/* Stat cards value numbers */
+.shell .stat h3,
+.shell .stat-v,
+.shell [class*="-stat-v"],
+.shell [class*="-card-v"] {
+  color: var(--s-text) !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+}
+
+.shell .stat-k,
+.shell [class*="-stat-k"],
+.shell [class*="-card-k"] {
+  color: var(--s-muted) !important;
+}
+
+.shell [class*="-stat-sub"],
+.shell [class*="-card-sub"] {
+  color: var(--s-muted) !important;
+}
+
+/* Override page backgrounds */
+.shell .wrap,
+.shell .page-inner {
+  background: transparent !important;
+}
+
+/* Actions area */
+.shell .actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Merchant action: Edit / Hapus / Show Saldo satu baris */
+.shell td.action-cell,
+.shell .action-cell {
+  position: relative !important;
+  min-width: 300px !important;
+  overflow: visible !important;
+}
+
+.shell .action-row {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.shell .action-row form {
+  display: contents !important;
+}
+
+.shell .saldo-box {
+  display: none !important;
+  position: absolute !important;
+  top: calc(100% + 6px) !important;
+  right: 0 !important;
+  left: auto !important;
+  z-index: 40 !important;
+  min-width: 220px !important;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+  border: 1px dashed #99f6e4 !important;
+  background: #f0fdfa !important;
+  color: #0f172a !important;
+  box-shadow: var(--s-shadow-sm) !important;
+  white-space: normal !important;
+}
+
+.shell .saldo-box.is-open {
+  display: block !important;
+}
+
+.shell .btn-saldo.is-open {
+  border-color: #99f6e4 !important;
+  background: #f0fdfa !important;
+  color: #0f766e !important;
+}
+
+/* Row hover for detail grids */
+.shell .grid .box:hover,
+.shell .grid .stat:hover {
+  box-shadow: var(--s-shadow) !important;
 }

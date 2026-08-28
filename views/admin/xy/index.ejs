@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    .xy-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:14px}
+    .xy-head h2{margin:0;font-size:22px;font-weight:700;color:#1e293b}
+    .muted{color:#64748b;font-size:13px}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid #e2e8f0}
+    .badge.ok{background:#ecfdf5;color:#065f46;border-color:#a7f3d0}
+    .badge.warn{background:#fff7ed;color:#9a3412;border-color:#fed7aa}
+    .card{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:16px;box-shadow:0 2px 6px rgba(0,0,0,.03);margin-bottom:12px}
+    .card h3{margin:0 0 6px;font-size:15px;font-weight:700;color:#1e293b}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field{display:grid;gap:5px;margin-bottom:10px}
+    .field label{font-size:12px;color:#64748b;font-weight:600}
+    .field input{padding:9px 10px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;color:#1e293b;font-weight:600}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;font-size:13px;cursor:pointer;color:#fff;background:#2563eb}
+    .btn:hover{background:#1d4ed8}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+    .btn-ghost{background:#fff;color:#1e40af;border:1px solid #bfdbfe}
+    .btn-ghost:hover{background:#eff6ff}
+    .btn-teal{background:#0f766e}
+    .btn-teal:hover{background:#0d9488}
+    .btn-sky{background:#0284c7}
+    .btn-sky:hover{background:#0369a1}
+    .alert{padding:12px 14px;border-radius:12px;font-size:13px;margin-bottom:12px}
+    .alert.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    .alert.info{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+    .table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:12px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:top}
+    th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+    tr:hover td{background:#f8fafc}
+    .mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+    .empty{padding:18px;text-align:center;color:#94a3b8;font-size:13px}
+    .status-line{font-size:12px;color:#64748b;margin-top:8px}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#334155;font-size:11px;font-weight:700;margin-right:4px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <section class="xy-head">
+    <div>
+      <h2>XY Platform</h2>
+      <div class="muted">Query mesin, suhu, slot, dan produk dari portal XY (API.pdf).</div>
+    </div>
+    <div>
+      <% if (xy && xy.configured) { %>
+        <span class="badge ok">Env terisi</span>
+      <% } else { %>
+        <span class="badge warn">Env belum lengkap</span>
+      <% } %>
+    </div>
+  </section>
+
+  <% if (!(xy && xy.configured)) { %>
+    <div class="alert err">
+      Isi <code>XY_API_BASE_URL</code>, <code>XY_API_KEY</code>, <code>XY_API_SECRET</code>, <code>XY_MERCHANT_ID</code> di <code>.env</code>, lalu restart core.
+      Tombol tetap bisa ditekan — akan menampilkan error dari server.
+    </div>
+  <% } else { %>
+    <div class="alert info">
+      Base: <span class="mono"><%= xy.baseUrl %></span> · Merchant (shbh): <span class="mono"><%= xy.merchantId %></span>
+    </div>
+  <% } %>
+
+  <div class="grid">
+    <article class="card">
+      <h3>Parameter</h3>
+      <div class="field">
+        <label for="xy-shbh">Merchant ID (shbh) — kosong = dari env</label>
+        <input id="xy-shbh" type="text" placeholder="<%= (xy && xy.merchantId) || '0023' %>" value="" />
+      </div>
+      <div class="field">
+        <label for="xy-jqbh">Machine ID (jqbh)</label>
+        <input id="xy-jqbh" type="text" placeholder="dari tombol Ambil mesin / isi manual" value="" />
+      </div>
+      <p class="muted" style="margin:0">Setelah “Ambil daftar mesin”, klik baris untuk mengisi jqbh otomatis.</p>
+    </article>
+
+    <article class="card">
+      <h3>Aksi</h3>
+      <div class="actions" style="margin-bottom:10px">
+        <button type="button" class="btn" id="btn-machines">Ambil daftar mesin</button>
+        <button type="button" class="btn btn-teal" id="btn-products">Ambil produk merchant</button>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-sky" id="btn-state">Cek status / suhu</button>
+        <button type="button" class="btn btn-ghost" id="btn-slots">Slot + stok</button>
+        <button type="button" class="btn btn-ghost" id="btn-slots-plus">Slot + stok (plus)</button>
+      </div>
+      <div class="status-line" id="xy-status">Siap.</div>
+    </article>
+  </div>
+
+  <article class="card">
+    <h3>Hasil</h3>
+    <div id="xy-banner" hidden class="alert err" style="margin-top:0"></div>
+    <div id="xy-result" class="empty">Belum ada data. Tekan salah satu tombol di atas.</div>
+  </article>
+
+  <script type="application/json" id="xy-page-meta"><%- JSON.stringify({ configured: !!(xy && xy.configured), merchantId: (xy && xy.merchantId) || "" }).replace(/</g, '\\u003c') %></script>
+  <script src="/public/js/admin-xy-platform.js?v=20260816a" defer></script>
+</body>
+</html>

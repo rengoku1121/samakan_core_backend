@@ -1,5 +1,5 @@
 {
-  "name": "core-saporsi-by-kyojin",
+  "name": "core-samakan-by-kyojin",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -12,7 +12,23 @@
     "migrate:machine-lifecycle-dates": "node scripts/migrate-machine-lifecycle-dates.js",
     "migrate:push-subscriptions": "node scripts/migrate-push-subscriptions.js",
     "migrate:machine-asset-fields": "node scripts/migrate-machine-asset-fields.js",
-    "generate:vapid-keys": "node scripts/generate-vapid-keys.js"
+    "generate:vapid-keys": "node scripts/generate-vapid-keys.js",
+    "wipe:all": "node scripts/wipe-all-data.js",
+    "seed:admin": "node scripts/seed-admin-user.js",
+    "seed:demo-merchant": "node scripts/seed-demo-merchant-user.js",
+    "migrate:product-shelf-merchant": "node scripts/migrate-product-shelf-slot-expiry-merchant.js",
+    "migrate:settlement-ledger": "node scripts/migrate-settlement-ledger.js",
+    "seed:settlement-test": "node scripts/reset-seed-settlement-test.js",
+    "migrate:machine-kiosk-heartbeat": "node scripts/migrate-machine-kiosk-heartbeat.js",
+    "migrate:order-dispense-result": "node scripts/migrate-order-dispense-result.js",
+    "migrate:order-refund": "node scripts/migrate-order-refund.js",
+    "migrate:machine-crash-report": "node scripts/migrate-machine-crash-report.js",
+    "migrate:product-requires-heating": "node scripts/migrate-product-requires-heating.js",
+    "migrate:product-kiosk-media": "node scripts/migrate-product-kiosk-media.js",
+    "seed:kiosk-catalog-demo": "node scripts/seed-kiosk-catalog-demo.js",
+    "report:planogram": "node scripts/report-planogram.js",
+    "check:env": "node scripts/check-prod-env.js",
+    "migrate:all": "node scripts/migrate-all.js"
   },
   "keywords": [],
   "author": "",
@@ -28,7 +44,9 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "multer": "^2.1.1",
     "mysql2": "^3.16.1",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
   }
 }
