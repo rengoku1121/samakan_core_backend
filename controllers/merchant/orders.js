@@ -17,18 +17,6 @@ const toPositiveInt = (v) => {
   return Number.isInteger(n) && n > 0 ? n : 0;
 };
 
-const pad = (num, size) => String(num).padStart(size, "0");
-
-const makeOrderCode = (lastId = 0) => {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = pad(now.getMonth() + 1, 2);
-  const dd = pad(now.getDate(), 2);
-  const seq = pad(Number(lastId) + 1, 6);
-
-  return `ORD-${yyyy}${mm}${dd}-${seq}`;
-};
-
 const parseVendorExpiry = (raw) => {
   if (!raw) return null;
 
@@ -191,35 +179,38 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
     const subtotal = unit_price * qty;
     const total = subtotal;
 
-    const lastId = await orderModel.getLastOrderId();
-    const order_code = makeOrderCode(lastId);
-
-    const order_id = await orderModel.create({
-      order_code,
-      merchant_id,
-      machine_id: machine.id,
-      location_id: machine.location_id || null,
-      status: "PENDING",
-      currency: "IDR",
-      subtotal,
-      total,
-      payment_provider: null,
-      payment_ref: null,
-      paid_at: null,
-      expires_at: null,
+    const created = await orderModel.createPendingOrderWithStockHold({
+      order: {
+        order_code_prefix: "ORD",
+        merchant_id,
+        machine_id: machine.id,
+        location_id: machine.location_id || null,
+        status: "PENDING",
+        currency: "IDR",
+        subtotal,
+        total,
+        payment_provider: null,
+        payment_ref: null,
+        paid_at: null,
+        expires_at: null,
+      },
+      item: {
+        slot_id: slot.id,
+        product_id: product.id,
+        qty,
+        unit_price,
+        line_total: total,
+        product_name: product.name,
+        product_sku: product.sku,
+        slot_code: slot.slot_code,
+      },
     });
-
-    await orderModel.createItem({
-      order_id,
-      slot_id: slot.id,
-      product_id: product.id,
-      qty,
-      unit_price,
-      line_total: total,
-      product_name: product.name,
-      product_sku: product.sku,
-      slot_code: slot.slot_code,
-    });
+    if (!created.ok) {
+      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(400, "Insufficient stock");
+      return jsonErr(404, "Slot not found or inactive");
+    }
+    const order_id = created.order_id;
+    const order_code = created.order_code;
 
     const vendorPayload = {
       core_order_id: String(order_id),

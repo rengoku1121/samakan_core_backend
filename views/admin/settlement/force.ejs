@@ -27,7 +27,7 @@
   <div class="topbar">Samakan Admin • Force Settlement</div>
   <div class="wrap">
     <h1>Force Settlement</h1>
-    <div class="muted">Settle semua order yang eligible (PAID/DISPENSING/DISPENSED, belum settle). Fee: Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>, Owner <b><%= feeConfig.owner_fee_percent %>%</b>.</div>
+    <div class="muted">Settle semua order yang sudah <b>DISPENSED</b> dan belum settle. Fee: Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>, Owner <b><%= feeConfig.owner_fee_percent %>%</b>.</div>
 
     <% if (!groups.length) { %>
     <div class="card"><div class="muted">Tidak ada order yang eligible untuk di-settle saat ini.</div></div>

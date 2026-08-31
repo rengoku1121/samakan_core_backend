@@ -4,6 +4,23 @@ const orderModel = require("../models/order");
 
 const clean = (v) => String(v || "").trim();
 
+const OPEN_PAYMENT_STATUSES = new Set(["PENDING", "CREATED"]);
+
+const ignoredWebhook = (order, transactionId, message) => ({
+  httpStatus: 200,
+  body: {
+    success: true,
+    message,
+    data: {
+      order_id: order.id,
+      order_code: order.order_code,
+      status: order.status,
+      payment_ref: order.payment_ref,
+      provider_transaction_id: transactionId || null,
+    },
+  },
+});
+
 const mapPaymentStatus = ({ transaction_status, fraud_status }) => {
   const tx = clean(transaction_status).toLowerCase();
   const fraud = clean(fraud_status).toLowerCase();
@@ -75,22 +92,18 @@ exports.applyMidtransNotification = async (payload = {}) => {
       };
     }
 
-    if (clean(order.status).toUpperCase() === "PAID") {
+    const currentStatus = clean(order.status).toUpperCase();
+
+    if (!OPEN_PAYMENT_STATUSES.has(currentStatus)) {
       await conn.rollback();
-      return {
-        httpStatus: 200,
-        body: {
-          success: true,
-          message: "Order already paid, duplicate webhook ignored",
-          data: {
-            order_id: order.id,
-            order_code: order.order_code,
-            status: order.status,
-            payment_ref: order.payment_ref,
-            provider_transaction_id: transactionId || null,
-          },
-        },
-      };
+      const alreadyPaid = currentStatus === "PAID";
+      return ignoredWebhook(
+        order,
+        transactionId,
+        alreadyPaid
+          ? "Order already paid, duplicate webhook ignored"
+          : `Order status ${currentStatus} is final, webhook ignored`
+      );
     }
 
     // Tolak settlement/capture jika amount tidak cocok (cegah bayar murah → mark PAID).
@@ -111,6 +124,10 @@ exports.applyMidtransNotification = async (payload = {}) => {
     }
 
     if (nextStatus !== "PAID") {
+      if (orderModel.shouldReleaseHoldOnPaymentUpdate(order)) {
+        await orderModel.releaseStockHoldIfNeeded(order, conn);
+      }
+
       await orderModel.updatePaymentWebhookStatus(
         {
           id: order.id,
@@ -186,49 +203,55 @@ exports.applyMidtransNotification = async (payload = {}) => {
       };
     }
 
-    const decrementResult = await orderModel.decrementMachineSlotStock(
-      {
-        slot_id: firstItem.slot_id,
-        qty: Number(firstItem.qty || 0),
-      },
-      conn
-    );
-
-    if (!decrementResult || Number(decrementResult.affectedRows || 0) === 0) {
-      await orderModel.updatePaymentWebhookStatus(
+    // Order baru: stok sudah di-hold saat PENDING. Jangan potong lagi.
+    // Order lama (stock_reserved=0): potong di sini seperti sebelumnya.
+    let decrementedSlotId = firstItem.slot_id;
+    let decrementedQty = firstItem.qty;
+    if (!orderModel.isStockReserved(order)) {
+      const decrementResult = await orderModel.decrementMachineSlotStock(
         {
-          id: order.id,
-          status: "PAID_STOCK_FAILED",
-          payment_provider: "MIDTRANS",
-          payment_ref: providerOrderId,
-          paid_at: transactionTime || new Date(),
-          expires_at: expiryTime || order.expires_at || null,
+          slot_id: firstItem.slot_id,
+          qty: Number(firstItem.qty || 0),
         },
         conn
       );
 
-      await conn.commit();
-      const updatedOrder = await orderModel.findDetailById(order.id);
-
-      return {
-        httpStatus: 200,
-        body: {
-          success: true,
-          message: "Payment received but stock decrement failed",
-          data: {
-            order_id: updatedOrder.id,
-            order_code: updatedOrder.order_code,
-            status: updatedOrder.status,
-            payment_provider: updatedOrder.payment_provider,
-            payment_ref: updatedOrder.payment_ref,
-            paid_at: updatedOrder.paid_at,
-            expires_at: updatedOrder.expires_at,
-            provider_transaction_status: transactionStatus,
-            provider_transaction_id: transactionId || null,
-            provider_gross_amount: grossAmount || null,
+      if (!decrementResult || Number(decrementResult.affectedRows || 0) === 0) {
+        await orderModel.updatePaymentWebhookStatus(
+          {
+            id: order.id,
+            status: "PAID_STOCK_FAILED",
+            payment_provider: "MIDTRANS",
+            payment_ref: providerOrderId,
+            paid_at: transactionTime || new Date(),
+            expires_at: expiryTime || order.expires_at || null,
           },
-        },
-      };
+          conn
+        );
+
+        await conn.commit();
+        const updatedOrder = await orderModel.findDetailById(order.id);
+
+        return {
+          httpStatus: 200,
+          body: {
+            success: true,
+            message: "Payment received but stock decrement failed",
+            data: {
+              order_id: updatedOrder.id,
+              order_code: updatedOrder.order_code,
+              status: updatedOrder.status,
+              payment_provider: updatedOrder.payment_provider,
+              payment_ref: updatedOrder.payment_ref,
+              paid_at: updatedOrder.paid_at,
+              expires_at: updatedOrder.expires_at,
+              provider_transaction_status: transactionStatus,
+              provider_transaction_id: transactionId || null,
+              provider_gross_amount: grossAmount || null,
+            },
+          },
+        };
+      }
     }
 
     await orderModel.updatePaymentWebhookStatus(
@@ -250,7 +273,9 @@ exports.applyMidtransNotification = async (payload = {}) => {
       httpStatus: 200,
       body: {
         success: true,
-        message: "Webhook processed successfully and stock decremented",
+        message: orderModel.isStockReserved(order)
+          ? "Webhook processed successfully (stock already reserved)"
+          : "Webhook processed successfully and stock decremented",
         data: {
           order_id: updatedOrder.id,
           order_code: updatedOrder.order_code,
@@ -262,8 +287,8 @@ exports.applyMidtransNotification = async (payload = {}) => {
           provider_transaction_status: transactionStatus,
           provider_transaction_id: transactionId || null,
           provider_gross_amount: grossAmount || null,
-          decremented_slot_id: firstItem.slot_id,
-          decremented_qty: firstItem.qty,
+          decremented_slot_id: decrementedSlotId,
+          decremented_qty: decrementedQty,
         },
       },
     };

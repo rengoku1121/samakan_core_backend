@@ -1,4 +1,5 @@
 // models/order.js
+const crypto = require("crypto");
 const { pool } = require("../utils/db");
 
 exports.countAdmin = async ({ status, merchant_id, machine_id, settlement_ref }) => {
@@ -279,6 +280,7 @@ exports.findMachineSlotActiveById = async (id) => {
       ms.price,
       ms.stock,
       ms.capacity,
+      ms.expires_at,
       ms.is_active,
       mc.location_id,
       mc.is_active AS machine_is_active
@@ -286,6 +288,7 @@ exports.findMachineSlotActiveById = async (id) => {
     INNER JOIN machines mc ON mc.id = ms.machine_id
     WHERE ms.id = ?
       AND ms.is_active = 1
+      AND (ms.expires_at IS NULL OR ms.expires_at >= CURDATE())
     LIMIT ?
   `;
   const [rows] = await pool.query(sql, [id, 1]);
@@ -321,6 +324,17 @@ exports.getLastOrderId = async () => {
   return Number(rows[0]?.id || 0);
 };
 
+/** Kode order unik (bukan MAX(id)+1) supaya create bersamaan tidak bentrok. */
+exports.newOrderCode = (prefix = "ORD") => {
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const rand = crypto.randomBytes(6).toString("hex");
+  const tag = String(prefix || "ORD").replace(/[^A-Z0-9]/gi, "").slice(0, 8) || "ORD";
+  return `${tag}-${yyyy}${mm}${dd}-${rand}`;
+};
+
 exports.create = async ({
   order_code,
   merchant_id,
@@ -335,7 +349,9 @@ exports.create = async ({
   paid_at,
   expires_at,
   heat_requested = null,
-}) => {
+  stock_reserved = 0,
+}, conn) => {
+  const executor = conn || pool;
   const sql = `
     INSERT INTO orders (
       order_code,
@@ -350,8 +366,9 @@ exports.create = async ({
       payment_ref,
       paid_at,
       expires_at,
-      heat_requested
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      heat_requested,
+      stock_reserved
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const heatVal =
@@ -361,7 +378,7 @@ exports.create = async ({
         ? 1
         : 0;
 
-  const [result] = await pool.query(sql, [
+  const [result] = await executor.query(sql, [
     order_code,
     merchant_id,
     machine_id,
@@ -375,6 +392,7 @@ exports.create = async ({
     paid_at,
     expires_at,
     heatVal,
+    Number(stock_reserved) === 1 ? 1 : 0,
   ]);
 
   return result.insertId;
@@ -390,7 +408,8 @@ exports.createItem = async ({
   product_name,
   product_sku,
   slot_code,
-}) => {
+}, conn) => {
+  const executor = conn || pool;
   const sql = `
     INSERT INTO order_items (
       order_id,
@@ -405,7 +424,7 @@ exports.createItem = async ({
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const [result] = await pool.query(sql, [
+  const [result] = await executor.query(sql, [
     order_id,
     slot_id,
     product_id,
@@ -679,6 +698,7 @@ exports.findByPaymentRefOrOrderCodeForUpdate = async (ref, conn) => {
       payment_ref,
       paid_at,
       expires_at,
+      stock_reserved,
       created_at,
       updated_at
     FROM orders
@@ -746,22 +766,224 @@ exports.decrementMachineSlotStock = async ({ slot_id, qty }, conn) => {
  * Order kiosk yang gagal mendapat QRIS dari vendor tidak boleh ditinggal
  * PENDING: kiosk tidak akan pernah menampilkannya, tapi order yatim itu tetap
  * muncul di laporan admin. Hanya berlaku selama belum ada pembayaran.
+ * Kalau stok sudah di-hold di create, hold dilepas di sini.
  */
 exports.cancelUnpaidOrder = async ({ id, reason }, conn) => {
-  const executor = conn || pool;
-  const sql = `
-    UPDATE orders
-    SET
-      status = 'CANCELLED',
-      dispense_failure_reason = ?,
-      updated_at = CURRENT_TIMESTAMP(3)
-    WHERE id = ?
-      AND status = 'PENDING'
+  const ownConn = !conn;
+  const executor = conn || (await pool.getConnection());
+  try {
+    if (ownConn) await executor.beginTransaction();
+
+    const [rows] = await executor.query(
+      `SELECT id, status, paid_at, stock_reserved FROM orders WHERE id = ? LIMIT ? FOR UPDATE`,
+      [id, 1]
+    );
+    const order = rows[0];
+    if (!order || String(order.status).toUpperCase() !== "PENDING" || order.paid_at) {
+      if (ownConn) await executor.rollback();
+      return false;
+    }
+
+    await exports.releaseStockHoldIfNeeded(order, executor);
+
+    const sql = `
+      UPDATE orders
+      SET
+        status = 'CANCELLED',
+        stock_reserved = 0,
+        dispense_failure_reason = ?,
+        updated_at = CURRENT_TIMESTAMP(3)
+      WHERE id = ?
+        AND status = 'PENDING'
+        AND paid_at IS NULL
+      LIMIT ?
+    `;
+    const [result] = await executor.query(sql, [reason || null, id, 1]);
+    if (ownConn) {
+      if (result.affectedRows > 0) await executor.commit();
+      else await executor.rollback();
+    }
+    return result.affectedRows > 0;
+  } catch (err) {
+    if (ownConn) {
+      try {
+        await executor.rollback();
+      } catch (_) {}
+    }
+    throw err;
+  } finally {
+    if (ownConn) executor.release();
+  }
+};
+
+const UNPAID_HOLD_STATUSES = new Set(["PENDING", "CREATED"]);
+
+exports.isStockReserved = (order) => Number(order?.stock_reserved) === 1;
+
+/** Lepas hold stok (restore slot) jika order ini yang memegangnya. */
+exports.releaseStockHoldIfNeeded = async (order, conn) => {
+  if (!exports.isStockReserved(order)) return false;
+  const item = await exports.findFirstItemByOrderId(order.id, conn);
+  if (item?.slot_id) {
+    await exports.restoreMachineSlotStock(
+      { slot_id: item.slot_id, qty: Number(item.qty) || 1 },
+      conn
+    );
+  }
+  await conn.query(
+    `UPDATE orders SET stock_reserved = 0, updated_at = CURRENT_TIMESTAMP(3) WHERE id = ? AND stock_reserved = 1 LIMIT 1`,
+    [order.id]
+  );
+  return true;
+};
+
+exports.shouldReleaseHoldOnPaymentUpdate = (order) => {
+  const current = String(order?.status || "").toUpperCase();
+  return UNPAID_HOLD_STATUSES.has(current) && exports.isStockReserved(order);
+};
+
+/**
+ * QR ditinggal / webhook expire tidak sampai: lepas hold stok.
+ * expires_at sudah lewat, atau belum ada expiry tapi created_at lebih lama dari grace.
+ */
+exports.expireStaleUnpaidHolds = async ({ graceMinutes = 30, limit = 50 } = {}) => {
+  const grace = Math.max(5, Number(graceMinutes) || 30);
+  const cap = Math.min(200, Math.max(1, Number(limit) || 50));
+
+  const [rows] = await pool.query(
+    `
+    SELECT id
+    FROM orders
+    WHERE status IN ('PENDING', 'CREATED')
       AND paid_at IS NULL
+      AND (
+        (expires_at IS NOT NULL AND expires_at < NOW())
+        OR (expires_at IS NULL AND created_at < DATE_SUB(NOW(), INTERVAL ? MINUTE))
+      )
+    ORDER BY id ASC
     LIMIT ?
-  `;
-  const [result] = await executor.query(sql, [reason || null, id, 1]);
-  return result.affectedRows > 0;
+    `,
+    [grace, cap]
+  );
+
+  let expired = 0;
+  for (const row of rows) {
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [locked] = await conn.query(
+        `SELECT id, status, paid_at, stock_reserved FROM orders WHERE id = ? LIMIT ? FOR UPDATE`,
+        [row.id, 1]
+      );
+      const order = locked[0];
+      const st = String(order?.status || "").toUpperCase();
+      if (!order || !UNPAID_HOLD_STATUSES.has(st) || order.paid_at) {
+        await conn.rollback();
+        continue;
+      }
+
+      await exports.releaseStockHoldIfNeeded(order, conn);
+      const [upd] = await conn.query(
+        `
+        UPDATE orders
+        SET
+          status = 'EXPIRED',
+          stock_reserved = 0,
+          dispense_failure_reason = COALESCE(dispense_failure_reason, 'QRIS expired / unpaid hold released'),
+          updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = ?
+          AND status IN ('PENDING', 'CREATED')
+          AND paid_at IS NULL
+        LIMIT ?
+        `,
+        [order.id, 1]
+      );
+      if (Number(upd.affectedRows || 0) > 0) {
+        await conn.commit();
+        expired += 1;
+      } else {
+        await conn.rollback();
+      }
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch (_) {}
+      console.error("expireStaleUnpaidHolds:", err.message);
+    } finally {
+      conn.release();
+    }
+  }
+
+  return { scanned: rows.length, expired };
+};
+
+/**
+ * Buat PENDING + hold stok atomik. Request kedua pada stok 1 ditolak.
+ * Kode order di-generate unik; duplikat sangat jarang dan di-retry.
+ * @returns {{ ok: true, order_id: number, order_code: string } | { ok: false, code: string }}
+ */
+exports.createPendingOrderWithStockHold = async ({ order, item }) => {
+  const qty = Number(item.qty) || 0;
+  if (!item.slot_id || qty < 1) {
+    return { ok: false, code: "INVALID_ITEM" };
+  }
+
+  const forcedCode = order.order_code ? String(order.order_code).trim() : "";
+  const prefix = order.order_code_prefix || (forcedCode.startsWith("KIOSK") ? "KIOSK" : "ORD");
+  const maxAttempts = forcedCode ? 1 : 3;
+
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const order_code = forcedCode || exports.newOrderCode(prefix);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [slots] = await conn.query(
+        `SELECT id FROM machine_slots WHERE id = ? LIMIT ? FOR UPDATE`,
+        [item.slot_id, 1]
+      );
+      if (!slots[0]) {
+        await conn.rollback();
+        return { ok: false, code: "SLOT_NOT_FOUND" };
+      }
+
+      const decremented = await exports.decrementMachineSlotStock(
+        { slot_id: item.slot_id, qty },
+        conn
+      );
+      if (!decremented || Number(decremented.affectedRows || 0) === 0) {
+        await conn.rollback();
+        return { ok: false, code: "INSUFFICIENT_STOCK" };
+      }
+
+      const order_id = await exports.create(
+        { ...order, order_code, status: "PENDING", stock_reserved: 1 },
+        conn
+      );
+      await exports.createItem({ ...item, order_id }, conn);
+
+      await conn.commit();
+      return { ok: true, order_id, order_code };
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch (_) {}
+      lastErr = err;
+      if (err && err.code === "ER_DUP_ENTRY" && attempt < maxAttempts) {
+        continue;
+      }
+      if (err && err.code === "ER_DUP_ENTRY") {
+        return { ok: false, code: "DUPLICATE_CODE" };
+      }
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
+  if (lastErr) throw lastErr;
+  return { ok: false, code: "DUPLICATE_CODE" };
 };
 
 /**
@@ -774,7 +996,7 @@ exports.restoreMachineSlotStock = async ({ slot_id, qty }, conn) => {
   const sql = `
     UPDATE machine_slots
     SET
-      stock = LEAST(stock + ?, GREATEST(capacity, stock + ?)),
+      stock = LEAST(stock + ?, GREATEST(IFNULL(capacity, stock + ?), stock)),
       updated_at = CURRENT_TIMESTAMP(3)
     WHERE id = ?
     LIMIT ?
@@ -819,12 +1041,6 @@ exports.updatePaymentWebhookStatus = async ({
   return result;
 };
 
-/**
- * Fase 6 - hasil akhir payment-to-dispense dari Kiosk API. Hanya diterapkan
- * jika order saat ini masih pada status "sudah dibayar" (PAID/
- * PAID_ITEM_MISSING/PAID_STOCK_FAILED) - mencegah dispense-result menimpa
- * order yang belum pernah dinyatakan lunas oleh webhook Midtrans.
- */
 /**
  * Fase 7 - order yang butuh perhatian manual admin:
  * 1) DISPENSE_FAILED dan belum di-refund - butuh keputusan refund/recovery.
@@ -891,6 +1107,11 @@ exports.markRefunded = async ({ id, refund_reference, refund_notes, refunded_by_
   return result.affectedRows > 0;
 };
 
+/**
+ * Fase 6 — hasil akhir payment-to-dispense. Hanya menimpa order yang masih
+ * PAID-like, supaya retry/laporan terlambat tidak menimpa DISPENSED/
+ * DISPENSE_FAILED yang sudah final.
+ */
 exports.applyDispenseResult = async ({ id, status, dispense_failure_reason }, conn) => {
   const executor = conn || pool;
   const dispensed_at = status === "DISPENSED" ? new Date() : null;
@@ -903,6 +1124,7 @@ exports.applyDispenseResult = async ({ id, status, dispense_failure_reason }, co
       dispense_failure_reason = ?,
       updated_at = CURRENT_TIMESTAMP(3)
     WHERE id = ?
+      AND status IN ('PAID', 'PAID_ITEM_MISSING', 'PAID_STOCK_FAILED')
     LIMIT ?
   `;
 
@@ -915,4 +1137,98 @@ exports.applyDispenseResult = async ({ id, status, dispense_failure_reason }, co
   ]);
 
   return result;
+};
+
+const PAID_LIKE_STATUSES = new Set(["PAID", "PAID_ITEM_MISSING", "PAID_STOCK_FAILED"]);
+const DISPENSE_TERMINAL_STATUSES = new Set(["DISPENSED", "DISPENSE_FAILED"]);
+
+/**
+ * Laporan dispense kiosk, atomik: kunci order, restore stok (jika gagal
+ * keluar), lalu set status. Retry jaringan tidak menambah stok dua kali.
+ *
+ * @returns {{ ok: boolean, httpStatus: number, message?: string, order_code?: string, status?: string, stock_restored?: boolean, duplicate?: boolean }}
+ */
+exports.recordDispenseResult = async ({ orderCode, status, detail }) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const order = await exports.findByPaymentRefOrOrderCodeForUpdate(orderCode, conn);
+    if (!order) {
+      await conn.rollback();
+      return { ok: false, httpStatus: 404, message: "Order not found" };
+    }
+
+    const current = String(order.status || "").toUpperCase();
+
+    if (DISPENSE_TERMINAL_STATUSES.has(current)) {
+      await conn.rollback();
+      return {
+        ok: true,
+        httpStatus: 200,
+        duplicate: true,
+        order_code: order.order_code,
+        status: current,
+        stock_restored: false,
+      };
+    }
+
+    if (!PAID_LIKE_STATUSES.has(current)) {
+      await conn.rollback();
+      return {
+        ok: false,
+        httpStatus: 409,
+        message: `Order belum berstatus PAID (status saat ini: ${current}), tidak bisa dispense`,
+      };
+    }
+
+    // Stok dipotong saat webhook PAID. Gagal keluar = makanan masih di tray.
+    // PAID_STOCK_FAILED: potongan tidak pernah berhasil, jangan ditambah.
+    const shouldRestoreStock = status === "DISPENSE_FAILED" && current !== "PAID_STOCK_FAILED";
+    let stockRestored = false;
+    if (shouldRestoreStock) {
+      const item = await exports.findFirstItemByOrderId(order.id, conn);
+      if (item?.slot_id) {
+        stockRestored = await exports.restoreMachineSlotStock(
+          { slot_id: item.slot_id, qty: Number(item.qty) || 1 },
+          conn
+        );
+      }
+    }
+
+    const applied = await exports.applyDispenseResult(
+      {
+        id: order.id,
+        status,
+        dispense_failure_reason: status === "DISPENSE_FAILED" ? detail : null,
+      },
+      conn
+    );
+
+    if (!applied || Number(applied.affectedRows || 0) === 0) {
+      await conn.rollback();
+      return {
+        ok: false,
+        httpStatus: 409,
+        message: `Order belum berstatus PAID (status saat ini: ${current}), tidak bisa dispense`,
+      };
+    }
+
+    await conn.commit();
+    return {
+      ok: true,
+      httpStatus: 200,
+      duplicate: false,
+      order_code: order.order_code,
+      status,
+      stock_restored: stockRestored,
+    };
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch (_) {}
+    throw err;
+  } finally {
+    conn.release();
+  }
 };

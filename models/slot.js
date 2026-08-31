@@ -152,6 +152,7 @@ exports.findActiveByMachineAndCodeForOrder = async ({ machine_id, slot_code }) =
       AND ms.slot_code = ?
       AND ms.is_active = 1
       AND p.is_active = 1
+      AND (ms.expires_at IS NULL OR ms.expires_at >= CURDATE())
     LIMIT ?
   `;
   const [rows] = await pool.query(sql, [machine_id, slot_code, 1]);
@@ -183,6 +184,7 @@ exports.listActiveByMachineIdForMerchantUi = async (machine_id) => {
     WHERE ms.machine_id = ?
       AND ms.is_active = 1
       AND p.is_active = 1
+      AND (ms.expires_at IS NULL OR ms.expires_at >= CURDATE())
     ORDER BY ms.slot_code ASC
     LIMIT ?
   `;

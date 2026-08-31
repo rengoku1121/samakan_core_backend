@@ -24,17 +24,6 @@ const parseHeatRequested = (v) => {
   if (s === "false" || s === "no" || s === "tidak") return false;
   return null;
 };
-const pad = (num, size) => String(num).padStart(size, "0");
-
-/** Sama seperti makeOrderCode di controllers/merchant/orders.js, dengan prefix beda supaya order kiosk mudah dibedakan. */
-const makeKioskOrderCode = (lastId = 0) => {
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = pad(now.getMonth() + 1, 2);
-  const dd = pad(now.getDate(), 2);
-  const seq = pad(Number(lastId) + 1, 6);
-  return `KIOSK-${yyyy}${mm}${dd}-${seq}`;
-};
 
 exports.requireKioskInternalToken = (req, res, next) => {
   if (req.method === "OPTIONS") return next();
@@ -277,36 +266,39 @@ exports.createMachineOrder = async (req, res, next) => {
       return jsonErr(503, "VENDOR_PAYMENT_BASE_URL belum diset di Core");
     }
 
-    const lastId = await orderModel.getLastOrderId();
-    const order_code = makeKioskOrderCode(lastId);
-
-    const order_id = await orderModel.create({
-      order_code,
-      merchant_id: machine.merchant_id,
-      machine_id: machine.id,
-      location_id: machine.location_id || null,
-      status: "PENDING",
-      currency: "IDR",
-      subtotal,
-      total,
-      payment_provider: null,
-      payment_ref: null,
-      paid_at: null,
-      expires_at: null,
-      heat_requested,
+    const created = await orderModel.createPendingOrderWithStockHold({
+      order: {
+        order_code_prefix: "KIOSK",
+        merchant_id: machine.merchant_id,
+        machine_id: machine.id,
+        location_id: machine.location_id || null,
+        status: "PENDING",
+        currency: "IDR",
+        subtotal,
+        total,
+        payment_provider: null,
+        payment_ref: null,
+        paid_at: null,
+        expires_at: null,
+        heat_requested,
+      },
+      item: {
+        slot_id: slot.id,
+        product_id: slot.product_id,
+        qty,
+        unit_price,
+        line_total: total,
+        product_name: slot.product_name,
+        product_sku: slot.product_sku,
+        slot_code: slot.slot_code,
+      },
     });
-
-    await orderModel.createItem({
-      order_id,
-      slot_id: slot.id,
-      product_id: slot.product_id,
-      qty,
-      unit_price,
-      line_total: total,
-      product_name: slot.product_name,
-      product_sku: slot.product_sku,
-      slot_code: slot.slot_code,
-    });
+    if (!created.ok) {
+      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(400, "Insufficient stock");
+      return jsonErr(404, "Slot not found or inactive");
+    }
+    const order_id = created.order_id;
+    const order_code = created.order_code;
 
     let vendorResultWrap = null;
     let vendorErrorPayload = null;
@@ -489,15 +481,13 @@ exports.getOrderStatus = async (req, res, next) => {
   }
 };
 
-const PAID_LIKE_STATUSES = ["PAID", "PAID_ITEM_MISSING", "PAID_STOCK_FAILED"];
 const DISPENSE_TERMINAL_STATUSES = ["DISPENSED", "DISPENSE_FAILED"];
 
 /**
  * POST /api/v1/orders/:orderCode/dispense-result
- * Hasil akhir payment-to-dispense dari Kiosk API (Fase 6). Idempotent:
- * dipanggil ulang dengan order yang sudah DISPENSED/DISPENSE_FAILED hanya
- * mengembalikan state saat ini tanpa mengubah apa pun, supaya retry jaringan
- * dari Kiosk API tidak menimpa hasil yang sudah final.
+ * Hasil akhir payment-to-dispense dari Kiosk API (Fase 6). Atomik + idempotent:
+ * restore stok dan ganti status satu transaksi terkunci. Retry jaringan tidak
+ * menambah stok dua kali, dan tidak menimpa DISPENSED/DISPENSE_FAILED.
  */
 exports.reportDispenseResult = async (req, res, next) => {
   const jsonErr = (status, message) => res.status(status).json({ success: false, message });
@@ -512,56 +502,26 @@ exports.reportDispenseResult = async (req, res, next) => {
     }
     const detail = req.body.detail ? String(req.body.detail).slice(0, 255) : null;
 
-    const order = await orderModel.findByPaymentRefOrOrderCode(orderCode);
-    if (!order) return jsonErr(404, "Order not found");
-
-    if (DISPENSE_TERMINAL_STATUSES.includes(order.status)) {
-      return res.status(200).json({ success: true, data: { order_id: order.order_code, status: order.status } });
+    const result = await orderModel.recordDispenseResult({ orderCode, status, detail });
+    if (!result.ok) {
+      return jsonErr(result.httpStatus, result.message);
     }
 
-    if (!PAID_LIKE_STATUSES.includes(order.status)) {
-      return jsonErr(409, `Order belum berstatus PAID (status saat ini: ${order.status}), tidak bisa dispense`);
-    }
-
-    // Stok dipotong saat webhook menyatakan PAID. Barang yang tidak jadi keluar
-    // masih ada di tray, jadi stok harus dikembalikan — kalau tidak, katalog
-    // ikut kosong padahal makanannya masih di mesin. PAID_STOCK_FAILED berarti
-    // pemotongan stok memang tidak pernah berhasil, jangan ditambah lagi.
-    const shouldRestoreStock =
-      status === "DISPENSE_FAILED" && order.status !== "PAID_STOCK_FAILED";
-
-    let stockRestored = false;
-    if (shouldRestoreStock) {
-      try {
-        const item = await orderModel.findFirstItemByOrderId(order.id);
-        if (item?.slot_id) {
-          stockRestored = await orderModel.restoreMachineSlotStock({
-            slot_id: item.slot_id,
-            qty: Number(item.qty) || 1,
-          });
-        }
-      } catch (restoreErr) {
-        console.error("dispense-result: gagal mengembalikan stok", restoreErr.message);
-      }
-    }
-
-    await orderModel.applyDispenseResult({
-      id: order.id,
-      status,
-      dispense_failure_reason: status === "DISPENSE_FAILED" ? detail : null,
-    });
-
-    if (status === "DISPENSE_FAILED") {
+    if (!result.duplicate && status === "DISPENSE_FAILED") {
       console.warn("[dispense-failed] butuh refund manual", {
-        order_code: order.order_code,
+        order_code: result.order_code,
         detail,
-        stock_restored: stockRestored,
+        stock_restored: result.stock_restored,
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: { order_id: order.order_code, status, stock_restored: stockRestored },
+      data: {
+        order_id: result.order_code,
+        status: result.status,
+        stock_restored: result.stock_restored,
+      },
     });
   } catch (err) {
     return next(err);

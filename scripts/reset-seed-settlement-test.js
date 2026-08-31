@@ -99,7 +99,7 @@ async function createOrders(conn, { merchantId, machineId, slotId, productId, me
 
     const [orderRes] = await conn.query(
       `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency, subtotal, total, payment_provider, payment_ref, paid_at, expires_at, is_settled, settled_at, settlement_ref, midtrans_fee_amount, owner_fee_amount, net_amount)
-       VALUES (?, ?, ?, NULL, 'PAID', 'IDR', ?, ?, 'MIDTRANS', ?, ?, NULL, 0, NULL, NULL, 0, 0, 0)`,
+       VALUES (?, ?, ?, NULL, 'DISPENSED', 'IDR', ?, ?, 'MIDTRANS', ?, ?, NULL, 0, NULL, NULL, 0, 0, 0)`,
       [orderCode, merchantId, machineId, total, total, orderCode, paidAt]
     );
     const orderId = Number(orderRes.insertId);
@@ -195,7 +195,7 @@ async function main() {
     console.log(`Merchant 1: ${m1.merchant_code} (merchant.alpha / Merchant123!)`);
     console.log(`Merchant 2: ${m2.merchant_code} (merchant.beta / Merchant123!)`);
     console.log("");
-    console.log("Semua transaksi status: PAID + NOT_SETTLED (is_settled=0)");
+    console.log("Semua transaksi status: DISPENSED + NOT_SETTLED (is_settled=0)");
     console.log(`Alpha: 5 transaksi, gross Rp ${fmt(alphaGross)}, fee Rp ${fmt(alphaFee)}, net Rp ${fmt(alphaGross - alphaFee)}`);
     console.log(`Beta : 5 transaksi, gross Rp ${fmt(betaGross)}, fee Rp ${fmt(betaFee)}, net Rp ${fmt(betaGross - betaFee)}`);
     console.log("");

@@ -24,9 +24,9 @@ exports.updateFeeConfig = async ({ midtrans_fee_percent, owner_fee_percent }) =>
   );
 };
 
-/** Find eligible orders (PAID/DISPENSING/DISPENSED, is_settled=0) */
+/** Find eligible orders (DISPENSED, is_settled=0) */
 exports.findEligibleOrders = async ({ merchant_id } = {}) => {
-  const where = ["o.status IN ('PAID','DISPENSING','DISPENSED')", "o.is_settled = 0"];
+  const where = ["o.status = 'DISPENSED'", "o.is_settled = 0"];
   const params = [];
   if (merchant_id) {
     where.push("o.merchant_id = ?");
@@ -94,7 +94,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       `SELECT id, merchant_id, total
        FROM orders
        WHERE id IN (${inPlaceholders})
-         AND status IN ('PAID','DISPENSING','DISPENSED')
+         AND status = 'DISPENSED'
          AND is_settled = 0
        FOR UPDATE`,
       inputIds
@@ -318,7 +318,7 @@ exports.getUnsettledSummary = async () => {
       COUNT(1) AS unsettled_count,
       COALESCE(SUM(o.total), 0) AS unsettled_amount
     FROM orders o
-    WHERE o.status IN ('PAID','DISPENSING','DISPENSED')
+    WHERE o.status = 'DISPENSED'
       AND o.is_settled = 0
   `;
   const [rows] = await pool.query(sql);

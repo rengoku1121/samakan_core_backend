@@ -22,6 +22,8 @@ const MIGRATIONS = [
   "migrate-machine-crash-report.js",
   "migrate-product-requires-heating.js",
   "migrate-product-kiosk-media.js",
+  "migrate-order-stock-reserved.js",
+  "migrate-order-code-unique.js",
 ];
 
 let failed = 0;

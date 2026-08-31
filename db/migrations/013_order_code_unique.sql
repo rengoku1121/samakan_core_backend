@@ -1,0 +1,2 @@
+-- Unique order_code: cegah dua order dengan kode sama (race MAX(id)+1).
+-- Index lama idx_orders_order_code (non-unique) diganti UNIQUE.

@@ -331,6 +331,17 @@ function assertSecurityConfig() {
 
 assertSecurityConfig();
 
+const orderModel = require("./models/order");
+const PENDING_HOLD_EXPIRE_MS = Math.max(15_000, Number(process.env.PENDING_HOLD_EXPIRE_MS || 60_000));
+setInterval(() => {
+  orderModel
+    .expireStaleUnpaidHolds({ graceMinutes: Number(process.env.PENDING_HOLD_GRACE_MINUTES || 30) })
+    .then((r) => {
+      if (r && r.expired) console.log(`[hold-expire] released ${r.expired}/${r.scanned} stale PENDING`);
+    })
+    .catch((err) => console.error("[hold-expire]", err.message));
+}, PENDING_HOLD_EXPIRE_MS).unref();
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Samakan Core running on port ${PORT}`);
 });
