@@ -1,10 +1,11 @@
 // controllers/vendor.js
 const { pool } = require("../utils/db");
 const orderModel = require("../models/order");
-
-const clean = (v) => String(v || "").trim();
+const { clean, errBody, jsonErr, secureEqual } = require("../helper-function/http");
 
 const OPEN_PAYMENT_STATUSES = new Set(["PENDING", "CREATED"]);
+/** Belum lunas; settlement telat tetap dicatat (uang sudah masuk Midtrans). */
+const LATE_SETTLEMENT_STATUSES = new Set(["EXPIRED", "CANCELLED", "FAILED"]);
 
 const ignoredWebhook = (order, transactionId, message) => ({
   httpStatus: 200,
@@ -56,21 +57,21 @@ exports.applyMidtransNotification = async (payload = {}) => {
     if (!providerOrderId) {
       return {
         httpStatus: 400,
-        body: { success: false, message: "order_id is required" },
+        body: errBody("order_id is required"),
       };
     }
 
     if (!transactionStatus) {
       return {
         httpStatus: 400,
-        body: { success: false, message: "transaction_status is required" },
+        body: errBody("transaction_status is required"),
       };
     }
 
     if (paymentType && paymentType !== "qris") {
       return {
         httpStatus: 400,
-        body: { success: false, message: "Unsupported payment_type" },
+        body: errBody("Unsupported payment_type"),
       };
     }
 
@@ -88,13 +89,16 @@ exports.applyMidtransNotification = async (payload = {}) => {
       await conn.rollback();
       return {
         httpStatus: 404,
-        body: { success: false, message: "Order not found" },
+        body: errBody("Order not found"),
       };
     }
 
     const currentStatus = clean(order.status).toUpperCase();
+    const isOpen = OPEN_PAYMENT_STATUSES.has(currentStatus);
+    const canTakeLatePaid =
+      nextStatus === "PAID" && LATE_SETTLEMENT_STATUSES.has(currentStatus);
 
-    if (!OPEN_PAYMENT_STATUSES.has(currentStatus)) {
+    if (!isOpen && !canTakeLatePaid) {
       await conn.rollback();
       const alreadyPaid = currentStatus === "PAID";
       return ignoredWebhook(
@@ -106,6 +110,13 @@ exports.applyMidtransNotification = async (payload = {}) => {
       );
     }
 
+    if (canTakeLatePaid) {
+      console.warn("[webhook] late settlement accepted", {
+        order_code: order.order_code,
+        previous_status: currentStatus,
+      });
+    }
+
     // Tolak settlement/capture jika amount tidak cocok (cegah bayar murah → mark PAID).
     if (nextStatus === "PAID") {
       const paid = Number(grossAmount);
@@ -114,11 +125,9 @@ exports.applyMidtransNotification = async (payload = {}) => {
         await conn.rollback();
         return {
           httpStatus: 409,
-          body: {
-            success: false,
-            message: "gross_amount wajib dan harus cocok dengan total order",
+          body: errBody("gross_amount wajib dan harus cocok dengan total order", {
             data: { expected_total: expected, received_gross_amount: grossAmount || null },
-          },
+          }),
         };
       }
     }
@@ -203,8 +212,8 @@ exports.applyMidtransNotification = async (payload = {}) => {
       };
     }
 
-    // Order baru: stok sudah di-hold saat PENDING. Jangan potong lagi.
-    // Order lama (stock_reserved=0): potong di sini seperti sebelumnya.
+    // Order baru masih PENDING: stok sudah di-hold. Jangan potong lagi.
+    // Order lama / settlement telat (EXPIRED/CANCELLED, stock_reserved=0): potong di sini.
     let decrementedSlotId = firstItem.slot_id;
     let decrementedQty = firstItem.qty;
     if (!orderModel.isStockReserved(order)) {
@@ -232,11 +241,20 @@ exports.applyMidtransNotification = async (payload = {}) => {
         await conn.commit();
         const updatedOrder = await orderModel.findDetailById(order.id);
 
+        if (canTakeLatePaid) {
+          console.warn("[webhook] late settlement: stock gone, needs refund", {
+            order_code: updatedOrder.order_code,
+            previous_status: currentStatus,
+          });
+        }
+
         return {
           httpStatus: 200,
           body: {
             success: true,
-            message: "Payment received but stock decrement failed",
+            message: canTakeLatePaid
+              ? "Late payment received but stock already taken; needs refund"
+              : "Payment received but stock decrement failed",
             data: {
               order_id: updatedOrder.id,
               order_code: updatedOrder.order_code,
@@ -266,16 +284,28 @@ exports.applyMidtransNotification = async (payload = {}) => {
       conn
     );
 
+    if (canTakeLatePaid && !orderModel.isStockReserved(order)) {
+      await conn.query(
+        `UPDATE orders SET stock_reserved = 1, updated_at = CURRENT_TIMESTAMP(3)
+         WHERE id = ? AND stock_reserved = 0 LIMIT 1`,
+        [order.id]
+      );
+    }
+
     await conn.commit();
     const updatedOrder = await orderModel.findDetailById(order.id);
+
+    const paidMessage = canTakeLatePaid
+      ? `Late settlement accepted after ${currentStatus}`
+      : orderModel.isStockReserved(order)
+        ? "Webhook processed successfully (stock already reserved)"
+        : "Webhook processed successfully and stock decremented";
 
     return {
       httpStatus: 200,
       body: {
         success: true,
-        message: orderModel.isStockReserved(order)
-          ? "Webhook processed successfully (stock already reserved)"
-          : "Webhook processed successfully and stock decremented",
+        message: paidMessage,
         data: {
           order_id: updatedOrder.id,
           order_code: updatedOrder.order_code,
@@ -311,16 +341,10 @@ exports.webhook = async (req, res, next) => {
 
     // Fail closed: tanpa token di env, webhook tidak boleh diproses.
     if (!expectedToken) {
-      return res.status(503).json({
-        success: false,
-        message: "VENDOR_PAYMENT_INTERNAL_TOKEN belum diset di Core",
-      });
+      return jsonErr(res, 503, "VENDOR_PAYMENT_INTERNAL_TOKEN belum diset di Core");
     }
-    if (internalToken !== expectedToken) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized internal request",
-      });
+    if (!secureEqual(internalToken, expectedToken)) {
+      return jsonErr(res, 401, "Unauthorized internal request");
     }
 
     const result = await exports.applyMidtransNotification(req.body || {});

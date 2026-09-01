@@ -9,21 +9,15 @@ const slotModel = require("../models/slot");
 const orderModel = require("../models/order");
 const systemSettings = require("../models/system-settings");
 const vendorController = require("./vendor");
-
-const clean = (v) => String(v || "").trim();
-const toPositiveInt = (v) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : 0;
-};
-/** Parse pilihan panaskan dari body kiosk: true/false / 1/0 / "true"/"false". */
-const parseHeatRequested = (v) => {
-  if (v === true || v === 1 || v === "1") return true;
-  if (v === false || v === 0 || v === "0") return false;
-  const s = String(v ?? "").trim().toLowerCase();
-  if (s === "true" || s === "yes" || s === "ya") return true;
-  if (s === "false" || s === "no" || s === "tidak") return false;
-  return null;
-};
+const {
+  clean,
+  toPositiveInt,
+  parseHeatRequested,
+  toDateOnly,
+  daysUntil,
+  jsonErr,
+  secureEqual,
+} = require("../helper-function/http");
 
 exports.requireKioskInternalToken = (req, res, next) => {
   if (req.method === "OPTIONS") return next();
@@ -32,42 +26,12 @@ exports.requireKioskInternalToken = (req, res, next) => {
   const provided = clean(req.headers["x-kiosk-internal-token"]);
 
   if (!expected) {
-    return res.status(503).json({ success: false, message: "KIOSK_API_INTERNAL_TOKEN belum diset di Core" });
+    return jsonErr(res, 503, "KIOSK_API_INTERNAL_TOKEN belum diset di Core");
   }
-  if (provided !== expected) {
-    return res.status(401).json({ success: false, message: "Unauthorized internal request" });
+  if (!secureEqual(provided, expected)) {
+    return jsonErr(res, 401, "Unauthorized internal request");
   }
   return next();
-};
-
-const toDateOnly = (v) => {
-  if (v == null || v === "") return null;
-  if (v instanceof Date && !Number.isNaN(v.getTime())) {
-    const y = v.getFullYear();
-    const m = String(v.getMonth() + 1).padStart(2, "0");
-    const d = String(v.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-  const s = String(v).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-  const parsed = new Date(s);
-  if (!Number.isNaN(parsed.getTime())) {
-    const y = parsed.getFullYear();
-    const m = String(parsed.getMonth() + 1).padStart(2, "0");
-    const d = String(parsed.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-  return null;
-};
-
-const daysUntil = (dateStr) => {
-  const s = toDateOnly(dateStr);
-  if (!s) return null;
-  const [y, m, d] = s.split("-").map(Number);
-  const t = Date.UTC(y, m - 1, d);
-  const now = new Date();
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.floor((t - today) / 86400000);
 };
 
 /** GET /api/v1/kiosk/ui — layout settings global (tanpa machine) */
@@ -93,12 +57,12 @@ exports.getCatalog = async (req, res, next) => {
   try {
     const machineCode = clean(req.params.machineCode);
     if (!machineCode) {
-      return res.status(400).json({ success: false, message: "machineCode is required" });
+      return jsonErr(res, 400, "machineCode is required");
     }
 
     const machine = await machineModel.findActiveByCode(machineCode);
     if (!machine) {
-      return res.status(404).json({ success: false, message: "Machine not found or inactive" });
+      return jsonErr(res, 404, "Machine not found or inactive");
     }
 
     const [slots, kioskUi] = await Promise.all([
@@ -152,12 +116,12 @@ exports.postHeartbeat = async (req, res, next) => {
   try {
     const machineCode = clean(req.params.machineCode);
     if (!machineCode) {
-      return res.status(400).json({ success: false, message: "machineCode is required" });
+      return jsonErr(res, 400, "machineCode is required");
     }
 
     const machine = await machineModel.findActiveByCode(machineCode);
     if (!machine) {
-      return res.status(404).json({ success: false, message: "Machine not found or inactive" });
+      return jsonErr(res, 404, "Machine not found or inactive");
     }
 
     const appVersion = clean(req.body?.app_version) || null;
@@ -186,12 +150,12 @@ exports.reportCrash = async (req, res, next) => {
   try {
     const machineCode = clean(req.params.machineCode);
     if (!machineCode) {
-      return res.status(400).json({ success: false, message: "machineCode is required" });
+      return jsonErr(res, 400, "machineCode is required");
     }
 
     const machine = await machineModel.findActiveByCode(machineCode);
     if (!machine) {
-      return res.status(404).json({ success: false, message: "Machine not found or inactive" });
+      return jsonErr(res, 404, "Machine not found or inactive");
     }
 
     const source = clean(req.body?.source) || "unknown";
@@ -223,47 +187,46 @@ exports.reportCrash = async (req, res, next) => {
  * sini - endpoint ini selalu membuat order baru saat dipanggil.
  */
 exports.createMachineOrder = async (req, res, next) => {
-  const jsonErr = (status, message) => res.status(status).json({ success: false, message });
-
   try {
     const machineCode = clean(req.params.machineCode);
-    if (!machineCode) return jsonErr(400, "machineCode is required");
+    if (!machineCode) return jsonErr(res, 400, "machineCode is required");
 
     const slot_code = clean(req.body.slot_code);
     const qty = toPositiveInt(req.body.qty || 1);
     const heat_requested = parseHeatRequested(req.body.heat_requested);
-    if (!slot_code) return jsonErr(400, "slot_code is required");
-    if (!qty) return jsonErr(400, "qty must be a positive integer");
+    if (!slot_code) return jsonErr(res, 400, "slot_code is required");
+    if (!qty) return jsonErr(res, 400, "qty must be a positive integer");
     if (heat_requested === null) {
-      return jsonErr(400, "heat_requested wajib diisi (true/false): pilihan dipanaskan atau tidak");
+      return jsonErr(res, 400, "heat_requested wajib diisi (true/false): pilihan dipanaskan atau tidak");
     }
 
     const machine = await machineModel.findActiveByCode(machineCode);
-    if (!machine) return jsonErr(404, "Machine not found or inactive");
+    if (!machine) return jsonErr(res, 404, "Machine not found or inactive");
     if (!machine.merchant_id) {
-      return jsonErr(409, "Mesin ini belum ditautkan ke merchant. Hubungi admin.");
+      return jsonErr(res, 409, "Mesin ini belum ditautkan ke merchant. Hubungi admin.");
     }
 
     const slot = await slotModel.findActiveByMachineAndCodeForOrder({ machine_id: machine.id, slot_code });
-    if (!slot) return jsonErr(404, "Slot not found or inactive");
-    if (Number(slot.stock || 0) < qty) return jsonErr(400, "Insufficient stock");
+    if (!slot) return jsonErr(res, 404, "Slot not found or inactive");
+    if (Number(slot.stock || 0) < qty) return jsonErr(res, 400, "Insufficient stock");
 
     if (Boolean(slot.requires_heating) && !heat_requested) {
       return jsonErr(
+        res,
         400,
         "Produk ini wajib dipanaskan. Pilih opsi dipanaskan untuk melanjutkan."
       );
     }
 
     const unit_price = Number(slot.slot_price == null ? slot.product_base_price : slot.slot_price);
-    if (!unit_price || unit_price <= 0) return jsonErr(400, "Invalid product price");
+    if (!unit_price || unit_price <= 0) return jsonErr(res, 400, "Invalid product price");
 
     const subtotal = unit_price * qty;
     const total = subtotal;
 
     const vendorBase = String(process.env.VENDOR_PAYMENT_BASE_URL || "").replace(/\/$/, "");
     if (!vendorBase) {
-      return jsonErr(503, "VENDOR_PAYMENT_BASE_URL belum diset di Core");
+      return jsonErr(res, 503, "VENDOR_PAYMENT_BASE_URL belum diset di Core");
     }
 
     const created = await orderModel.createPendingOrderWithStockHold({
@@ -294,8 +257,8 @@ exports.createMachineOrder = async (req, res, next) => {
       },
     });
     if (!created.ok) {
-      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(400, "Insufficient stock");
-      return jsonErr(404, "Slot not found or inactive");
+      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(res, 400, "Insufficient stock");
+      return jsonErr(res, 404, "Slot not found or inactive");
     }
     const order_id = created.order_id;
     const order_code = created.order_code;
@@ -353,7 +316,7 @@ exports.createMachineOrder = async (req, res, next) => {
       } catch (cancelErr) {
         console.error("Kiosk order: gagal membatalkan order yatim", cancelErr.message);
       }
-      return jsonErr(502, "Gagal membuat QRIS lewat vendor Midtrans, order dibatalkan untuk kiosk");
+      return jsonErr(res, 502, "Gagal membuat QRIS lewat vendor Midtrans, order dibatalkan untuk kiosk");
     }
 
     const normalizedVendor = vendorResultWrap.data || {};
@@ -398,15 +361,19 @@ exports.createMachineOrder = async (req, res, next) => {
 };
 
 const OPEN_PAYMENT_STATUSES = new Set(["PENDING", "CREATED"]);
+const LATE_SETTLEMENT_STATUSES = new Set(["EXPIRED", "CANCELLED", "FAILED"]);
 
 /**
  * Saat webhook Midtrans diarahkan ke URL eksternal (sandbox/webhook.site),
  * core belum sempat update. Polling status kiosk menyinkronkan dari Midtrans
  * lewat vendor GET /api/payments/status/:orderId.
+ * EXPIRED/CANCELLED juga di-sync: settlement telat harus bisa jadi PAID.
  */
 async function syncOrderFromMidtransIfOpen(order) {
   const status = clean(order?.status).toUpperCase();
-  if (!OPEN_PAYMENT_STATUSES.has(status)) return order;
+  if (!OPEN_PAYMENT_STATUSES.has(status) && !LATE_SETTLEMENT_STATUSES.has(status)) {
+    return order;
+  }
 
   const vendorBase = String(process.env.VENDOR_PAYMENT_BASE_URL || "").replace(/\/$/, "");
   if (!vendorBase) return order;
@@ -459,10 +426,10 @@ async function syncOrderFromMidtransIfOpen(order) {
 exports.getOrderStatus = async (req, res, next) => {
   try {
     const orderCode = clean(req.params.orderCode);
-    if (!orderCode) return res.status(400).json({ success: false, message: "orderCode is required" });
+    if (!orderCode) return jsonErr(res, 400, "orderCode is required");
 
     let order = await orderModel.findByPaymentRefOrOrderCode(orderCode);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+    if (!order) return jsonErr(res, 404, "Order not found");
 
     order = await syncOrderFromMidtransIfOpen(order);
 
@@ -481,6 +448,143 @@ exports.getOrderStatus = async (req, res, next) => {
   }
 };
 
+const PAID_LIKE_FOR_CANCEL = new Set(["PAID", "PAID_ITEM_MISSING", "PAID_STOCK_FAILED"]);
+const ALREADY_CLOSED_UNPAID = new Set(["CANCELLED", "EXPIRED", "FAILED"]);
+
+function requestVendorCancelQr(order) {
+  const vendorBase = String(process.env.VENDOR_PAYMENT_BASE_URL || "").replace(/\/$/, "");
+  const lookup = clean(order?.payment_ref || order?.order_code);
+  if (!vendorBase || !lookup) return;
+
+  axios
+    .post(
+      `${vendorBase}/api/payments/cancel/${encodeURIComponent(lookup)}`,
+      {},
+      {
+        timeout: Number(process.env.VENDOR_PAYMENT_TIMEOUT_MS || 15000),
+        headers: {
+          Accept: "application/json",
+          "X-Internal-Token": process.env.VENDOR_PAYMENT_INTERNAL_TOKEN || "",
+        },
+        validateStatus: () => true,
+      }
+    )
+    .then((res) => {
+      if (res.status >= 200 && res.status < 300 && res.data?.ok === true) {
+        return;
+      }
+      console.warn("[kiosk-cancel] Midtrans cancel tidak berhasil", {
+        order_code: order.order_code,
+        httpStatus: res.status,
+        body: res.data || null,
+      });
+    })
+    .catch((err) => {
+      console.warn("[kiosk-cancel] Midtrans cancel error", err.message || err.code || String(err));
+    });
+}
+
+/**
+ * Batalkan order kiosk yang belum lunas: lepas hold, matikan QR Midtrans (best-effort).
+ * Kalau sudah PAID, jangan cancel — kiosk harus ke dispense.
+ * @returns {{ ok: boolean, httpStatus: number, message?: string, order_code?: string, status?: string, cancelled?: boolean }}
+ */
+exports.applyKioskCancel = async (orderCode) => {
+  const code = clean(orderCode);
+  if (!code) {
+    return { ok: false, httpStatus: 400, message: "orderCode is required" };
+  }
+
+  let order = await orderModel.findByPaymentRefOrOrderCode(code);
+  if (!order) {
+    return { ok: false, httpStatus: 404, message: "Order not found" };
+  }
+
+  order = await syncOrderFromMidtransIfOpen(order);
+  const status = clean(order.status).toUpperCase();
+
+  if (PAID_LIKE_FOR_CANCEL.has(status)) {
+    return {
+      ok: true,
+      httpStatus: 200,
+      cancelled: false,
+      order_code: order.order_code,
+      status,
+    };
+  }
+
+  if (ALREADY_CLOSED_UNPAID.has(status)) {
+    requestVendorCancelQr(order);
+    return {
+      ok: true,
+      httpStatus: 200,
+      cancelled: true,
+      order_code: order.order_code,
+      status,
+    };
+  }
+
+  if (status !== "PENDING" && status !== "CREATED") {
+    return {
+      ok: true,
+      httpStatus: 200,
+      cancelled: false,
+      order_code: order.order_code,
+      status,
+    };
+  }
+
+  const didCancel = await orderModel.cancelUnpaidOrder({
+    id: order.id,
+    reason: "Dibatalkan dari kiosk",
+  });
+
+  const refreshed = await orderModel.findByPaymentRefOrOrderCode(code);
+  const next = clean(refreshed?.status || status).toUpperCase();
+
+  if (didCancel || next === "CANCELLED") {
+    requestVendorCancelQr(refreshed || order);
+    return {
+      ok: true,
+      httpStatus: 200,
+      cancelled: true,
+      order_code: (refreshed || order).order_code,
+      status: next,
+    };
+  }
+
+  return {
+    ok: true,
+    httpStatus: 200,
+    cancelled: false,
+    order_code: (refreshed || order).order_code,
+    status: next,
+  };
+};
+
+/**
+ * POST /api/v1/orders/:orderCode/cancel
+ * Tombol Batalkan kiosk: lepas stok + coba matikan QR. Jika sudah lunas, kembalikan PAID.
+ */
+exports.cancelKioskOrder = async (req, res, next) => {
+  try {
+    const result = await exports.applyKioskCancel(req.params.orderCode);
+    if (!result.ok) {
+      return jsonErr(res, result.httpStatus, result.message);
+    }
+    return res.status(200).json({
+      success: true,
+      data: {
+        order_id: result.order_code,
+        status: result.status,
+        cancelled: Boolean(result.cancelled),
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 const DISPENSE_TERMINAL_STATUSES = ["DISPENSED", "DISPENSE_FAILED"];
 
 /**
@@ -490,21 +594,19 @@ const DISPENSE_TERMINAL_STATUSES = ["DISPENSED", "DISPENSE_FAILED"];
  * menambah stok dua kali, dan tidak menimpa DISPENSED/DISPENSE_FAILED.
  */
 exports.reportDispenseResult = async (req, res, next) => {
-  const jsonErr = (status, message) => res.status(status).json({ success: false, message });
-
   try {
     const orderCode = clean(req.params.orderCode);
-    if (!orderCode) return jsonErr(400, "orderCode is required");
+    if (!orderCode) return jsonErr(res, 400, "orderCode is required");
 
     const status = clean(req.body.status).toUpperCase();
     if (!DISPENSE_TERMINAL_STATUSES.includes(status)) {
-      return jsonErr(400, "status harus DISPENSED atau DISPENSE_FAILED");
+      return jsonErr(res, 400, "status harus DISPENSED atau DISPENSE_FAILED");
     }
     const detail = req.body.detail ? String(req.body.detail).slice(0, 255) : null;
 
     const result = await orderModel.recordDispenseResult({ orderCode, status, detail });
     if (!result.ok) {
-      return jsonErr(result.httpStatus, result.message);
+      return jsonErr(res, result.httpStatus, result.message);
     }
 
     if (!result.duplicate && status === "DISPENSE_FAILED") {

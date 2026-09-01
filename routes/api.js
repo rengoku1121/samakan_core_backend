@@ -12,6 +12,7 @@ router.post("/v1/machines/:machineCode/heartbeat", api.postHeartbeat);
 router.post("/v1/machines/:machineCode/crash-report", api.reportCrash);
 router.post("/v1/machines/:machineCode/orders", api.createMachineOrder);
 router.get("/v1/orders/:orderCode/status", api.getOrderStatus);
+router.post("/v1/orders/:orderCode/cancel", api.cancelKioskOrder);
 router.post("/v1/orders/:orderCode/dispense-result", api.reportDispenseResult);
 
 module.exports = router;

@@ -60,7 +60,9 @@
       <div class="actions">
         <a class="btn btn-primary" href="/admin/machines/new">+ New Machine</a>
         <a class="btn btn-ghost" href="/admin">Dashboard</a>
-        <a class="btn btn-link" href="/auth/logout">Logout</a>
+        <form method="POST" action="/auth/logout">
+          <button type="submit" class="btn btn-link">Logout</button>
+        </form>
       </div>
     </div>
 

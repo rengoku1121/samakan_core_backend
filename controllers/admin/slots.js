@@ -9,15 +9,7 @@ const {
   layoutExample,
 } = require("../../helper-function/slot-code");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
-};
-const clean = (v) => String(v || "").trim();
-const cleanDate = (v) => {
-  const s = clean(v);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-};
+const { clean, toNonNegInt: toInt, cleanDate, parseUInt } = require("../../helper-function/http");
 
 const defaultExpiresFromShelfLifeDays = (days) => {
   const n = Number(days);
@@ -35,14 +27,6 @@ const parsePriceNullable = (v) => {
   if (!Number.isFinite(n)) return "INVALID";
   const x = Math.floor(n);
   return x >= 0 ? x : "INVALID";
-};
-
-const parseUInt = (v, def, allowNull = false) => {
-  const raw = clean(v);
-  if (allowNull && raw === "") return null;
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) return def;
-  return Math.floor(n);
 };
 
 /**

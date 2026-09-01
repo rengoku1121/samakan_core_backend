@@ -2,11 +2,7 @@
 const productModel = require("../../models/product");
 const { formatDateId } = require("../../helper-function/format-date");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
-};
-const clean = (v) => String(v || "").trim();
+const { clean, toNonNegInt: toInt } = require("../../helper-function/http");
 
 const parsePrice = (v) => {
   // allow "15.000" or "15,000" or "15000"

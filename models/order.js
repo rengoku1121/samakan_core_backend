@@ -779,7 +779,8 @@ exports.cancelUnpaidOrder = async ({ id, reason }, conn) => {
       [id, 1]
     );
     const order = rows[0];
-    if (!order || String(order.status).toUpperCase() !== "PENDING" || order.paid_at) {
+    const st = String(order?.status || "").toUpperCase();
+    if (!order || !["PENDING", "CREATED"].includes(st) || order.paid_at) {
       if (ownConn) await executor.rollback();
       return false;
     }
@@ -794,7 +795,7 @@ exports.cancelUnpaidOrder = async ({ id, reason }, conn) => {
         dispense_failure_reason = ?,
         updated_at = CURRENT_TIMESTAMP(3)
       WHERE id = ?
-        AND status = 'PENDING'
+        AND status IN ('PENDING', 'CREATED')
         AND paid_at IS NULL
       LIMIT ?
     `;

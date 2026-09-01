@@ -7,7 +7,7 @@ const merchantModel = require("../../models/merchant");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 exports.upload = upload;
 
-const fmtMoney = (n) => new Intl.NumberFormat("id-ID").format(Number(n || 0));
+const { fmtMoney } = require("../../helper-function/http");
 
 exports.dashboard = async (req, res, next) => {
   try {

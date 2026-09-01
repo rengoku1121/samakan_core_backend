@@ -1,46 +1,77 @@
 const bcrypt = require("bcryptjs");
 const userModel = require("../models/user");
 const { signAccessToken } = require("../helper-function/jwt");
+const {
+  accessTokenCookieOptions,
+  clearAccessTokenCookieOptions,
+} = require("../helper-function/cookie");
+const { issueCsrf, checkCsrf } = require("../helper-function/csrf");
+const attempts = require("../helper-function/login-attempts");
 
-exports.renderLogin = async (req, res) => {
-  return res.render("auth/login", {
+const ADMIN_HOME_ROLES = new Set(["admin", "staff", "superadmin"]);
+const DUMMY_HASH = bcrypt.hashSync("__samakan_timing_pad__", 10);
+const BAD_LOGIN = "Identifier atau password salah";
+
+function loginPage(res, { status = 200, error = null, identifier = "" } = {}) {
+  const csrfToken = issueCsrf(res);
+  return res.status(status).render("auth/login", {
     title: "Login",
-    error: null,
-    value: { identifier: "" },
+    error,
+    csrfToken,
+    value: { identifier },
   });
-};
+}
+
+exports.renderLogin = async (req, res) => loginPage(res);
 
 exports.login = async (req, res, next) => {
   try {
     const identifier = String(req.body.identifier || "").trim();
     const password = String(req.body.password || "");
 
+    if (!checkCsrf(req)) {
+      return loginPage(res, {
+        status: 403,
+        error: "Sesi form kadaluarsa. Muat ulang halaman lalu coba lagi.",
+        identifier,
+      });
+    }
+
     if (!identifier || !password) {
-      return res.status(400).render("auth/login", {
-        title: "Login",
+      return loginPage(res, {
+        status: 400,
         error: "Identifier dan password wajib diisi",
-        value: { identifier },
+        identifier,
+      });
+    }
+
+    if (attempts.isLocked(identifier)) {
+      return loginPage(res, {
+        status: 429,
+        error: "Terlalu banyak percobaan. Coba lagi nanti.",
+        identifier,
       });
     }
 
     const user = await userModel.findByIdentifier(identifier);
-    if (!user || !user.is_active) {
-      return res.status(401).render("auth/login", {
-        title: "Login",
-        error: "Identifier atau password salah",
-        value: { identifier },
+    const hash = user && user.password_hash ? user.password_hash : DUMMY_HASH;
+    let match = false;
+    try {
+      match = await bcrypt.compare(password, hash);
+    } catch (_) {
+      match = false;
+    }
+
+    if (!user || !user.is_active || !match) {
+      attempts.recordFail(identifier);
+      return loginPage(res, {
+        status: 401,
+        error: BAD_LOGIN,
+        identifier,
       });
     }
 
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return res.status(401).render("auth/login", {
-        title: "Login",
-        error: "Identifier atau password salah",
-        value: { identifier },
-      });
-    }
-
+    attempts.clearFails(identifier);
     await userModel.updateLastLogin(user.id);
 
     const token = signAccessToken({
@@ -49,36 +80,17 @@ exports.login = async (req, res, next) => {
       merchant_id: user.merchant_id || null,
     });
 
-    // COOKIE_SECURE=0 → izinkan HTTP lokal meski NODE_ENV=production
-    const cookieSecure =
-      String(process.env.COOKIE_SECURE || "").trim() === "0"
-        ? false
-        : String(process.env.COOKIE_SECURE || "").trim() === "1"
-          ? true
-          : process.env.NODE_ENV === "production";
-
-    res.cookie("access_token", token, {
-      httpOnly: true,
-      secure: cookieSecure,
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    if (user.role === "admin" || user.role === "staff" || user.role === "superadmin") {
-      return res.redirect("/admin");
-    }
-    return res.redirect("/merchant");
+    res.cookie("access_token", token, accessTokenCookieOptions());
+    return res.redirect(ADMIN_HOME_ROLES.has(user.role) ? "/admin" : "/merchant");
   } catch (err) {
     return next(err);
   }
 };
 
 exports.logout = async (req, res) => {
-  res.clearCookie("access_token", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
+  res.clearCookie("access_token", clearAccessTokenCookieOptions());
   return res.redirect("/auth/login");
 };
+
+/** GET tidak menghapus cookie — hindari logout lewat tautan silang situs. */
+exports.logoutGet = async (req, res) => res.redirect("/auth/login");

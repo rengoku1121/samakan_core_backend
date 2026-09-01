@@ -4,18 +4,14 @@ const orderModel = require("../../models/order");
 const machineModel = require("../../models/machine");
 const slotModel = require("../../models/slot");
 const { formatDateId } = require("../../helper-function/format-date");
-
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.floor(n) : def;
-};
-const clean = (v) => String(v || "").trim();
-const fmtMoney = (n) => new Intl.NumberFormat("id-ID").format(Number(n || 0));
-
-const toPositiveInt = (v) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : 0;
-};
+const {
+  clean,
+  toInt,
+  toPositiveInt,
+  fmtMoney,
+  jsonErr,
+  daysUntilUtc,
+} = require("../../helper-function/http");
 
 const parseVendorExpiry = (raw) => {
   if (!raw) return null;
@@ -29,16 +25,7 @@ const parseVendorExpiry = (raw) => {
   return null;
 };
 
-const daysUntil = (dateStr) => {
-  if (!dateStr) return null;
-  const s = String(dateStr).slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
-  const [y, m, d] = s.split("-").map(Number);
-  const t = Date.UTC(y, m - 1, d);
-  const now = new Date();
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  return Math.floor((t - today) / 86400000);
-};
+const daysUntil = daysUntilUtc;
 
 /** Payload mesin + slot untuk halaman QRIS (JSON di-template). */
 async function buildMerchantMachinesPayload(merchantId) {
@@ -131,49 +118,47 @@ exports.list = async (req, res, next) => {
 };
 
 exports.createOrderAndGenerateQris = async (req, res, next) => {
-  const jsonErr = (status, message) => res.status(status).json({ success: false, message });
-
   try {
     const merchant_id = Number(req.user?.merchant_id || 0);
     if (!merchant_id) {
-      return jsonErr(403, "merchant_id is required");
+      return jsonErr(res, 403, "merchant_id is required");
     }
 
     const machine_id = toPositiveInt(req.body.machine_id);
     const slot_id = toPositiveInt(req.body.slot_id);
     const qty = toPositiveInt(req.body.qty || 1);
 
-    if (!machine_id) return jsonErr(400, "machine_id is required");
-    if (!slot_id) return jsonErr(400, "slot_id is required");
-    if (!qty) return jsonErr(400, "qty must be a positive integer");
+    if (!machine_id) return jsonErr(res, 400, "machine_id is required");
+    if (!slot_id) return jsonErr(res, 400, "slot_id is required");
+    if (!qty) return jsonErr(res, 400, "qty must be a positive integer");
 
     const merchant = await orderModel.findMerchantActiveById(merchant_id);
-    if (!merchant) return jsonErr(404, "Merchant not found or inactive");
+    if (!merchant) return jsonErr(res, 404, "Merchant not found or inactive");
 
     const machine = await orderModel.findMachineActiveById(machine_id);
-    if (!machine) return jsonErr(404, "Machine not found or inactive");
+    if (!machine) return jsonErr(res, 404, "Machine not found or inactive");
 
     if (machine.merchant_id == null || Number(machine.merchant_id) !== merchant_id) {
-      return jsonErr(403, "Mesin ini tidak ditugaskan ke merchant kamu. Hubungi admin untuk menautkan mesin.");
+      return jsonErr(res, 403, "Mesin ini tidak ditugaskan ke merchant kamu. Hubungi admin untuk menautkan mesin.");
     }
 
     const slot = await orderModel.findMachineSlotActiveById(slot_id);
-    if (!slot) return jsonErr(404, "Slot not found or inactive");
+    if (!slot) return jsonErr(res, 404, "Slot not found or inactive");
 
     if (Number(slot.machine_id) !== machine_id) {
-      return jsonErr(400, "Slot does not belong to selected machine");
+      return jsonErr(res, 400, "Slot does not belong to selected machine");
     }
 
     if (Number(slot.stock || 0) < qty) {
-      return jsonErr(400, "Insufficient stock");
+      return jsonErr(res, 400, "Insufficient stock");
     }
 
     const product = await orderModel.findProductActiveById(slot.product_id);
-    if (!product) return jsonErr(404, "Product not found or inactive");
+    if (!product) return jsonErr(res, 404, "Product not found or inactive");
 
     const unit_price = Number(slot.price || product.price || 0);
     if (!unit_price || unit_price <= 0) {
-      return jsonErr(400, "Invalid product price");
+      return jsonErr(res, 400, "Invalid product price");
     }
 
     const subtotal = unit_price * qty;
@@ -206,8 +191,8 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
       },
     });
     if (!created.ok) {
-      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(400, "Insufficient stock");
-      return jsonErr(404, "Slot not found or inactive");
+      if (created.code === "INSUFFICIENT_STOCK") return jsonErr(res, 400, "Insufficient stock");
+      return jsonErr(res, 404, "Slot not found or inactive");
     }
     const order_id = created.order_id;
     const order_code = created.order_code;
@@ -323,11 +308,11 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
           id: order_id,
           reason: "QRIS vendor gagal saat pembuatan order merchant",
         });
-        return res.status(502).json({
-          success: false,
-          message:
-            "Gagal membuat QRIS lewat vendor Midtrans. Order dibatalkan — jangan tampilkan QR pengganti ke pelanggan.",
-        });
+        return jsonErr(
+          res,
+          502,
+          "Gagal membuat QRIS lewat vendor Midtrans. Order dibatalkan — jangan tampilkan QR pengganti ke pelanggan."
+        );
       }
 
       const payment = buildDemoPreviewPayment(order, total);

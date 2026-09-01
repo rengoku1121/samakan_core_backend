@@ -117,7 +117,9 @@
         <% } %>
         <a class="btn btn-ghost" href="<%= isArchived ? '/admin/locations?archived=1' : '/admin/locations' %>"><%= isArchived ? 'Kembali ke arsip' : 'Kembali ke daftar master' %></a>
         <a class="btn btn-ghost" href="/admin">Dashboard</a>
-        <a class="btn btn-link" href="/auth/logout">Logout</a>
+        <form method="POST" action="/auth/logout">
+          <button type="submit" class="btn btn-link">Logout</button>
+        </form>
       </div>
     </div>
 

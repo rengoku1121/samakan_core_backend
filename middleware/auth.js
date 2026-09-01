@@ -1,10 +1,11 @@
 // middleware/auth.js
 const userModel = require("../models/user");
 const { verifyAccessToken } = require("../helper-function/jwt");
+const { clearAccessTokenCookieOptions } = require("../helper-function/cookie");
 
 const extractToken = (req) => {
   // cookie
-  if (req.cookies ?.access_token) return String(req.cookies.access_token);
+  if (req.cookies?.access_token) return String(req.cookies.access_token);
 
   // bearer
   const auth = String(req.headers.authorization || "");
@@ -15,11 +16,7 @@ const extractToken = (req) => {
 
 const deny = (req, res) => {
   // clear token to force relogin
-  res.clearCookie("access_token", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  });
+  res.clearCookie("access_token", clearAccessTokenCookieOptions());
 
   const accept = String(req.headers.accept || "");
   if (!accept.includes("application/json")) {

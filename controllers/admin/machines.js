@@ -5,15 +5,7 @@ const merchantModel = require("../../models/merchant");
 const realtimeEvents = require("../../utils/realtime-events");
 const pushNotifier = require("../../utils/push-notifier");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
-};
-const clean = (v) => String(v || "").trim();
-const cleanDate = (v) => {
-  const s = clean(v);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-};
+const { clean, toNonNegInt: toInt, cleanDate } = require("../../helper-function/http");
 const toDateInputValue = (value) => {
   if (!value) return "";
   if (value instanceof Date && !Number.isNaN(value.getTime())) {

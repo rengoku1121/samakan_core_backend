@@ -8,7 +8,7 @@ const fmtIdr = (n) =>
     maximumFractionDigits: 0,
   }).format(Number(n) || 0);
 
-const fmtMoney = (n) => new Intl.NumberFormat("id-ID").format(Number(n || 0));
+const { fmtMoney } = require("../helper-function/http");
 
 exports.renderHome = async (req, res, next) => {
   try {

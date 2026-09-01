@@ -190,6 +190,11 @@ body.shell-app::after {
   flex: 1;
 }
 
+.shell-logout-form {
+  margin-top: auto;
+  display: block;
+}
+
 .shell-nav a,
 .shell-logout {
   text-decoration: none !important;
@@ -209,7 +214,10 @@ body.shell-app::after {
 }
 
 .shell-logout {
-  margin-top: auto;
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
   color: var(--s-danger) !important;
   border: 1px solid #fecaca;
   background: #fef2f2;

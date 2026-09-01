@@ -5,13 +5,7 @@ const merchantModel = require("../../models/merchant");
 const machineModel = require("../../models/machine");
 const settlementModel = require("../../models/settlement");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.floor(n) : def;
-}
-const clean = (v) => String(v || "").trim();
-
-const fmtMoney = (n) => new Intl.NumberFormat("id-ID").format(Number(n || 0));
+const { clean, toInt, fmtMoney } = require("../../helper-function/http");
 
 exports.list = async (req, res, next) => {
   try {

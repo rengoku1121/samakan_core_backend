@@ -5,10 +5,7 @@
  * memakai penomoran fisik mesin: baris 1 = 001-004, baris 2 = 011-014, dst.
  */
 
-const toPositiveInt = (v, def) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : def;
-};
+const { toPositiveInt } = require("./http");
 
 const LAYOUT_ROWS = toPositiveInt(process.env.VMC_SLOT_ROWS, 8);
 const LAYOUT_COLS = toPositiveInt(process.env.VMC_SLOT_COLS, 4);

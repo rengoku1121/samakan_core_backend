@@ -1,5 +1,6 @@
 /**
- * Race #3: webhook tidak boleh menghidupkan / menimpa order yang sudah final.
+ * Race #3: webhook tidak menimpa DISPENSED/DISPENSE_FAILED/PAID.
+ * Settlement telat pada EXPIRED/CANCELLED dicatat (PAID atau PAID_STOCK_FAILED).
  *
  * Run: node scripts/test-webhook-terminal-race.js
  */
@@ -179,7 +180,7 @@ function assert(name, cond, extra) {
 async function main() {
   const cases = [];
 
-  // A: CANCELLED + settlement telat → tetap CANCELLED, stok tidak dipotong lagi
+  // A: CANCELLED + settlement telat + stok masih ada → PAID, stok dipotong
   {
     const ids = await boot(1);
     const created = await holdOne(ids, "A");
@@ -187,10 +188,44 @@ async function main() {
     await orderModel.cancelUnpaidOrder({ id: created.order_id, reason: "qris timeout" });
     assert("A after cancel stock 1", (await readStock(ids.slotId)) === 1);
     const late = await pay(orderCode("A"));
-    assert("A ignored", String(late.body?.data?.status) === "CANCELLED", late.body);
-    assert("A stock still 1", (await readStock(ids.slotId)) === 1);
-    assert("A db CANCELLED", (await readStatus(orderCode("A"))) === "CANCELLED");
-    cases.push({ name: "A_cancelled_ignores_settlement", pass: true });
+    assert("A late paid", String(late.body?.data?.status) === "PAID", late.body);
+    assert("A stock 0", (await readStock(ids.slotId)) === 0);
+    assert("A db PAID", (await readStatus(orderCode("A"))) === "PAID");
+    cases.push({ name: "A_cancelled_late_settlement_becomes_paid", pass: true });
+  }
+
+  // A2: EXPIRED + settlement telat + stok masih ada → PAID
+  {
+    const ids = await boot(1);
+    const created = await holdOne(ids, "A2");
+    assert("A2 hold", created.ok);
+    const exp = await expire(orderCode("A2"));
+    assert("A2 expired", exp.body?.data?.status === "EXPIRED", exp.body);
+    assert("A2 stock 1", (await readStock(ids.slotId)) === 1);
+    const late = await pay(orderCode("A2"));
+    assert("A2 late paid", String(late.body?.data?.status) === "PAID", late.body);
+    assert("A2 stock 0", (await readStock(ids.slotId)) === 0);
+    cases.push({ name: "A2_expired_late_settlement_becomes_paid", pass: true });
+  }
+
+  // A3: CANCELLED + stok sudah diambil order lain → PAID_STOCK_FAILED
+  {
+    const ids = await boot(1);
+    const created = await holdOne(ids, "A3");
+    assert("A3 hold", created.ok);
+    await orderModel.cancelUnpaidOrder({ id: created.order_id, reason: "qris timeout" });
+    const other = await holdOne(ids, "A3-other");
+    assert("A3 other took stock", other.ok);
+    assert("A3 stock 0 before late pay", (await readStock(ids.slotId)) === 0);
+    const late = await pay(orderCode("A3"));
+    assert(
+      "A3 stock failed",
+      String(late.body?.data?.status) === "PAID_STOCK_FAILED",
+      late.body
+    );
+    assert("A3 stock still 0", (await readStock(ids.slotId)) === 0);
+    assert("A3 other still PENDING", (await readStatus(orderCode("A3-other"))) === "PENDING");
+    cases.push({ name: "A3_late_settlement_no_stock_needs_refund", pass: true });
   }
 
   // B: DISPENSE_FAILED + settlement telat → tidak mundur ke PAID
@@ -257,7 +292,7 @@ async function main() {
     cases.push({ name: "F_paid_ignores_expire", pass: true });
   }
 
-  // G: 100 webhook campur settlement+expire pada satu PENDING
+  // G: 100 webhook campur settlement+expire pada satu PENDING → uang menang: PAID
   {
     const ids = await boot(1);
     await holdOne(ids, "G");
@@ -267,15 +302,33 @@ async function main() {
     );
     const status = await readStatus(code);
     const stock = await readStock(ids.slotId);
-    assert("G status PAID atau EXPIRED", status === "PAID" || status === "EXPIRED", { status, stock });
-    if (status === "PAID") {
-      assert("G PAID ⇒ stok 0", stock === 0, { status, stock });
-    } else {
-      assert("G EXPIRED ⇒ stok 1", stock === 1, { status, stock });
-    }
+    assert("G status PAID", status === "PAID", { status, stock });
+    assert("G PAID ⇒ stok 0", stock === 0, { status, stock });
     const ignored = results.filter((r) => /ignored/i.test(String(r.body?.message || "")));
-    assert("G sebagian besar diabaikan", ignored.length >= 99, { ignored: ignored.length, status });
-    cases.push({ name: "G_100_mixed_webhooks", pass: true, final_status: status, stock, ignored: ignored.length });
+    assert("G hampir semua duplikat diabaikan", ignored.length >= 98, {
+      ignored: ignored.length,
+      status,
+    });
+    cases.push({ name: "G_100_mixed_webhooks_settle_to_paid", pass: true, stock, ignored: ignored.length });
+  }
+
+  // H: 100 settlement telat paralel setelah cancel → 1 PAID, stok 0
+  {
+    const ids = await boot(1);
+    const created = await holdOne(ids, "H");
+    assert("H hold", created.ok);
+    await orderModel.cancelUnpaidOrder({ id: created.order_id, reason: "qris timeout" });
+    const code = orderCode("H");
+    const results = await Promise.all(Array.from({ length: 100 }, () => pay(code)));
+    const applied = results.filter((r) =>
+      /late settlement accepted after/i.test(String(r.body?.message || ""))
+    );
+    const ignored = results.filter((r) => /ignored/i.test(String(r.body?.message || "")));
+    assert("H satu PAID", applied.length === 1, { applied: applied.length, ignored: ignored.length });
+    assert("H ignored 99", ignored.length === 99, { ignored: ignored.length });
+    assert("H stock 0", (await readStock(ids.slotId)) === 0);
+    assert("H db PAID", (await readStatus(code)) === "PAID");
+    cases.push({ name: "H_100_late_settlements_after_cancel", pass: true });
   }
 
   const cleaner = await pool.getConnection();

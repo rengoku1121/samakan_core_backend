@@ -3,11 +3,7 @@ const { formatDateId } = require("../../helper-function/format-date");
 const locationModel = require("../../models/location");
 const machineModel = require("../../models/machine");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
-};
-const clean = (v) => String(v || "").trim();
+const { clean, toNonNegInt: toInt } = require("../../helper-function/http");
 
 async function newParentWouldCycle(locationId, newParentId) {
   if (!newParentId) return false;

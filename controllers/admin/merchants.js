@@ -6,14 +6,8 @@ const settlementModel = require("../../models/settlement");
 const { pool } = require("../../utils/db");
 const bcrypt = require("bcryptjs");
 
-const toInt = (v, def) => {
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : def;
-};
-
-const normalizeName = (name) => String(name || "").trim();
-const normalizeText = (v) => String(v || "").trim();
-const normalizeLower = (v) => normalizeText(v).toLowerCase();
+const { clean: normalizeText, lower: normalizeLower, toNonNegInt: toInt } = require("../../helper-function/http");
+const normalizeName = normalizeText;
 
 const buildNewValue = (body = {}) => ({
   name: normalizeText(body.name),
