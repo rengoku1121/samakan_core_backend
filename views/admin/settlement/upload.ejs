@@ -52,7 +52,7 @@
 
     <div class="alert alert-ok">Matched: <b><%= preview.matched.length %></b> order DISPENSED siap settle.</div>
     <% if (preview.unmatched.length) { %><div class="alert alert-warn">Tidak ditemukan di DB: <b><%= preview.unmatched.length %></b> (<%= preview.unmatched.slice(0,5).join(", ") %><%= preview.unmatched.length > 5 ? "..." : "" %>)</div><% } %>
-    <% if (preview.alreadySettled.length) { %><div class="alert alert-warn">Sudah settle sebelumnya: <b><%= preview.alreadySettled.length %></b></div><% } %>
+    <% if (preview.alreadySettled.length) { %><div class="alert alert-warn">Sudah settle / sudah ada di settlement items (skip, cegah saldo dobel): <b><%= preview.alreadySettled.length %></b></div><% } %>
     <% if (preview.notDispensed && preview.notDispensed.length) { %>
     <div class="alert alert-warn">
       Bukan DISPENSED (tidak di-settle): <b><%= preview.notDispensed.length %></b>

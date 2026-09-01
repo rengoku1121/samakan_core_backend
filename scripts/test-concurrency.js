@@ -7,6 +7,7 @@ async function getTargets() {
     `SELECT id, order_code, merchant_id, total
      FROM orders
      WHERE status = 'DISPENSED' AND is_settled = 0
+       AND id NOT IN (SELECT order_id FROM merchant_settlement_items)
      ORDER BY id ASC
      LIMIT 5`
   );

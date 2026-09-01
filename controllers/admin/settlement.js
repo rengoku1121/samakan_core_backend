@@ -169,7 +169,7 @@ exports.previewUpload = async (req, res, next) => {
       if (seenIds.has(order.id)) continue;
       seenIds.add(order.id);
 
-      if (Number(order.is_settled) === 1) {
+      if (Number(order.is_settled) === 1 || Number(order.has_settlement_item) === 1) {
         alreadySettled.push(oid);
         continue;
       }

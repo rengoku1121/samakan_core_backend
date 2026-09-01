@@ -109,7 +109,7 @@ async function main() {
           created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
           PRIMARY KEY (id),
           KEY idx_msi_settlement_ref (settlement_ref),
-          KEY idx_msi_order_id (order_id),
+          UNIQUE KEY uq_msi_order_id (order_id),
           KEY idx_msi_merchant_id (merchant_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);

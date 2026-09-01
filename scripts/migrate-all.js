@@ -24,6 +24,7 @@ const MIGRATIONS = [
   "migrate-product-kiosk-media.js",
   "migrate-order-stock-reserved.js",
   "migrate-order-code-unique.js",
+  "migrate-settlement-item-order-unique.js",
 ];
 
 let failed = 0;

@@ -24,9 +24,13 @@ exports.updateFeeConfig = async ({ midtrans_fee_percent, owner_fee_percent }) =>
   );
 };
 
-/** Find eligible orders (DISPENSED, is_settled=0) */
+/** Find eligible orders (DISPENSED, is_settled=0, belum ada di items) */
 exports.findEligibleOrders = async ({ merchant_id } = {}) => {
-  const where = ["o.status = 'DISPENSED'", "o.is_settled = 0"];
+  const where = [
+    "o.status = 'DISPENSED'",
+    "o.is_settled = 0",
+    "NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)",
+  ];
   const params = [];
   if (merchant_id) {
     where.push("o.merchant_id = ?");
@@ -47,7 +51,8 @@ exports.findEligibleByOrderIds = async (orderIds) => {
   if (!orderIds || orderIds.length === 0) return [];
   const placeholders = orderIds.map(() => "?").join(",");
   const sql = `
-    SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at, o.is_settled
+    SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at, o.is_settled,
+           EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item
     FROM orders o
     WHERE (o.order_code IN (${placeholders}) OR o.payment_ref IN (${placeholders}))
     ORDER BY o.id ASC
@@ -100,8 +105,20 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       inputIds
     );
 
+    let eligibleLocked = lockedRows;
+    if (lockedRows.length) {
+      const lockIds = lockedRows.map((r) => Number(r.id));
+      const lockPh = lockIds.map(() => "?").join(",");
+      const [alreadyItems] = await conn.query(
+        `SELECT order_id FROM merchant_settlement_items WHERE order_id IN (${lockPh}) FOR UPDATE`,
+        lockIds
+      );
+      const already = new Set(alreadyItems.map((r) => Number(r.order_id)));
+      eligibleLocked = lockedRows.filter((r) => !already.has(Number(r.id)));
+    }
+
     const settledRows = [];
-    for (const row of lockedRows) {
+    for (const row of eligibleLocked) {
       const src = inputById.get(Number(row.id)) || {};
       const gross = Number(row.total || 0);
       const calcMid = Math.round(gross * midPct * 100) / 100;
@@ -157,7 +174,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       for (const r of chunk) params.push(r.id, r.net);
       params.push(...ids);
 
-      await conn.query(
+      const [upd] = await conn.query(
         `UPDATE orders
          SET is_settled = 1,
              settled_at = ?,
@@ -169,6 +186,11 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
            AND is_settled = 0`,
         params
       );
+      if (Number(upd.affectedRows) !== chunk.length) {
+        const err = new Error("Settlement aborted: order flag changed during batch");
+        err.code = "SETTLEMENT_FLAG_RACE";
+        throw err;
+      }
     }
 
     // Bulk insert settlement items
@@ -230,6 +252,12 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     return { settlement_ref: ref, merchants: merchantResults, skipped: skippedCount, settled: totalSettled };
   } catch (err) {
     await conn.rollback();
+    if (err && err.code === "ER_DUP_ENTRY") {
+      const wrapped = new Error("Settlement aborted: order already exists in merchant_settlement_items");
+      wrapped.code = "SETTLEMENT_ITEM_DUP";
+      wrapped.cause = err;
+      throw wrapped;
+    }
     throw err;
   } finally {
     conn.release();
@@ -320,6 +348,7 @@ exports.getUnsettledSummary = async () => {
     FROM orders o
     WHERE o.status = 'DISPENSED'
       AND o.is_settled = 0
+      AND NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)
   `;
   const [rows] = await pool.query(sql);
   return rows[0] || { unsettled_count: 0, unsettled_amount: 0 };
