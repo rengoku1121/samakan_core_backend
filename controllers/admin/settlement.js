@@ -156,6 +156,7 @@ exports.previewUpload = async (req, res, next) => {
     const matched = [];
     const unmatched = [];
     const alreadySettled = [];
+    const notDispensed = [];
     const warnings = [];
     const seenIds = new Set();
 
@@ -170,6 +171,12 @@ exports.previewUpload = async (req, res, next) => {
 
       if (Number(order.is_settled) === 1) {
         alreadySettled.push(oid);
+        continue;
+      }
+
+      const status = String(order.status || "").toUpperCase();
+      if (status !== "DISPENSED") {
+        notDispensed.push({ id: oid, status: status || "?" });
         continue;
       }
 
@@ -202,6 +209,7 @@ exports.previewUpload = async (req, res, next) => {
         matched,
         unmatched,
         alreadySettled,
+        notDispensed,
         warnings,
         matchedJson: JSON.stringify(matched),
         matchedB64: Buffer.from(JSON.stringify(matched), "utf8").toString("base64"),
