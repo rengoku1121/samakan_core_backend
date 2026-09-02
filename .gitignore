@@ -137,3 +137,21 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local / generated (jangan di-commit)
+tmp/*
+!tmp/.gitkeep
+cookies.txt
+login_headers.txt
+login_out.html
+*.xlsx
+!db/**/*.xlsx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
