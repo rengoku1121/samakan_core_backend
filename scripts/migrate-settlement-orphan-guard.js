@@ -1,9 +1,10 @@
 /**
- * Flag is_settled=1 tanpa baris di merchant_settlement_items = orphan
- * (saldo belum naik; UI/admin bisa mengira sudah settle).
+ * Flag is_settled=1 tanpa baris di merchant_settlement_items = orphan.
  *
- * - Reset orphan: is_settled=0, clear settled_at/settlement_ref/fee/net
- * - Trigger: is_settled=1 wajib settlement_ref terisi (cegah UPDATE SQL flag kosong)
+ * - Reset orphan dulu
+ * - Trigger INSERT: tolak is_settled=1 saat create order
+ * - Trigger UPDATE: is_settled=1 wajib settlement_ref + baris di merchant_settlement_items
+ *   (executeSettlement harus insert items/ledger dulu, baru set flag)
  *
  * Run: npm run migrate:settlement-orphan-guard
  */
@@ -19,33 +20,37 @@ async function tableExists(conn, table) {
   return Number(c) > 0;
 }
 
-async function triggerExists(conn, name) {
-  const [[{ c }]] = await conn.query(
-    `SELECT COUNT(1) AS c FROM INFORMATION_SCHEMA.TRIGGERS
-     WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME = ?`,
-    [name]
+async function replaceTrigger(conn, name, timing, event, body) {
+  await conn.query(`DROP TRIGGER IF EXISTS ${name}`);
+  await conn.query(
+    `CREATE TRIGGER ${name} ${timing} ${event} ON orders FOR EACH ROW ${body}`
   );
-  return Number(c) > 0;
+  console.log(`Replaced trigger ${name}`);
 }
 
-const TRIGGER_BODY = `
+const TRIGGER_INSERT = `
 BEGIN
-  IF NEW.is_settled = 1 AND (NEW.settlement_ref IS NULL OR TRIM(NEW.settlement_ref) = '') THEN
+  IF NEW.is_settled = 1 THEN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'is_settled=1 requires settlement_ref (use Force/Excel settle, not raw UPDATE)';
+      SET MESSAGE_TEXT = 'cannot INSERT order with is_settled=1 (use Force/Excel settle)';
   END IF;
 END`;
 
-async function ensureTrigger(conn, name, timing, event) {
-  if (await triggerExists(conn, name)) {
-    console.log(`OK: trigger ${name} exists`);
-    return;
-  }
-  await conn.query(
-    `CREATE TRIGGER ${name} ${timing} ${event} ON orders FOR EACH ROW ${TRIGGER_BODY}`
-  );
-  console.log(`Added trigger ${name}`);
-}
+const TRIGGER_UPDATE = `
+BEGIN
+  IF NEW.is_settled = 1 THEN
+    IF NEW.settlement_ref IS NULL OR TRIM(NEW.settlement_ref) = '' THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'is_settled=1 requires settlement_ref (use Force/Excel settle, not raw UPDATE)';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = NEW.id
+    ) THEN
+      SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'is_settled=1 requires merchant_settlement_items row (use Force/Excel settle, not raw UPDATE)';
+    END IF;
+  END IF;
+END`;
 
 async function main() {
   const conn = await pool.getConnection();
@@ -76,7 +81,6 @@ async function main() {
       for (const o of orphans) {
         console.log(`  #${o.id} ${o.order_code} ref=${o.settlement_ref || "NULL"}`);
       }
-      // Trigger belum ada / settlement_ref boleh NULL saat is_settled=0
       const [res] = await conn.query(
         `UPDATE orders o
          SET o.is_settled = 0,
@@ -93,8 +97,8 @@ async function main() {
       console.log(`Reset affectedRows=${res.affectedRows}`);
     }
 
-    await ensureTrigger(conn, "trg_orders_settled_ref_bi", "BEFORE", "INSERT");
-    await ensureTrigger(conn, "trg_orders_settled_ref_bu", "BEFORE", "UPDATE");
+    await replaceTrigger(conn, "trg_orders_settled_ref_bi", "BEFORE", "INSERT", TRIGGER_INSERT);
+    await replaceTrigger(conn, "trg_orders_settled_ref_bu", "BEFORE", "UPDATE", TRIGGER_UPDATE);
 
     console.log("Done.");
   } finally {

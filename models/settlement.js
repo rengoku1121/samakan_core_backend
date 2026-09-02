@@ -145,44 +145,9 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       return { settlement_ref: ref, merchants: [], skipped: skippedCount, settled: 0 };
     }
 
+    // Urutan penting untuk trigger keras:
+    // 1) items  2) ledger  3) flag orders (is_settled=1 wajib sudah ada di items)
     const chunkSize = 1000;
-    for (let i = 0; i < settledRows.length; i += chunkSize) {
-      const chunk = settledRows.slice(i, i + chunkSize);
-      const ids = chunk.map((r) => r.id);
-      const idPh = ids.map(() => "?").join(",");
-
-      const feeCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
-      const ownCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
-      const netCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
-
-      const params = [now, ref];
-      for (const r of chunk) params.push(r.id, r.midFee);
-      for (const r of chunk) params.push(r.id, r.ownFee);
-      for (const r of chunk) params.push(r.id, r.net);
-      params.push(...ids);
-
-      const [upd] = await conn.query(
-        `UPDATE orders
-         SET is_settled = 1,
-             settled_at = ?,
-             settlement_ref = ?,
-             midtrans_fee_amount = CASE id ${feeCase} ELSE midtrans_fee_amount END,
-             owner_fee_amount = CASE id ${ownCase} ELSE owner_fee_amount END,
-             net_amount = CASE id ${netCase} ELSE net_amount END
-         WHERE id IN (${idPh})
-           AND NOT EXISTS (
-             SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = orders.id
-           )`,
-        params
-      );
-      if (Number(upd.affectedRows) !== chunk.length) {
-        const err = new Error("Settlement aborted: order already settled in items during batch");
-        err.code = "SETTLEMENT_FLAG_RACE";
-        throw err;
-      }
-    }
-
-    // Bulk insert settlement items
     for (let i = 0; i < settledRows.length; i += chunkSize) {
       const chunk = settledRows.slice(i, i + chunkSize);
       const values = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(",");
@@ -219,7 +184,6 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       });
     }
 
-    // Bulk insert merchant ledger rows
     const mids = Object.keys(merchantMap);
     if (mids.length) {
       const values = mids.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
@@ -234,6 +198,39 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
          VALUES ${values}`,
         params
       );
+    }
+
+    for (let i = 0; i < settledRows.length; i += chunkSize) {
+      const chunk = settledRows.slice(i, i + chunkSize);
+      const ids = chunk.map((r) => r.id);
+      const idPh = ids.map(() => "?").join(",");
+
+      const feeCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const ownCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const netCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+
+      const params = [now, ref];
+      for (const r of chunk) params.push(r.id, r.midFee);
+      for (const r of chunk) params.push(r.id, r.ownFee);
+      for (const r of chunk) params.push(r.id, r.net);
+      params.push(...ids);
+
+      const [upd] = await conn.query(
+        `UPDATE orders
+         SET is_settled = 1,
+             settled_at = ?,
+             settlement_ref = ?,
+             midtrans_fee_amount = CASE id ${feeCase} ELSE midtrans_fee_amount END,
+             owner_fee_amount = CASE id ${ownCase} ELSE owner_fee_amount END,
+             net_amount = CASE id ${netCase} ELSE net_amount END
+         WHERE id IN (${idPh})`,
+        params
+      );
+      if (Number(upd.affectedRows) !== chunk.length) {
+        const err = new Error("Settlement aborted: order flag update mismatch after items insert");
+        err.code = "SETTLEMENT_FLAG_RACE";
+        throw err;
+      }
     }
 
     await conn.commit();
