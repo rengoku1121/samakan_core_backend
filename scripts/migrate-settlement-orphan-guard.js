@@ -1,10 +1,10 @@
 /**
  * Flag is_settled=1 tanpa baris di merchant_settlement_items = orphan.
  *
- * - Reset orphan dulu
- * - Trigger INSERT: tolak is_settled=1 saat create order
- * - Trigger UPDATE: is_settled=1 wajib settlement_ref + baris di merchant_settlement_items
- *   (executeSettlement harus insert items/ledger dulu, baru set flag)
+ * - Reset orphan dulu (selalu)
+ * - Trigger keras (items wajib) — di shared hosting sering gagal tanpa SUPER /
+ *   log_bin_trust_function_creators; itu di-skip dengan warning, app tetap aman
+ *   lewat executeSettlement (items→ledger→flag) + UNIQUE order_id + UI orphan.
  *
  * Run: npm run migrate:settlement-orphan-guard
  */
@@ -20,12 +20,35 @@ async function tableExists(conn, table) {
   return Number(c) > 0;
 }
 
-async function replaceTrigger(conn, name, timing, event, body) {
-  await conn.query(`DROP TRIGGER IF EXISTS ${name}`);
-  await conn.query(
-    `CREATE TRIGGER ${name} ${timing} ${event} ON orders FOR EACH ROW ${body}`
+function isTriggerPrivilegeError(err) {
+  const code = err && (err.code || err.errno);
+  return (
+    code === "ER_BINLOG_CREATE_ROUTINE_NEED_SUPER" ||
+    code === 1419 ||
+    code === "ER_SPECIFIC_ACCESS_DENIED_ERROR" ||
+    code === 1227 ||
+    code === "ER_TRG_ALREADY_EXISTS" // ignore race
   );
-  console.log(`Replaced trigger ${name}`);
+}
+
+async function replaceTrigger(conn, name, timing, event, body) {
+  try {
+    await conn.query(`DROP TRIGGER IF EXISTS ${name}`);
+  } catch (err) {
+    if (!isTriggerPrivilegeError(err)) throw err;
+    console.warn(`WARN: tidak bisa DROP ${name}: ${err.sqlMessage || err.message}`);
+  }
+  try {
+    await conn.query(
+      `CREATE TRIGGER ${name} ${timing} ${event} ON orders FOR EACH ROW ${body}`
+    );
+    console.log(`Replaced trigger ${name}`);
+    return true;
+  } catch (err) {
+    if (!isTriggerPrivilegeError(err)) throw err;
+    console.warn(`WARN: skip CREATE ${name}: ${err.sqlMessage || err.message}`);
+    return false;
+  }
 }
 
 const TRIGGER_INSERT = `
@@ -97,8 +120,30 @@ async function main() {
       console.log(`Reset affectedRows=${res.affectedRows}`);
     }
 
-    await replaceTrigger(conn, "trg_orders_settled_ref_bi", "BEFORE", "INSERT", TRIGGER_INSERT);
-    await replaceTrigger(conn, "trg_orders_settled_ref_bu", "BEFORE", "UPDATE", TRIGGER_UPDATE);
+    const okBi = await replaceTrigger(
+      conn,
+      "trg_orders_settled_ref_bi",
+      "BEFORE",
+      "INSERT",
+      TRIGGER_INSERT
+    );
+    const okBu = await replaceTrigger(
+      conn,
+      "trg_orders_settled_ref_bu",
+      "BEFORE",
+      "UPDATE",
+      TRIGGER_UPDATE
+    );
+
+    if (!okBi || !okBu) {
+      console.warn("");
+      console.warn("WARN: trigger DB tidak terpasang (user MySQL tanpa SUPER / binary log).");
+      console.warn("      Orphan reset + proteksi aplikasi tetap jalan.");
+      console.warn("      Untuk pasang trigger (sebagai root / admin MySQL):");
+      console.warn("        SET GLOBAL log_bin_trust_function_creators = 1;");
+      console.warn("      lalu jalankan lagi: npm run migrate:settlement-orphan-guard");
+      console.warn("      (atau minta DBA create trigger dari db/migrations/015_settlement-orphan-guard.sql)");
+    }
 
     console.log("Done.");
   } finally {
