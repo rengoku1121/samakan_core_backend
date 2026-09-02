@@ -6,7 +6,7 @@ async function getTargets() {
   const [paidUnsettled] = await pool.query(
     `SELECT id, order_code, merchant_id, total
      FROM orders
-     WHERE status = 'DISPENSED' AND is_settled = 0
+     WHERE status = 'DISPENSED'
        AND id NOT IN (SELECT order_id FROM merchant_settlement_items)
      ORDER BY id ASC
      LIMIT 5`

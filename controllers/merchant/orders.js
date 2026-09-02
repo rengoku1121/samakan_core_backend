@@ -12,6 +12,10 @@ const {
   jsonErr,
   daysUntilUtc,
 } = require("../../helper-function/http");
+const {
+  settlementStatusLabel,
+  settlementStatusBadgeClass,
+} = require("../../helper-function/settlement-status");
 
 const parseVendorExpiry = (raw) => {
   if (!raw) return null;
@@ -93,14 +97,18 @@ exports.list = async (req, res, next) => {
     const rows = await orderModel.listMerchant({ merchant_id, status: status || null, limit, offset });
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    const mapped = rows.map((r) => ({
-      ...r,
-      created_at_fmt: formatDateId(r.created_at),
-      paid_at_fmt: r.paid_at ? formatDateId(r.paid_at) : "-",
-      settled_at_fmt: r.settled_at ? formatDateId(r.settled_at) : "-",
-      settlement_status_label: Number(r.is_settled || 0) === 1 ? "SETTLED" : "NOT_SETTLED",
-      total_fmt: fmtMoney(r.total),
-    }));
+    const mapped = rows.map((r) => {
+      const settlement_status_label = settlementStatusLabel(r);
+      return {
+        ...r,
+        created_at_fmt: formatDateId(r.created_at),
+        paid_at_fmt: r.paid_at ? formatDateId(r.paid_at) : "-",
+        settled_at_fmt: r.settled_at ? formatDateId(r.settled_at) : "-",
+        settlement_status_label,
+        settlement_badge_class: settlementStatusBadgeClass(settlement_status_label),
+        total_fmt: fmtMoney(r.total),
+      };
+    });
 
     return res.render("merchant/orders/list", {
       title: "Orders",

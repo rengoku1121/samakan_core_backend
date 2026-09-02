@@ -24,13 +24,38 @@
     tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;}
     tbody tr:nth-child(2n){background:#fffdf9}
     .mono{font-variant-numeric:tabular-nums}
+    .alert{margin:16px 0;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
+    .alert-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+    .alert-ok{background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46}
   </style>
 </head>
 <body>
   <div class="topbar">Samakan Admin • Saldo Merchant</div>
   <div class="wrap">
     <h1>Saldo Merchant</h1>
-    <div class="muted">Ringkasan saldo dan settlement semua merchant.</div>
+    <div class="muted">Ringkasan saldo dan settlement semua merchant. Saldo = jumlah ledger, bukan flag is_settled.</div>
+
+    <% if (resetOk) { %>
+      <div class="alert alert-ok">Flag orphan di-reset: <b><%= resetCount %></b> order. Lanjut Force/Excel Settlement supaya saldo naik.</div>
+    <% } %>
+
+    <% if (orphan && orphan.orphan_count > 0) { %>
+      <div class="alert alert-warn">
+        <div><b><%= orphan.orphan_count %></b> order FLAG_ORPHAN (is_settled=1 tanpa settlement items) • Rp <b><%= orphanFmt %></b>.</div>
+        <div class="muted" style="margin-top:6px;color:#9a3412;">Saldo belum naik. Reset flag lalu settle resmi, atau langsung Force Settlement (orphan DISPENSED ikut eligible).</div>
+        <form method="POST" action="/admin/settlement/reset-orphans" style="margin-top:10px;">
+          <button class="btn btn-ghost" type="submit">Reset flag orphan</button>
+          <a class="btn btn-primary" href="/admin/settlement/force">Force Settlement</a>
+        </form>
+        <% if (orphanRows && orphanRows.length) { %>
+          <div style="margin-top:10px;font-size:12px;">
+            <% orphanRows.forEach(function(o){ %>
+              <div class="mono">#<%= o.id %> <%= o.order_code %> · <%= o.status %> · Rp <%= Number(o.total||0).toLocaleString("id-ID") %></div>
+            <% }) %>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
 
     <div class="stats">
       <div class="stat">
@@ -41,6 +66,11 @@
         <div class="stat-k">Belum di-settle</div>
         <div class="stat-v"><%= unsettled.unsettled_count %> order</div>
         <div class="muted">Rp <%= unsettledFmt %></div>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Flag orphan</div>
+        <div class="stat-v"><%= (orphan && orphan.orphan_count) || 0 %></div>
+        <div class="muted">is_settled=1 tanpa ledger</div>
       </div>
       <div class="stat">
         <div class="stat-k">Fee Midtrans</div>

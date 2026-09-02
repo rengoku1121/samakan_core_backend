@@ -137,6 +137,27 @@
           <div class="k">Refund</div>
           <div class="v mono"><%= order.refunded_at_fmt %> <span class="muted"><%= order.refund_reference ? ('· ' + order.refund_reference) : '' %></span></div>
         </div>
+
+        <div class="box">
+          <div class="k">Settlement</div>
+          <div class="v">
+            <span style="display:inline-flex;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid #e5e7eb;background:#fff;">
+              <%= order.settlement_status_label %>
+            </span>
+            <% if (order.settlement_status_label === 'FLAG_ORPHAN') { %>
+              <div class="muted" style="margin-top:6px;">Flag settle tanpa item/ledger — saldo belum naik. Reset di Saldo Merchant atau Force Settlement.</div>
+            <% } %>
+          </div>
+        </div>
+        <div class="box">
+          <div class="k">Settlement Ref</div>
+          <div class="v mono"><%= order.settlement_ref || "-" %></div>
+          <div class="muted" style="margin-top:4px;">Settled at: <%= order.settled_at_fmt %></div>
+        </div>
+        <div class="box">
+          <div class="k">Net (snapshot)</div>
+          <div class="v mono">Rp <%= order.net_amount_fmt %></div>
+        </div>
       </div>
 
       <div style="padding:0 16px 16px;">

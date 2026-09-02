@@ -5,6 +5,7 @@ const { requireAuth, requireRole } = require("../../middleware/auth");
 router.use(requireAuth, requireRole("admin", "staff"));
 
 router.get("/", settlement.dashboard);
+router.post("/reset-orphans", settlement.resetOrphanFlags);
 router.get("/ledger", settlement.ledgerHistory);
 router.get("/upload", settlement.renderUpload);
 router.post("/upload/preview", settlement.upload.single("file"), settlement.previewUpload);

@@ -24,11 +24,10 @@ exports.updateFeeConfig = async ({ midtrans_fee_percent, owner_fee_percent }) =>
   );
 };
 
-/** Find eligible orders (DISPENSED, is_settled=0, belum ada di items) */
+/** Find eligible orders (DISPENSED, belum ada di items — ignore flag orphan) */
 exports.findEligibleOrders = async ({ merchant_id } = {}) => {
   const where = [
     "o.status = 'DISPENSED'",
-    "o.is_settled = 0",
     "NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)",
   ];
   const params = [];
@@ -64,8 +63,8 @@ exports.findEligibleByOrderIds = async (orderIds) => {
 /**
  * Execute settlement for a batch of orders, grouped by merchant.
  * @param {object} params
- * @param {Array} params.orders - [{id, order_code, merchant_id, total, excelFee?}]
- * @param {object} params.feeConfig - {midtrans_fee_percent, owner_fee_percent}
+ * @param {Array} params.orders - [{id, order_code, merchant_id, total}]
+ * @param {object} params.feeConfig - {midtrans_fee_percent, owner_fee_percent} — satu-satunya sumber fee
  * @param {string} params.source - 'excel' | 'force'
  * @param {string} [params.notes]
  * @returns {object} { settlement_ref, merchants: [{merchant_id, net_amount, ...}] }
@@ -95,12 +94,16 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     }
 
     const inPlaceholders = inputIds.map(() => "?").join(",");
+    // Eligible = DISPENSED + belum ada di items. Flag orphan (is_settled=1 tanpa item)
+    // ikut ikut settle supaya saldo bisa naik lewat jalur resmi.
     const [lockedRows] = await conn.query(
       `SELECT id, merchant_id, total
        FROM orders
        WHERE id IN (${inPlaceholders})
          AND status = 'DISPENSED'
-         AND is_settled = 0
+         AND NOT EXISTS (
+           SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = orders.id
+         )
        FOR UPDATE`,
       inputIds
     );
@@ -109,6 +112,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     if (lockedRows.length) {
       const lockIds = lockedRows.map((r) => Number(r.id));
       const lockPh = lockIds.map(() => "?").join(",");
+      // Lock baris items yang mungkin muncul race; skip kalau sudah ada.
       const [alreadyItems] = await conn.query(
         `SELECT order_id FROM merchant_settlement_items WHERE order_id IN (${lockPh}) FOR UPDATE`,
         lockIds
@@ -119,26 +123,9 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
 
     const settledRows = [];
     for (const row of eligibleLocked) {
-      const src = inputById.get(Number(row.id)) || {};
       const gross = Number(row.total || 0);
-      const calcMid = Math.round(gross * midPct * 100) / 100;
-      // excelFee hanya dipakai jika masuk akal: 0..gross dan deviasi ≤ 50% dari fee terhitung
-      let midFee = calcMid;
-      let hasMismatch = 0;
-      if (src.excelFee != null && src.excelFee !== "") {
-        const excelFee = Number(src.excelFee);
-        const withinRange =
-          Number.isFinite(excelFee) &&
-          excelFee >= 0 &&
-          excelFee <= gross + 0.01;
-        const maxDelta = Math.max(1, calcMid * 0.5);
-        if (withinRange && Math.abs(excelFee - calcMid) <= maxDelta) {
-          midFee = Math.round(excelFee * 100) / 100;
-          hasMismatch = Math.abs(midFee - calcMid) > 0.01 ? 1 : 0;
-        } else {
-          hasMismatch = 1;
-        }
-      }
+      // Fee hanya dari Settings (midtrans_fee_percent / owner_fee_percent), bukan kolom Excel.
+      const midFee = Math.round(gross * midPct * 100) / 100;
       const ownFee = Math.round(gross * ownPct * 100) / 100;
       const net = gross - midFee - ownFee;
       settledRows.push({
@@ -148,7 +135,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
         midFee,
         ownFee,
         net,
-        hasMismatch,
+        hasMismatch: 0,
       });
     }
 
@@ -183,11 +170,13 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
              owner_fee_amount = CASE id ${ownCase} ELSE owner_fee_amount END,
              net_amount = CASE id ${netCase} ELSE net_amount END
          WHERE id IN (${idPh})
-           AND is_settled = 0`,
+           AND NOT EXISTS (
+             SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = orders.id
+           )`,
         params
       );
       if (Number(upd.affectedRows) !== chunk.length) {
-        const err = new Error("Settlement aborted: order flag changed during batch");
+        const err = new Error("Settlement aborted: order already settled in items during batch");
         err.code = "SETTLEMENT_FLAG_RACE";
         throw err;
       }
@@ -347,9 +336,59 @@ exports.getUnsettledSummary = async () => {
       COALESCE(SUM(o.total), 0) AS unsettled_amount
     FROM orders o
     WHERE o.status = 'DISPENSED'
-      AND o.is_settled = 0
       AND NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)
   `;
   const [rows] = await pool.query(sql);
   return rows[0] || { unsettled_count: 0, unsettled_amount: 0 };
+};
+
+/**
+ * Flag is_settled=1 tanpa baris items (saldo belum naik).
+ * Biasanya dari UPDATE SQL manual.
+ */
+exports.getOrphanSettledSummary = async () => {
+  const sql = `
+    SELECT
+      COUNT(1) AS orphan_count,
+      COALESCE(SUM(o.total), 0) AS orphan_amount
+    FROM orders o
+    WHERE o.is_settled = 1
+      AND NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)
+  `;
+  const [rows] = await pool.query(sql);
+  return {
+    orphan_count: Number(rows[0]?.orphan_count || 0),
+    orphan_amount: Number(rows[0]?.orphan_amount || 0),
+  };
+};
+
+exports.listOrphanSettledOrders = async ({ limit = 50 } = {}) => {
+  const sql = `
+    SELECT o.id, o.order_code, o.merchant_id, o.status, o.total, o.settlement_ref, o.settled_at, o.is_settled
+    FROM orders o
+    WHERE o.is_settled = 1
+      AND NOT EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id)
+    ORDER BY o.id ASC
+    LIMIT ?
+  `;
+  const [rows] = await pool.query(sql, [Math.min(200, Math.max(1, Number(limit) || 50))]);
+  return rows;
+};
+
+/** Reset flag orphan supaya Force/Excel bisa settle resmi (atau auto ikut eligible). */
+exports.resetOrphanSettledFlags = async () => {
+  const [res] = await pool.query(
+    `UPDATE orders o
+     SET o.is_settled = 0,
+         o.settled_at = NULL,
+         o.settlement_ref = NULL,
+         o.midtrans_fee_amount = 0,
+         o.owner_fee_amount = 0,
+         o.net_amount = 0
+     WHERE o.is_settled = 1
+       AND NOT EXISTS (
+         SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id
+       )`
+  );
+  return Number(res.affectedRows || 0);
 };

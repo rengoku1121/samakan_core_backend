@@ -28,6 +28,7 @@
     "migrate:order-stock-reserved": "node scripts/migrate-order-stock-reserved.js",
     "migrate:order-code-unique": "node scripts/migrate-order-code-unique.js",
     "migrate:settlement-item-order-unique": "node scripts/migrate-settlement-item-order-unique.js",
+    "migrate:settlement-orphan-guard": "node scripts/migrate-settlement-orphan-guard.js",
     "expire:pending-holds": "node scripts/expire-pending-holds.js",
     "seed:kiosk-catalog-demo": "node scripts/seed-kiosk-catalog-demo.js",
     "report:planogram": "node scripts/report-planogram.js",

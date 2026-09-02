@@ -36,7 +36,10 @@
     .b-other{border-color:#e5e7eb;background:#f9fafb;color:#374151}
     .b-settled{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
     .b-not-settled{border-color:#fde68a;background:#fffbeb;color:#92400e}
+    .b-orphan{border-color:#fdba74;background:#fff7ed;color:#9a3412}
     .b-refunded{border-color:#e5e7eb;background:#f3f4f6;color:#374151}
+    .alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
+    .alert-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
     .pager{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px 16px;}
     .settlement-ref{margin-top:4px;font-size:12px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;display:block}
   </style>
@@ -64,6 +67,13 @@
         </div>
       </div>
     </div>
+
+    <% if (orphan && orphan.count > 0) { %>
+      <div class="alert alert-warn">
+        Ada <b><%= orphan.count %></b> order dengan flag settle palsu (FLAG_ORPHAN, saldo belum naik) • Rp <b><%= orphan.amount_fmt %></b>.
+        Reset / settle resmi di <a href="/admin/settlement">Saldo Merchant</a>.
+      </div>
+    <% } %>
 
     <div class="card">
       <div class="toolbar">
@@ -152,7 +162,10 @@
               <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
               <td class="mono">
-                <span class="badge <%= r.settlement_status_label === 'SETTLED' ? 'b-settled' : 'b-not-settled' %>"><%= r.settlement_status_label %></span>
+                <span class="badge <%= r.settlement_badge_class %>"><%= r.settlement_status_label %></span>
+                <% if (r.settlement_status_label === 'FLAG_ORPHAN') { %>
+                  <div class="muted" style="font-size:11px;margin-top:4px;">Flag 1 tanpa ledger</div>
+                <% } %>
                 <% if (r.settlement_ref) { %>
                   <div class="muted mono settlement-ref" title="<%= r.settlement_ref %>"><%= r.settlement_ref %></div>
                 <% } %>

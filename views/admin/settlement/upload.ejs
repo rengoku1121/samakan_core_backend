@@ -31,8 +31,8 @@
   <div class="topbar">Samakan Admin • Upload Settlement</div>
   <div class="wrap">
     <h1>Upload Excel Midtrans</h1>
-    <div class="muted">Upload file settlement dari Midtrans. Sistem mencocokkan order_id dengan database, lalu preview sebelum konfirmasi.</div>
-    <div class="muted" style="margin-top:4px;">Fee Midtrans: <b><%= feeConfig.midtrans_fee_percent %>%</b> | Fee Owner: <b><%= feeConfig.owner_fee_percent %>%</b></div>
+    <div class="muted">Upload daftar order dari Midtrans. Excel hanya untuk mencocokkan <code>order_id</code>; fee dihitung dari Settings, bukan dari kolom fee Excel.</div>
+    <div class="muted" style="margin-top:4px;">Patokan fee: Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b> | Owner <b><%= feeConfig.owner_fee_percent %>%</b> (ubah di Settings).</div>
 
     <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
 
@@ -41,7 +41,7 @@
       <form method="POST" action="/admin/settlement/upload/preview" enctype="multipart/form-data">
         <label>File Excel (.xlsx / .xls)</label>
         <input type="file" name="file" accept=".xlsx,.xls" required />
-        <div class="muted" style="margin-top:6px;">Kolom wajib: <code>order_id</code>. Opsional: <code>midtrans_fee</code> atau <code>fee</code>.</div>
+        <div class="muted" style="margin-top:6px;">Kolom wajib: <code>order_id</code>. Kolom fee di Excel diabaikan.</div>
         <div class="row">
           <button class="btn btn-primary" type="submit">Preview</button>
           <a class="btn btn-ghost" href="/admin/settlement">Kembali</a>
@@ -59,24 +59,18 @@
       (<%= preview.notDispensed.slice(0,5).map(function (x) { return x.id + " " + x.status; }).join(", ") %><%= preview.notDispensed.length > 5 ? "..." : "" %>)
     </div>
     <% } %>
-    <% if (preview.warnings.length) { %>
-    <div class="alert alert-warn">
-      Fee mismatch warnings:<br/>
-      <% preview.warnings.forEach(function(w){ %><div>- <%= w %></div><% }) %>
-    </div>
-    <% } %>
-
     <% if (preview.matched.length) { %>
     <div class="card">
       <table>
-        <thead><tr><th>Order</th><th>Merchant</th><th>Gross</th><th>Fee Mismatch</th></tr></thead>
+        <thead><tr><th>Order</th><th>Merchant</th><th>Gross</th><th>Fee Midtrans</th><th>Net</th></tr></thead>
         <tbody>
           <% preview.matched.forEach(function(m){ %>
           <tr>
             <td class="mono"><%= m.order_code %></td>
             <td>#<%= m.merchant_id %></td>
             <td class="mono">Rp <%= new Intl.NumberFormat("id-ID").format(m.total) %></td>
-            <td><%= m.hasMismatch ? "⚠️ Ya" : "OK" %></td>
+            <td class="mono">Rp <%= new Intl.NumberFormat("id-ID").format(m.midtrans_fee) %></td>
+            <td class="mono">Rp <%= new Intl.NumberFormat("id-ID").format(m.net) %></td>
           </tr>
           <% }) %>
         </tbody>

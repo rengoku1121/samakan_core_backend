@@ -6,6 +6,10 @@ const machineModel = require("../../models/machine");
 const settlementModel = require("../../models/settlement");
 
 const { clean, toInt, fmtMoney } = require("../../helper-function/http");
+const {
+  settlementStatusLabel,
+  settlementStatusBadgeClass,
+} = require("../../helper-function/settlement-status");
 
 exports.list = async (req, res, next) => {
   try {
@@ -19,22 +23,27 @@ exports.list = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const filter = { status: status || null, merchant_id, machine_id, settlement_ref: settlement_ref || null };
-    const [total, rows, unsettled] = await Promise.all([
+    const [total, rows, unsettled, orphan] = await Promise.all([
       orderModel.countAdmin(filter),
       orderModel.listAdmin({ ...filter, limit, offset }),
       settlementModel.getUnsettledSummary().catch(() => ({ unsettled_count: 0, unsettled_amount: 0 })),
+      settlementModel.getOrphanSettledSummary().catch(() => ({ orphan_count: 0, orphan_amount: 0 })),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    const mapped = rows.map((r) => ({
-      ...r,
-      created_at_fmt: formatDateId(r.created_at),
-      paid_at_fmt: r.paid_at ? formatDateId(r.paid_at) : "-",
-      settled_at_fmt: r.settled_at ? formatDateId(r.settled_at) : "-",
-      settlement_status_label: Number(r.is_settled || 0) === 1 ? "SETTLED" : "NOT_SETTLED",
-      total_fmt: fmtMoney(r.total),
-    }));
+    const mapped = rows.map((r) => {
+      const settlement_status_label = settlementStatusLabel(r);
+      return {
+        ...r,
+        created_at_fmt: formatDateId(r.created_at),
+        paid_at_fmt: r.paid_at ? formatDateId(r.paid_at) : "-",
+        settled_at_fmt: r.settled_at ? formatDateId(r.settled_at) : "-",
+        settlement_status_label,
+        settlement_badge_class: settlementStatusBadgeClass(settlement_status_label),
+        total_fmt: fmtMoney(r.total),
+      };
+    });
 
     const [merchants, machines] = await Promise.all([
       merchantModel.listAllForSelect(),
@@ -61,6 +70,10 @@ exports.list = async (req, res, next) => {
       unsettled: {
         count: Number(unsettled.unsettled_count || 0),
         amount_fmt: fmtMoney(unsettled.unsettled_amount || 0),
+      },
+      orphan: {
+        count: Number(orphan.orphan_count || 0),
+        amount_fmt: fmtMoney(orphan.orphan_amount || 0),
       },
     });
   } catch (err) {
@@ -147,6 +160,8 @@ exports.detail = async (req, res, next) => {
       created_at_fmt: formatDateId(it.created_at),
     }));
 
+    const settlement_status_label = settlementStatusLabel(order);
+
     return res.render("admin/orders/detail", {
       title: "Order Detail",
       user: req.user,
@@ -158,8 +173,12 @@ exports.detail = async (req, res, next) => {
         expires_at_fmt: order.expires_at ? formatDateId(order.expires_at) : "-",
         dispensed_at_fmt: order.dispensed_at ? formatDateId(order.dispensed_at) : "-",
         refunded_at_fmt: order.refunded_at ? formatDateId(order.refunded_at) : "-",
+        settled_at_fmt: order.settled_at ? formatDateId(order.settled_at) : "-",
         subtotal_fmt: fmtMoney(order.subtotal),
         total_fmt: fmtMoney(order.total),
+        net_amount_fmt: fmtMoney(order.net_amount),
+        settlement_status_label,
+        settlement_badge_class: settlementStatusBadgeClass(settlement_status_label),
       },
       items: mappedItems,
     });

@@ -11,13 +11,18 @@ const { fmtMoney } = require("../../helper-function/http");
 
 exports.dashboard = async (req, res, next) => {
   try {
-    const [balances, unsettled, feeConfig] = await Promise.all([
+    const [balances, unsettled, orphan, feeConfig] = await Promise.all([
       settlementModel.getAllMerchantBalances(),
       settlementModel.getUnsettledSummary(),
+      settlementModel.getOrphanSettledSummary(),
       settlementModel.getFeeConfig(),
     ]);
 
     const totalBalance = balances.reduce((s, b) => s + Number(b.balance || 0), 0);
+    const orphanRows =
+      Number(orphan.orphan_count || 0) > 0
+        ? await settlementModel.listOrphanSettledOrders({ limit: 20 })
+        : [];
 
     return res.render("admin/settlement/dashboard", {
       title: "Saldo Merchant",
@@ -31,8 +36,27 @@ exports.dashboard = async (req, res, next) => {
       totalBalance: fmtMoney(totalBalance),
       unsettled,
       unsettledFmt: fmtMoney(unsettled.unsettled_amount),
+      orphan,
+      orphanFmt: fmtMoney(orphan.orphan_amount),
+      orphanRows,
+      resetOk: cleanQueryFlag(req.query.reset_ok),
+      resetCount: Number(req.query.reset_count || 0) || 0,
       feeConfig,
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+function cleanQueryFlag(v) {
+  return String(v || "") === "1";
+}
+
+/** POST: reset is_settled=1 yang tidak punya settlement items */
+exports.resetOrphanFlags = async (req, res, next) => {
+  try {
+    const resetCount = await settlementModel.resetOrphanSettledFlags();
+    return res.redirect(`/admin/settlement?reset_ok=1&reset_count=${resetCount}`);
   } catch (err) {
     return next(err);
   }
@@ -126,15 +150,6 @@ exports.previewUpload = async (req, res, next) => {
       .map((r) => String(r.order_id || r.Order_ID || r.ORDER_ID || r["Order ID"] || "").trim())
       .filter(Boolean);
 
-    const excelFees = {};
-    rows.forEach((r) => {
-      const oid = String(r.order_id || r.Order_ID || r.ORDER_ID || r["Order ID"] || "").trim();
-      const fee = r.midtrans_fee || r.fee || r.Fee || r.midtrans_fee_amount;
-      if (oid && fee !== undefined && fee !== "") {
-        excelFees[oid] = parseFloat(fee);
-      }
-    });
-
     if (!orderIds.length) {
       return res.status(400).render("admin/settlement/upload", {
         title: "Upload Settlement Excel",
@@ -157,7 +172,6 @@ exports.previewUpload = async (req, res, next) => {
     const unmatched = [];
     const alreadySettled = [];
     const notDispensed = [];
-    const warnings = [];
     const seenIds = new Set();
 
     for (const oid of orderIds) {
@@ -169,7 +183,7 @@ exports.previewUpload = async (req, res, next) => {
       if (seenIds.has(order.id)) continue;
       seenIds.add(order.id);
 
-      if (Number(order.is_settled) === 1 || Number(order.has_settlement_item) === 1) {
+      if (Number(order.has_settlement_item) === 1) {
         alreadySettled.push(oid);
         continue;
       }
@@ -180,21 +194,19 @@ exports.previewUpload = async (req, res, next) => {
         continue;
       }
 
-      const systemFee = Math.round(Number(order.total) * (feeConfig.midtrans_fee_percent / 100) * 100) / 100;
-      const exFee = excelFees[oid];
-      let hasMismatch = false;
-      if (exFee !== undefined && Math.abs(exFee - systemFee) > 0.01) {
-        hasMismatch = true;
-        warnings.push(`${oid}: fee Excel=${exFee}, sistem=${systemFee}`);
-      }
+      const systemFee =
+        Math.round(Number(order.total) * (feeConfig.midtrans_fee_percent / 100) * 100) / 100;
+      const ownerFee =
+        Math.round(Number(order.total) * (feeConfig.owner_fee_percent / 100) * 100) / 100;
 
       matched.push({
         id: order.id,
         order_code: order.order_code,
         merchant_id: order.merchant_id,
         total: Number(order.total),
-        excelFee: exFee !== undefined ? exFee : null,
-        hasMismatch,
+        midtrans_fee: systemFee,
+        owner_fee: ownerFee,
+        net: Number(order.total) - systemFee - ownerFee,
       });
     }
 
@@ -210,7 +222,6 @@ exports.previewUpload = async (req, res, next) => {
         unmatched,
         alreadySettled,
         notDispensed,
-        warnings,
         matchedJson: JSON.stringify(matched),
         matchedB64: Buffer.from(JSON.stringify(matched), "utf8").toString("base64"),
       },
