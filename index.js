@@ -106,6 +106,22 @@ setInterval(() => {
     .catch((err) => console.error("[hold-expire]", err.message));
 }, PENDING_HOLD_EXPIRE_MS).unref();
 
+// Payout yang statusnya menggantung (UNKNOWN/SUBMITTING/PROCESSING) harus
+// ditanya ulang ke Iris. Tanpa ini, saldo bisa tertahan selamanya saat webhook
+// tidak pernah datang. Set 0 untuk mematikan.
+const payoutService = require("./services/payout-service");
+const PAYOUT_RECONCILE_INTERVAL_MS = Number(process.env.PAYOUT_RECONCILE_INTERVAL_MS || 300_000);
+if (PAYOUT_RECONCILE_INTERVAL_MS > 0) {
+  setInterval(() => {
+    payoutService
+      .reconcileStale({ older_than_ms: 120_000, limit: 25 })
+      .then((r) => {
+        if (r && r.scanned) console.log(`[payout-reconcile] scanned ${r.scanned}`);
+      })
+      .catch((err) => console.error("[payout-reconcile]", err.message));
+  }, PAYOUT_RECONCILE_INTERVAL_MS).unref();
+}
+
 const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(`Samakan Core running on ${LISTEN_HOST}:${PORT}`);
 });

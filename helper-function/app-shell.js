@@ -16,6 +16,7 @@ function headerTitleForPath(pathFull) {
   if (pathFull.startsWith("/orders/qris")) return "Generate QRIS";
   if (pathFull.startsWith("/orders")) return "Orders";
   if (pathFull.startsWith("/admin/settlement/ledger")) return "Riwayat Saldo";
+  if (pathFull.startsWith("/admin/payouts")) return "Payout Merchant";
   if (pathFull.startsWith("/admin/xy")) return "XY Platform";
   if (pathFull.startsWith("/admin/settings")) return "Settings";
   return "Operations";
@@ -28,7 +29,7 @@ function navHtmlForRole(userRole) {
         <a href="/merchant">Dashboard</a>
         <a href="/orders">Orders</a>
         <a href="/orders/qris">QRIS</a>
-        <a href="/merchant/balance">Riwayat Saldo</a>
+        <a href="/merchant/balance">Saldo &amp; Payout</a>
       </nav>`;
   }
   return `
@@ -42,6 +43,7 @@ function navHtmlForRole(userRole) {
         <a href="/admin/orders">Orders</a>
         <a href="/admin/xy">XY Platform</a>
         <a href="/admin/settlement/ledger">Riwayat Saldo</a>
+        <a href="/admin/payouts">Payout</a>
         <a href="/admin/settings">Settings</a>
       </nav>`;
 }

@@ -1,5 +1,10 @@
 const orderModel = require("../models/order");
 const settlementModel = require("../models/settlement");
+const payoutModel = require("../models/payout");
+const merchantModel = require("../models/merchant");
+const { issueCsrf } = require("../helper-function/csrf");
+const { payoutStatusLabel, payoutBadgeClass } = require("../helper-function/payout-status");
+const { normalizeTerms, partnershipLabel, termsSummary } = require("../helper-function/partnership");
 
 const fmtIdr = (n) =>
   new Intl.NumberFormat("id-ID", {
@@ -9,6 +14,13 @@ const fmtIdr = (n) =>
   }).format(Number(n) || 0);
 
 const { fmtMoney } = require("../helper-function/http");
+
+/** Bedakan credit settlement dari debit/refund payout di riwayat saldo. */
+const entryTypeLabel = (entryType) => {
+  if (entryType === "PAYOUT_DEBIT") return "Payout";
+  if (entryType === "PAYOUT_REFUND") return "Refund Payout";
+  return "Settlement";
+};
 
 exports.renderHome = async (req, res, next) => {
   try {
@@ -54,10 +66,13 @@ exports.renderBalance = async (req, res, next) => {
 
     const filterOpts = { merchant_id, date_from: date_from || undefined, date_to: date_to || undefined };
 
-    const [balance, rows, total] = await Promise.all([
+    const [balance, rows, total, payoutConfig, payoutRows, merchant] = await Promise.all([
       settlementModel.getMerchantBalance(merchant_id),
       settlementModel.getLedgerHistory({ ...filterOpts, limit, offset }),
       settlementModel.countLedgerHistory(filterOpts),
+      payoutModel.getConfigForMerchant(merchant_id),
+      payoutModel.listByMerchant({ merchant_id, limit: 10, offset: 0 }),
+      merchantModel.findById(merchant_id),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -68,6 +83,17 @@ exports.renderBalance = async (req, res, next) => {
       net_fmt: fmtMoney(r.net_amount),
       midtrans_fee_fmt: fmtMoney(r.midtrans_fee_amount),
       created_at_fmt: r.created_at ? new Date(r.created_at).toLocaleString("id-ID") : "-",
+      entry_label: entryTypeLabel(r.entry_type),
+    }));
+
+    const mappedPayouts = payoutRows.map((p) => ({
+      ...p,
+      amount_fmt: fmtIdr(p.amount),
+      fee_fmt: fmtIdr(p.fee_amount),
+      debit_fmt: fmtIdr(p.debit_amount),
+      status_label: payoutStatusLabel(p.status),
+      status_class: payoutBadgeClass(p.status),
+      created_at_fmt: p.created_at ? new Date(p.created_at).toLocaleString("id-ID") : "-",
     }));
 
     return res.render("merchant/balance", {
@@ -78,6 +104,13 @@ exports.renderBalance = async (req, res, next) => {
         balance_fmt: fmtIdr(balance.balance),
         total_gross_fmt: fmtIdr(balance.total_gross),
         total_midtrans_fee_fmt: fmtIdr(balance.total_midtrans_fee),
+        total_owner_fee_fmt: fmtIdr(balance.total_owner_fee),
+      },
+      // Merchant perlu tahu kenapa saldonya lebih kecil dari total penjualan.
+      partnership: {
+        ...normalizeTerms(merchant),
+        label: partnershipLabel(merchant && merchant.partnership_type),
+        summary: termsSummary(merchant),
       },
       rows: mappedRows,
       page,
@@ -85,6 +118,14 @@ exports.renderBalance = async (req, res, next) => {
       totalPages,
       total,
       filters: { date_from, date_to },
+      payoutConfig: {
+        ...payoutConfig,
+        fee_fmt: fmtIdr(payoutConfig.fee_amount),
+        min_fmt: fmtIdr(payoutConfig.min_amount),
+        max_fmt: fmtIdr(payoutConfig.max_amount),
+      },
+      payouts: mappedPayouts,
+      csrfToken: issueCsrf(res),
     });
   } catch (err) {
     return next(err);

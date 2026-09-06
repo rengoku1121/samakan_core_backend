@@ -3,11 +3,20 @@ const multer = require("multer");
 const XLSX = require("xlsx");
 const settlementModel = require("../../models/settlement");
 const merchantModel = require("../../models/merchant");
+const midtransReport = require("../../helper-function/midtrans-report");
+const { computeOrderSplit, partnershipLabel, termsSummary } = require("../../helper-function/partnership");
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 exports.upload = upload;
 
 const { fmtMoney } = require("../../helper-function/http");
+
+/** Bedakan credit settlement dari debit/refund payout di riwayat saldo. */
+const ledgerEntryLabel = (row) => {
+  if (row.entry_type === "PAYOUT_DEBIT") return "Payout";
+  if (row.entry_type === "PAYOUT_REFUND") return "Refund Payout";
+  return `Settlement ${row.source || ""}`.trim();
+};
 
 exports.dashboard = async (req, res, next) => {
   try {
@@ -90,6 +99,7 @@ exports.ledgerHistory = async (req, res, next) => {
         owner_fee_fmt: fmtMoney(r.owner_fee_amount),
         net_fmt: fmtMoney(r.net_amount),
         created_at_fmt: r.created_at ? new Date(r.created_at).toLocaleString("id-ID") : "-",
+        entry_label: ledgerEntryLabel(r),
       })),
       page,
       limit,
@@ -146,21 +156,29 @@ exports.previewUpload = async (req, res, next) => {
       });
     }
 
-    const orderIds = rows
-      .map((r) => String(r.order_id || r.Order_ID || r.ORDER_ID || r["Order ID"] || "").trim())
-      .filter(Boolean);
+    const report = midtransReport.parseReportRows(rows);
 
-    if (!orderIds.length) {
+    if (!report.entries.length) {
       return res.status(400).render("admin/settlement/upload", {
         title: "Upload Settlement Excel",
         user: req.user,
         feeConfig,
         preview: null,
-        error: "Kolom order_id tidak ditemukan di file. Pastikan ada kolom 'order_id'.",
+        error: "Kolom order_id tidak ditemukan di file. Pastikan ada kolom 'Order ID' atau 'order_id'.",
       });
     }
 
-    const dbOrders = await settlementModel.findEligibleByOrderIds(orderIds);
+    // Buang baris yang bukan uang masuk (Refund, expire, deny, chargeback)
+    // sebelum menyentuh DB — baris seperti itu tidak boleh menaikkan saldo.
+    const settleable = [];
+    const rejectedByReport = [];
+    for (const entry of report.entries) {
+      const verdict = midtransReport.isSettleable(entry, report);
+      if (verdict.ok) settleable.push(entry);
+      else rejectedByReport.push({ id: entry.order_id, reason: verdict.reason, row: entry.row });
+    }
+
+    const dbOrders = await settlementModel.findEligibleByOrderIds(settleable.map((e) => e.order_id));
 
     const dbMap = {};
     for (const o of dbOrders) {
@@ -172,9 +190,11 @@ exports.previewUpload = async (req, res, next) => {
     const unmatched = [];
     const alreadySettled = [];
     const notDispensed = [];
+    const amountWarnings = [];
     const seenIds = new Set();
 
-    for (const oid of orderIds) {
+    for (const entry of settleable) {
+      const oid = entry.order_id;
       const order = dbMap[oid];
       if (!order) {
         unmatched.push(oid);
@@ -194,19 +214,35 @@ exports.previewUpload = async (req, res, next) => {
         continue;
       }
 
-      const systemFee =
-        Math.round(Number(order.total) * (feeConfig.midtrans_fee_percent / 100) * 100) / 100;
-      const ownerFee =
-        Math.round(Number(order.total) * (feeConfig.owner_fee_percent / 100) * 100) / 100;
+      // Nominal tetap diambil dari DB; selisih hanya ditandai supaya admin
+      // memeriksa, karena artinya ada yang tidak sinkron dengan Midtrans.
+      const dbTotal = Number(order.total);
+      if (entry.amount != null && Math.abs(entry.amount - dbTotal) > 0.01) {
+        amountWarnings.push({
+          order_code: order.order_code,
+          excel_amount: entry.amount,
+          db_total: dbTotal,
+          row: entry.row,
+        });
+      }
+
+      // Bagi hasil ikut syarat kerja sama merchant, bukan persentase global.
+      const split = computeOrderSplit({
+        gross: dbTotal,
+        terms: order,
+        midtrans_fee_percent: feeConfig.midtrans_fee_percent,
+      });
 
       matched.push({
         id: order.id,
         order_code: order.order_code,
         merchant_id: order.merchant_id,
-        total: Number(order.total),
-        midtrans_fee: systemFee,
-        owner_fee: ownerFee,
-        net: Number(order.total) - systemFee - ownerFee,
+        total: dbTotal,
+        partnership_type: order.partnership_type,
+        partnership_label: partnershipLabel(order.partnership_type),
+        midtrans_fee: split.midtrans_fee_amount,
+        owner_fee: split.owner_fee_amount,
+        net: split.net_amount,
       });
     }
 
@@ -222,6 +258,14 @@ exports.previewUpload = async (req, res, next) => {
         unmatched,
         alreadySettled,
         notDispensed,
+        rejectedByReport,
+        amountWarnings,
+        columnsChecked: {
+          type: report.hasTypeColumn,
+          status: report.hasStatusColumn,
+          amount: report.hasAmountColumn,
+        },
+        totalRows: report.entries.length,
         matchedJson: JSON.stringify(matched),
         matchedB64: Buffer.from(JSON.stringify(matched), "utf8").toString("base64"),
       },
@@ -294,9 +338,18 @@ exports.renderForceSettle = async (req, res, next) => {
 
     const merchantMap = {};
     for (const o of eligible) {
-      if (!merchantMap[o.merchant_id]) merchantMap[o.merchant_id] = { orders: [], total: 0 };
-      merchantMap[o.merchant_id].orders.push(o);
-      merchantMap[o.merchant_id].total += Number(o.total);
+      if (!merchantMap[o.merchant_id]) {
+        merchantMap[o.merchant_id] = { orders: [], total: 0, net: 0, terms: o };
+      }
+      const group = merchantMap[o.merchant_id];
+      const split = computeOrderSplit({
+        gross: Number(o.total),
+        terms: o,
+        midtrans_fee_percent: feeConfig.midtrans_fee_percent,
+      });
+      group.orders.push(o);
+      group.total += split.gross_amount;
+      group.net += split.net_amount;
     }
 
     const groups = Object.entries(merchantMap).map(([mid, data]) => {
@@ -308,6 +361,10 @@ exports.renderForceSettle = async (req, res, next) => {
         count: data.orders.length,
         total: data.total,
         total_fmt: fmtMoney(data.total),
+        // Yang benar-benar masuk saldo merchant setelah bagi hasil & fee.
+        net: data.net,
+        net_fmt: fmtMoney(data.net),
+        terms_summary: termsSummary(data.terms),
         orders: data.orders,
       };
     });

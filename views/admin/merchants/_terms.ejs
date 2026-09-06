@@ -1,0 +1,64 @@
+<%
+  const terms = value || {};
+  const isSubscription = String(terms.partnership_type) === 'subscription';
+  const midtransBearer = String(terms.midtrans_fee_bearer || 'merchant');
+  const payoutBearer = String(terms.payout_fee_bearer || 'inherit');
+  const globalBearerLabel = String(payoutFeeBearerGlobal) === 'merchant' ? 'Merchant' : 'Platform';
+%>
+<div class="terms-block" data-merchant-terms>
+  <label for="partnership_type">Tipe Kerja Sama</label>
+  <select id="partnership_type" name="partnership_type" data-terms-type>
+    <option value="revenue_share" <%= isSubscription ? '' : 'selected' %>>Bagi Hasil (potong % tiap transaksi)</option>
+    <option value="subscription" <%= isSubscription ? 'selected' : '' %>>Subscription (bayar bulanan)</option>
+  </select>
+
+  <div data-terms-panel="revenue_share" <%= isSubscription ? 'hidden' : '' %>>
+    <label for="revenue_share_percent">Bagi Hasil Platform (%)</label>
+    <input
+      id="revenue_share_percent"
+      name="revenue_share_percent"
+      type="number"
+      min="0"
+      max="99.99"
+      step="0.01"
+      value="<%= terms.revenue_share_percent ?? 0 %>"
+      data-terms-percent
+    />
+    <div class="hint">
+      Bagian platform dari setiap penjualan.
+      <span data-terms-preview>Merchant menerima <b><%= Math.round((100 - Number(terms.revenue_share_percent || 0)) * 100) / 100 %>%</b>.</span>
+      Potongan ini diterapkan saat settlement, jadi saldo yang terlihat merchant sudah bersih bagiannya.
+    </div>
+  </div>
+
+  <div data-terms-panel="subscription" <%= isSubscription ? '' : 'hidden' %>>
+    <label for="subscription_amount">Biaya Subscription per Bulan (Rp)</label>
+    <input
+      id="subscription_amount"
+      name="subscription_amount"
+      type="number"
+      min="0"
+      step="1000"
+      value="<%= Math.round(Number(terms.subscription_amount || 0)) %>"
+    />
+    <div class="hint">
+      Sebagai catatan saja — penagihan bulanan dilakukan di luar sistem. Merchant subscription
+      tidak dipotong bagi hasil, jadi seluruh hasil penjualan masuk ke saldonya.
+    </div>
+  </div>
+
+  <label for="midtrans_fee_bearer">Penanggung Fee Midtrans (per transaksi)</label>
+  <select id="midtrans_fee_bearer" name="midtrans_fee_bearer">
+    <option value="merchant" <%= midtransBearer === 'merchant' ? 'selected' : '' %>>Merchant (dipotong dari saldo)</option>
+    <option value="platform" <%= midtransBearer === 'platform' ? 'selected' : '' %>>Platform (saya yang tanggung)</option>
+  </select>
+  <div class="hint">Tarifnya mengikuti <b>Midtrans Fee (%)</b> di halaman Settlement.</div>
+
+  <label for="payout_fee_bearer">Penanggung Fee Payout (per penarikan)</label>
+  <select id="payout_fee_bearer" name="payout_fee_bearer">
+    <option value="inherit" <%= payoutBearer === 'inherit' ? 'selected' : '' %>>Ikut Setting Global (<%= globalBearerLabel %>)</option>
+    <option value="merchant" <%= payoutBearer === 'merchant' ? 'selected' : '' %>>Merchant (dipotong dari saldo)</option>
+    <option value="platform" <%= payoutBearer === 'platform' ? 'selected' : '' %>>Platform (saya yang tanggung)</option>
+  </select>
+  <div class="hint">Nominal fee-nya diatur di Settings &rsaquo; Payout Merchant.</div>
+</div>

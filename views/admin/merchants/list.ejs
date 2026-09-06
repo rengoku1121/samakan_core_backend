@@ -259,6 +259,7 @@
               <th style="width:90px;">ID</th>
               <th style="width:130px;">Kode</th>
               <th>Name</th>
+              <th style="width:230px;">Kerja Sama</th>
               <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
                 <th style="width:160px;">Diarsipkan</th>
               <% } else { %>
@@ -274,6 +275,11 @@
                 <td class="mono"><%= m.id %></td>
                 <td class="mono"><b><%= m.merchant_code || "—" %></b></td>
                 <td><b><%= m.name %></b></td>
+                <td>
+                  <b><%= m.partnership_label %></b>
+                  <div class="muted" style="font-size:12px;"><%= m.terms_summary %></div>
+                  <div class="muted" style="font-size:12px;">Fee payout: <%= m.payout_fee_bearer_label %></div>
+                </td>
                 <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
                   <td class="mono muted"><%= m.deleted_at_fmt || "—" %></td>
                 <% } else { %>

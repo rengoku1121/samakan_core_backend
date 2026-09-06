@@ -26,6 +26,8 @@ const MIGRATIONS = [
   "migrate-order-code-unique.js",
   "migrate-settlement-item-order-unique.js",
   "migrate-settlement-orphan-guard.js",
+  "migrate-payout-iris.js",
+  "migrate-merchant-partnership.js",
 ];
 
 let failed = 0;

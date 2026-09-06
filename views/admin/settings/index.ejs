@@ -23,6 +23,7 @@
     .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none}
     .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;box-shadow:0 14px 28px rgba(255,138,0,.28)}
     .btn-ghost{background:#fff;border:1px solid var(--border);color:#7c2d12}
+    .hint{margin:12px 0 0;color:var(--muted);font-size:12.5px;line-height:1.55}
     @media(max-width:720px){.row{grid-template-columns:1fr}}
   </style>
 </head>
@@ -30,7 +31,7 @@
   <div class="topbar">Samakan Admin • Settings</div>
   <div class="wrap">
     <h1>Settings</h1>
-    <div class="muted">Fee settlement + tampilan kiosk.</div>
+    <div class="muted">Fee settlement, payout merchant, dan tampilan kiosk.</div>
 
     <% if (typeof success !== 'undefined' && success) { %><div class="ok" style="margin-top:14px;"><%= success %></div><% } %>
     <% if (error) { %><div class="alert" style="margin-top:14px;"><%= error %></div><% } %>
@@ -45,12 +46,63 @@
             <input name="midtrans_fee_percent" type="number" step="0.01" min="0" value="<%= feeConfig.midtrans_fee_percent %>" required />
           </div>
           <div>
-            <label>Fee Owner / Platform (%)</label>
-            <input name="owner_fee_percent" type="number" step="0.01" min="0" value="<%= feeConfig.owner_fee_percent %>" required />
+            <label>Default Bagi Hasil Merchant Baru (%)</label>
+            <input name="owner_fee_percent" type="number" step="0.01" min="0" max="99.99" value="<%= feeConfig.owner_fee_percent %>" required />
+          </div>
+        </div>
+        <p class="hint">
+          Bagi hasil yang berlaku diambil dari <b>tiap merchant</b> (Merchants &rsaquo; Edit), bukan dari sini.
+          Angka di atas hanya mengisi otomatis form merchant baru. Merchant bertipe
+          <b>Subscription</b> tidak dipotong bagi hasil sama sekali.
+        </p>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Update Fee</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Payout Merchant (Midtrans Iris)</h2>
+      <div class="muted" style="margin-bottom:12px;">
+        Merchant selalu menerima nominal yang diinput. Mode <b>platform</b> memotong saldo sebesar nominal saja;
+        mode <b>merchant</b> memotong nominal + fee. Setiap payout tetap butuh persetujuan admin.
+      </div>
+      <form method="POST" action="/admin/settings/payout">
+        <div class="row">
+          <div>
+            <label>Status fitur</label>
+            <select name="payout_enabled" required>
+              <option value="0" <%= payoutConfig.enabled ? '' : 'selected' %>>Nonaktif</option>
+              <option value="1" <%= payoutConfig.enabled ? 'selected' : '' %>>Aktif</option>
+            </select>
+          </div>
+          <div>
+            <label>Penanggung fee transfer</label>
+            <select name="payout_fee_bearer" required>
+              <option value="platform" <%= payoutConfig.fee_bearer === 'platform' ? 'selected' : '' %>>Platform</option>
+              <option value="merchant" <%= payoutConfig.fee_bearer === 'merchant' ? 'selected' : '' %>>Merchant (potong saldo)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label>Fee transfer (Rp)</label>
+            <input name="payout_fee_amount" type="number" step="1" min="0" value="<%= payoutConfig.fee_amount %>" required />
+          </div>
+          <div>
+            <label>Minimum payout (Rp)</label>
+            <input name="payout_min_amount" type="number" step="1" min="0" value="<%= payoutConfig.min_amount %>" required />
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <div>
+            <label>Maksimum payout (Rp)</label>
+            <input name="payout_max_amount" type="number" step="1" min="0" value="<%= payoutConfig.max_amount %>" required />
           </div>
         </div>
         <div class="actions">
-          <button class="btn btn-primary" type="submit">Update Fee</button>
+          <button class="btn btn-primary" type="submit">Update Payout</button>
+          <a class="btn btn-ghost" href="/admin/payouts">Antrean Payout</a>
         </div>
       </form>
     </div>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    :root{--bg:#fff6ec;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--orange:#ff8a00;--orange2:#ffb866;--shadow:0 18px 45px rgba(0,0,0,.08);--radius:16px;}
+    *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+    .topbar{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:16px 22px;font-weight:900;}
+    .wrap{max-width:900px;margin:0 auto;padding:22px;}
+    h1{margin:0 0 8px;font-size:22px}.muted{color:var(--muted);font-size:13px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;margin-top:16px;}
+    dl{display:grid;grid-template-columns:200px 1fr;gap:10px 18px;margin:0}
+    dt{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+    dd{margin:0;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+    .badge{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid var(--border);background:#f9fafb;color:#374151;}
+    .p-ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46}
+    .p-bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+    .p-warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+    .p-wait{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+    .btn{display:inline-flex;align-items:center;padding:10px 16px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none}
+    .btn-approve{background:linear-gradient(135deg,#16a34a,#4ade80);color:#fff}
+    .btn-reject{background:#fff;border:1px solid #fecaca;color:#991b1b}
+    .btn-ghost{background:#fff;border:1px solid var(--border);color:#7c2d12}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
+    input[type=text]{padding:9px 11px;border-radius:8px;border:1px solid var(--border);font-size:13px;min-width:240px}
+    .alert{margin:16px 0;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
+    .alert-ok{background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46}
+    .alert-err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    .alert-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+    pre{background:#f9fafb;border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;overflow:auto;max-height:260px;white-space:pre-wrap;word-break:break-all}
+  </style>
+</head>
+<body>
+  <div class="topbar">Samakan Admin • Detail Payout</div>
+  <div class="wrap">
+    <a class="muted" href="/admin/payouts">&larr; Kembali ke antrean</a>
+    <h1 style="margin-top:8px;"><%= payout.payout_ref %></h1>
+    <div><span class="badge <%= payout.status_class %>"><%= payout.status_label %></span></div>
+
+    <% if (flash) { %>
+      <div class="alert alert-<%= flash[0] %>"><%= flash[1] %></div>
+    <% } %>
+
+    <div class="card">
+      <dl>
+        <dt>Merchant</dt>
+        <dd><%= payout.merchant_code || "" %> <%= payout.merchant_name %></dd>
+        <dt>Saldo merchant saat ini</dt>
+        <dd><%= balance %></dd>
+        <dt>Bank tujuan</dt>
+        <dd><%= String(payout.bank_code || "").toUpperCase() %> <%= payout.bank_name ? "· " + payout.bank_name : "" %></dd>
+        <dt>Rekening</dt>
+        <dd><%= payout.account_number_masked %></dd>
+        <dt>Nama hasil inquiry</dt>
+        <dd><%= payout.account_name || "-" %></dd>
+        <dt>Nominal diterima</dt>
+        <dd><%= payout.amount_fmt %></dd>
+        <dt>Biaya (<%= payout.fee_bearer === "merchant" ? "merchant" : "platform" %>)</dt>
+        <dd><%= payout.fee_fmt %></dd>
+        <dt>Potongan saldo</dt>
+        <dd><%= payout.debit_fmt %></dd>
+        <dt>Diminta oleh</dt>
+        <dd><%= payout.requested_by_username || "-" %> · <%= payout.created_at_fmt %></dd>
+        <dt>Diputuskan oleh</dt>
+        <dd><%= payout.approved_by_username || "-" %></dd>
+        <dt>Reference provider</dt>
+        <dd><%= payout.provider_reference || "-" %> <%= payout.provider_status ? "(" + payout.provider_status + ")" : "" %></dd>
+        <dt>Dikirim / Selesai / Gagal</dt>
+        <dd><%= payout.submitted_at_fmt %> · <%= payout.completed_at_fmt %> · <%= payout.failed_at_fmt %></dd>
+        <% if (payout.reject_reason) { %>
+        <dt>Alasan penolakan</dt>
+        <dd><%= payout.reject_reason %></dd>
+        <% } %>
+        <% if (payout.error_message) { %>
+        <dt>Error</dt>
+        <dd><%= payout.error_code || "" %> <%= payout.error_message %></dd>
+        <% } %>
+      </dl>
+    </div>
+
+    <% if (canDecide) { %>
+    <div class="card">
+      <div class="muted">
+        Saldo merchant sudah dipotong <b><%= payout.debit_fmt %></b> sejak permintaan dibuat.
+        Approve mengirim dana; Reject mengembalikan potongan tersebut.
+      </div>
+      <form class="row" method="POST" action="/admin/payouts/<%= payout.id %>/approve">
+        <button class="btn btn-approve" type="submit">Approve &amp; Kirim</button>
+      </form>
+      <form class="row" method="POST" action="/admin/payouts/<%= payout.id %>/reject">
+        <input type="text" name="reason" placeholder="Alasan penolakan (opsional)" />
+        <button class="btn btn-reject" type="submit">Reject &amp; Kembalikan Saldo</button>
+      </form>
+    </div>
+    <% } %>
+
+    <% if (canReconcile) { %>
+    <div class="card">
+      <div class="muted">
+        Status belum final. Jangan mengembalikan saldo secara manual — tanyakan dulu ke provider,
+        karena dana mungkin sudah terkirim.
+      </div>
+      <form class="row" method="POST" action="/admin/payouts/<%= payout.id %>/reconcile">
+        <button class="btn btn-ghost" type="submit">Cek Status ke Provider</button>
+      </form>
+    </div>
+    <% } %>
+
+    <% if (payout.provider_payload) { %>
+    <div class="card">
+      <div class="muted" style="margin-bottom:8px;">Respons provider (teredaksi)</div>
+      <pre><%= payout.provider_payload %></pre>
+    </div>
+    <% } %>
+  </div>
+</body>
+</html>

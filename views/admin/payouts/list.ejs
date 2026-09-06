@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    :root{--bg:#fff6ec;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--orange:#ff8a00;--orange2:#ffb866;--shadow:0 18px 45px rgba(0,0,0,.08);--radius:16px;}
+    *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+    .topbar{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:16px 22px;font-weight:900;}
+    .wrap{max-width:1200px;margin:0 auto;padding:22px;}
+    h1{margin:0 0 8px;font-size:22px}.muted{color:var(--muted);font-size:13px}
+    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-top:16px;}
+    table{width:100%;border-collapse:collapse}
+    thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12;background:#fff2e5;border-bottom:1px solid #f1caa2;padding:12px 14px;}
+    tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;}
+    tbody tr:nth-child(2n){background:#fffdf9}
+    .mono{font-variant-numeric:tabular-nums}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;}
+    .chip{padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:800;text-decoration:none;color:#7c2d12;}
+    .chip.active{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-color:transparent;}
+    .badge{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid var(--border);background:#f9fafb;color:#374151;}
+    .p-ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46}
+    .p-bad{background:#fef2f2;border-color:#fecaca;color:#991b1b}
+    .p-warn{background:#fff7ed;border-color:#fdba74;color:#9a3412}
+    .p-wait{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+    .alert{margin:16px 0;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
+    .alert-ok{background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46}
+    .alert-err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+    .alert-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
+    .link{color:#7c2d12;font-weight:800;text-decoration:none}
+    .pager{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px}
+    .pager a{padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;text-decoration:none;color:#7c2d12;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="topbar">Samakan Admin • Payout Merchant</div>
+  <div class="wrap">
+    <h1>Payout Merchant</h1>
+    <div class="muted">
+      Saldo merchant sudah dipotong saat permintaan dibuat. Approve mengirim dana lewat Midtrans Iris;
+      Reject mengembalikan saldo tepat satu kali.
+    </div>
+
+    <% if (flash) { %>
+      <div class="alert alert-<%= flash[0] %>"><%= flash[1] %></div>
+    <% } %>
+
+    <% if (awaiting > 0) { %>
+      <div class="alert alert-warn"><b><%= awaiting %></b> payout menunggu persetujuan.</div>
+    <% } %>
+
+    <div class="filters">
+      <a class="chip <%= status ? '' : 'active' %>" href="/admin/payouts">Semua</a>
+      <% statuses.forEach(function(s){ %>
+        <a class="chip <%= status === s ? 'active' : '' %>" href="/admin/payouts?status=<%= s %>"><%= s %></a>
+      <% }) %>
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref</th>
+            <th>Merchant</th>
+            <th>Tujuan</th>
+            <th>Diterima</th>
+            <th>Potongan saldo</th>
+            <th>Status</th>
+            <th>Dibuat</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(p){ %>
+          <tr>
+            <td class="mono" style="font-size:12px;"><%= p.payout_ref %></td>
+            <td><b><%= p.merchant_code || "" %></b> <%= p.merchant_name %></td>
+            <td>
+              <%= String(p.bank_code || "").toUpperCase() %> <span class="mono"><%= p.account_number_masked %></span>
+              <div class="muted"><%= p.account_name || "-" %></div>
+            </td>
+            <td class="mono"><%= p.amount_fmt %></td>
+            <td class="mono"><%= p.debit_fmt %></td>
+            <td><span class="badge <%= p.status_class %>"><%= p.status_label %></span></td>
+            <td class="mono"><%= p.created_at_fmt %></td>
+            <td><a class="link" href="/admin/payouts/<%= p.id %>">Detail</a></td>
+          </tr>
+          <% }) %>
+          <% if (!rows.length) { %>
+          <tr><td colspan="8" class="muted" style="padding:18px;">Belum ada payout.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (totalPages > 1) { %>
+    <div class="pager">
+      <span class="muted">Halaman <b><%= page %></b> dari <b><%= totalPages %></b> · <%= total %> data</span>
+      <% if (page > 1) { %><a href="/admin/payouts?status=<%= status %>&page=<%= page - 1 %>">Prev</a><% } %>
+      <% if (page < totalPages) { %><a href="/admin/payouts?status=<%= status %>&page=<%= page + 1 %>">Next</a><% } %>
+    </div>
+    <% } %>
+  </div>
+</body>
+</html>

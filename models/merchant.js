@@ -1,8 +1,18 @@
 // models/merchant.js
 const { pool } = require("../utils/db");
+const { normalizeTerms } = require("../helper-function/partnership");
 
 const activeClause = "deleted_at IS NULL";
 const deletedClause = "deleted_at IS NOT NULL";
+
+/** Kolom syarat kerja sama; dipakai bersama supaya select tidak pernah beda. */
+const TERM_COLUMNS = `
+  partnership_type,
+  revenue_share_percent,
+  subscription_amount,
+  midtrans_fee_bearer,
+  payout_fee_bearer
+`;
 
 exports.countAll = async ({ archivedOnly = false } = {}) => {
   const where = archivedOnly ? `WHERE ${deletedClause}` : `WHERE ${activeClause}`;
@@ -37,6 +47,7 @@ exports.listPaginated = async ({ limit, offset, archivedOnly = false }) => {
       id,
       merchant_code,
       name,
+      ${TERM_COLUMNS},
       is_active,
       deleted_at,
       created_at,
@@ -62,6 +73,7 @@ exports.findById = async (id, opts = {}) => {
       id,
       merchant_code,
       name,
+      ${TERM_COLUMNS},
       is_active,
       deleted_at,
       created_at,
@@ -82,6 +94,7 @@ exports.findByIdAny = async (id) => {
       id,
       merchant_code,
       name,
+      ${TERM_COLUMNS},
       is_active,
       deleted_at,
       created_at,
@@ -110,7 +123,38 @@ exports.findByName = async (name) => {
   return rows[0] || null;
 };
 
-exports.createWithAutoCode = async ({ name, is_active }, conn) => {
+/**
+ * Syarat kerja sama beberapa merchant sekaligus, dikunci FOR UPDATE saat
+ * dipanggil dari dalam transaksi settlement. Mengunci baris merchant mencegah
+ * admin mengubah persentase bagi hasil di tengah batch yang sedang dihitung.
+ */
+exports.findTermsByIds = async (ids, conn, { forUpdate = false } = {}) => {
+  const list = [...new Set((ids || []).map((v) => Number(v)).filter(Boolean))];
+  const map = new Map();
+  if (!list.length) return map;
+
+  const executor = conn || pool;
+  const placeholders = list.map(() => "?").join(",");
+  const [rows] = await executor.query(
+    `SELECT id, ${TERM_COLUMNS} FROM merchants WHERE id IN (${placeholders})
+     ORDER BY id ASC ${forUpdate ? "FOR UPDATE" : ""}`,
+    list
+  );
+  for (const row of rows) map.set(Number(row.id), normalizeTerms(row));
+  return map;
+};
+
+exports.createWithAutoCode = async (
+  { name, is_active, partnership_type, revenue_share_percent, subscription_amount, midtrans_fee_bearer, payout_fee_bearer },
+  conn
+) => {
+  const terms = normalizeTerms({
+    partnership_type,
+    revenue_share_percent,
+    subscription_amount,
+    midtrans_fee_bearer,
+    payout_fee_bearer,
+  });
   const ownConn = !conn;
   const executor = conn || (await pool.getConnection());
   try {
@@ -139,10 +183,24 @@ exports.createWithAutoCode = async ({ name, is_active }, conn) => {
       INSERT INTO merchants (
         merchant_code,
         name,
+        partnership_type,
+        revenue_share_percent,
+        subscription_amount,
+        midtrans_fee_bearer,
+        payout_fee_bearer,
         is_active
-      ) VALUES (?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [merchant_code, name, is_active]
+      [
+        merchant_code,
+        name,
+        terms.partnership_type,
+        terms.revenue_share_percent,
+        terms.subscription_amount,
+        terms.midtrans_fee_bearer,
+        terms.payout_fee_bearer,
+        is_active,
+      ]
     );
 
     return { id: result.insertId, merchant_code };
@@ -154,17 +212,48 @@ exports.createWithAutoCode = async ({ name, is_active }, conn) => {
   }
 };
 
-exports.updateById = async ({ id, name, is_active }) => {
+exports.updateById = async ({
+  id,
+  name,
+  is_active,
+  partnership_type,
+  revenue_share_percent,
+  subscription_amount,
+  midtrans_fee_bearer,
+  payout_fee_bearer,
+}) => {
+  const terms = normalizeTerms({
+    partnership_type,
+    revenue_share_percent,
+    subscription_amount,
+    midtrans_fee_bearer,
+    payout_fee_bearer,
+  });
   const sql = `
     UPDATE merchants
     SET
       name = ?,
+      partnership_type = ?,
+      revenue_share_percent = ?,
+      subscription_amount = ?,
+      midtrans_fee_bearer = ?,
+      payout_fee_bearer = ?,
       is_active = ?
     WHERE id = ?
       AND ${activeClause}
     LIMIT ?
   `;
-  const [result] = await pool.query(sql, [name, is_active, id, 1]);
+  const [result] = await pool.query(sql, [
+    name,
+    terms.partnership_type,
+    terms.revenue_share_percent,
+    terms.subscription_amount,
+    terms.midtrans_fee_bearer,
+    terms.payout_fee_bearer,
+    is_active,
+    id,
+    1,
+  ]);
   return result.affectedRows === 1;
 };
 

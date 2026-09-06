@@ -32,7 +32,7 @@
   <div class="wrap">
     <h1>Upload Excel Midtrans</h1>
     <div class="muted">Upload daftar order dari Midtrans. Excel hanya untuk mencocokkan <code>order_id</code>; fee dihitung dari Settings, bukan dari kolom fee Excel.</div>
-    <div class="muted" style="margin-top:4px;">Patokan fee: Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b> | Owner <b><%= feeConfig.owner_fee_percent %>%</b> (ubah di Settings).</div>
+    <div class="muted" style="margin-top:4px;">Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b> (Settings). Bagi hasil mengikuti syarat kerja sama tiap merchant.</div>
 
     <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
 
@@ -41,7 +41,12 @@
       <form method="POST" action="/admin/settlement/upload/preview" enctype="multipart/form-data">
         <label>File Excel (.xlsx / .xls)</label>
         <input type="file" name="file" accept=".xlsx,.xls" required />
-        <div class="muted" style="margin-top:6px;">Kolom wajib: <code>order_id</code>. Kolom fee di Excel diabaikan.</div>
+        <div class="muted" style="margin-top:6px;">
+          Pakai export apa adanya dari Midtrans (sheet <code>Report</code>). Kolom wajib: <code>Order ID</code>.
+          Kalau ada kolom <code>Transaction type</code> / <code>Transaction status</code>, hanya baris
+          <b>Payment</b> yang <b>settlement</b> yang diproses — refund, expire, dan deny dilewati.
+          Kolom fee tidak ada di export Midtrans; fee selalu dari Settings.
+        </div>
         <div class="row">
           <button class="btn btn-primary" type="submit">Preview</button>
           <a class="btn btn-ghost" href="/admin/settlement">Kembali</a>
@@ -50,7 +55,40 @@
     </div>
     <% } else { %>
 
-    <div class="alert alert-ok">Matched: <b><%= preview.matched.length %></b> order DISPENSED siap settle.</div>
+    <div class="alert alert-ok">Matched: <b><%= preview.matched.length %></b> order DISPENSED siap settle, dari <b><%= preview.totalRows %></b> baris di file.</div>
+
+    <% if (preview.amountWarnings && preview.amountWarnings.length) { %>
+    <div class="alert alert-danger">
+      <div>Nominal Excel beda dengan total order: <b><%= preview.amountWarnings.length %></b> baris. Periksa dulu sebelum settle.</div>
+      <div class="muted" style="margin-top:6px;color:inherit;font-weight:600;">
+        <% preview.amountWarnings.slice(0,5).forEach(function(w){ %>
+          <div class="mono">baris <%= w.row %> · <%= w.order_code %> · Excel Rp <%= new Intl.NumberFormat("id-ID").format(w.excel_amount) %> vs DB Rp <%= new Intl.NumberFormat("id-ID").format(w.db_total) %></div>
+        <% }) %>
+        <% if (preview.amountWarnings.length > 5) { %><div>… <%= preview.amountWarnings.length - 5 %> lainnya</div><% } %>
+      </div>
+      <div class="muted" style="margin-top:6px;color:inherit;font-weight:600;">Yang di-settle tetap memakai total dari database, bukan angka Excel.</div>
+    </div>
+    <% } %>
+
+    <% if (preview.rejectedByReport && preview.rejectedByReport.length) { %>
+    <div class="alert alert-warn">
+      <div>Bukan pembayaran masuk, dilewati: <b><%= preview.rejectedByReport.length %></b> baris (refund / expire / deny / chargeback).</div>
+      <div class="muted" style="margin-top:6px;color:inherit;font-weight:600;">
+        <% preview.rejectedByReport.slice(0,5).forEach(function(r){ %>
+          <div class="mono">baris <%= r.row %> · <%= r.id %> · <%= r.reason %></div>
+        <% }) %>
+        <% if (preview.rejectedByReport.length > 5) { %><div>… <%= preview.rejectedByReport.length - 5 %> lainnya</div><% } %>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (preview.columnsChecked && !preview.columnsChecked.status && !preview.columnsChecked.type) { %>
+    <div class="alert alert-warn">
+      File tidak punya kolom <code>Transaction type</code> / <code>Transaction status</code>, jadi baris refund tidak bisa disaring otomatis.
+      Pastikan file ini memang hanya berisi pembayaran yang settled.
+    </div>
+    <% } %>
+
     <% if (preview.unmatched.length) { %><div class="alert alert-warn">Tidak ditemukan di DB: <b><%= preview.unmatched.length %></b> (<%= preview.unmatched.slice(0,5).join(", ") %><%= preview.unmatched.length > 5 ? "..." : "" %>)</div><% } %>
     <% if (preview.alreadySettled.length) { %><div class="alert alert-warn">Sudah settle / sudah ada di settlement items (skip, cegah saldo dobel): <b><%= preview.alreadySettled.length %></b></div><% } %>
     <% if (preview.notDispensed && preview.notDispensed.length) { %>

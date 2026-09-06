@@ -154,6 +154,75 @@
       opacity: 0.4;
       pointer-events: none;
     }
+
+    .payout-panel {
+      background: #fff;
+      border: 1px solid #e7e0d8;
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(59,41,22,0.06);
+    }
+    .payout-panel h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+    .payout-hint { margin: 0 0 14px; font-size: 12px; color: #7a6e64; }
+    .payout-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+    .payout-form .field { display: grid; gap: 4px; }
+    .payout-form label { font-size: 11px; font-weight: 600; color: #7a6e64; text-transform: uppercase; letter-spacing: .04em; }
+    .payout-form input, .payout-form select {
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid #e7e0d8;
+      font-size: 13px;
+      font-weight: 600;
+      color: #2f2a25;
+      background: #fff;
+      min-width: 170px;
+    }
+    .payout-form input:focus, .payout-form select:focus { border-color:#7c5cff; outline:none; box-shadow:0 0 0 3px rgba(124,92,255,0.1); }
+    .btn-payout {
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 0;
+      background: #7c5cff;
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-payout:hover:not(:disabled) { background: #5d3fe2; }
+    .btn-payout:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-payout-ghost {
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1px solid #e7e0d8;
+      background: #fff;
+      color: #4f463f;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .payout-confirm {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid #d9cdbb;
+      background: #fdf9f3;
+    }
+    .payout-confirm dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0 0 12px; }
+    .payout-confirm dt { font-size: 12px; color: #7a6e64; }
+    .payout-confirm dd { margin: 0; font-size: 13px; font-weight: 700; color: #2f2a25; font-variant-numeric: tabular-nums; }
+    .payout-msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; }
+    .payout-msg.ok { background: #e8f7ee; border: 1px solid #b6e3c7; color: #166534; }
+    .payout-msg.err { background: #fdecec; border: 1px solid #f3bcbc; color: #991b1b; }
+    .payout-msg.info { background: #eef2ff; border: 1px solid #c7d2fe; color: #3730a3; }
+    .p-ok { background:#e8f7ee; border-color:#b6e3c7; color:#166534; }
+    .p-bad { background:#fdecec; border-color:#f3bcbc; color:#991b1b; }
+    .p-warn { background:#fff7e6; border-color:#f3ddb0; color:#92400e; }
+    .p-wait { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+    .terms-note {
+      margin:14px 0 0; padding:12px 14px; font-size:13px; line-height:1.55;
+      background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#334155;
+    }
   </style>
 </head>
 <body>
@@ -172,12 +241,106 @@
       <div class="balance-card">
         <div class="balance-card-k">Fee Midtrans</div>
         <div class="balance-card-v" style="font-size:20px;"><%= balance.total_midtrans_fee_fmt %></div>
-        <div class="balance-card-sub">Total potongan PG</div>
+        <div class="balance-card-sub">
+          <%= partnership.midtrans_fee_bearer === 'merchant' ? 'Total potongan PG' : 'Ditanggung platform' %>
+        </div>
       </div>
+      <% if (partnership.partnership_type === 'revenue_share') { %>
+      <div class="balance-card">
+        <div class="balance-card-k">Bagi hasil platform</div>
+        <div class="balance-card-v" style="font-size:20px;"><%= balance.total_owner_fee_fmt %></div>
+        <div class="balance-card-sub"><%= partnership.revenue_share_percent %>% dari penjualan</div>
+      </div>
+      <% } %>
     </div>
 
-    <h3 style="margin:0 0 4px; font-size:16px; font-weight:700;">Riwayat Settlement</h3>
-    <p style="margin:0 0 12px; font-size:12px; color:#7a6e64;">Total <b><%= total %></b> entri settlement.</p>
+    <p class="terms-note">
+      <b>Skema kerja sama:</b> <%= partnership.summary %>.
+      Saldo tersedia sudah bersih bagian Anda, jadi seluruhnya bisa ditarik.
+    </p>
+
+    <section class="payout-panel">
+      <h3>Tarik Saldo (Payout)</h3>
+      <% if (!payoutConfig.enabled) { %>
+        <p class="payout-hint">Fitur payout belum diaktifkan. Hubungi admin untuk penarikan saldo.</p>
+      <% } else { %>
+        <p class="payout-hint">
+          Minimum <b><%= payoutConfig.min_fmt %></b>, maksimum <b><%= payoutConfig.max_fmt %></b>.
+          <% if (payoutConfig.fee_bearer === 'merchant' && payoutConfig.fee_amount > 0) { %>
+            Biaya transfer <b><%= payoutConfig.fee_fmt %></b> dipotong dari saldo Anda (di luar nominal yang diterima).
+          <% } else if (payoutConfig.fee_amount > 0) { %>
+            Biaya transfer <b><%= payoutConfig.fee_fmt %></b> ditanggung platform.
+          <% } %>
+          Setelah dikonfirmasi, saldo langsung dipotong dan permintaan menunggu persetujuan admin.
+        </p>
+
+        <div class="payout-form">
+          <div class="field">
+            <label for="payout-bank">Bank tujuan</label>
+            <select id="payout-bank"><option value="">Memuat…</option></select>
+          </div>
+          <div class="field">
+            <label for="payout-account">Nomor rekening</label>
+            <input id="payout-account" type="text" inputmode="numeric" autocomplete="off" placeholder="1234567890" />
+          </div>
+          <div class="field">
+            <label for="payout-amount">Nominal diterima (Rp)</label>
+            <input id="payout-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="100000" />
+          </div>
+          <button id="payout-inquiry-btn" class="btn-payout" type="button">Cek Rekening</button>
+        </div>
+
+        <div id="payout-confirm" class="payout-confirm" hidden>
+          <dl>
+            <dt>Nama pemilik</dt><dd id="payout-c-name">-</dd>
+            <dt>Rekening</dt><dd id="payout-c-account">-</dd>
+            <dt>Nominal diterima</dt><dd id="payout-c-amount">-</dd>
+            <dt>Biaya</dt><dd id="payout-c-fee">-</dd>
+            <dt>Potongan saldo</dt><dd id="payout-c-debit">-</dd>
+            <dt>Sisa saldo</dt><dd id="payout-c-after">-</dd>
+          </dl>
+          <button id="payout-confirm-btn" class="btn-payout" type="button">Konfirmasi Payout</button>
+          <button id="payout-cancel-btn" class="btn-payout-ghost" type="button">Batal</button>
+        </div>
+
+        <div id="payout-msg" class="payout-msg" hidden></div>
+      <% } %>
+
+      <h3 style="margin-top:20px;">Riwayat Payout</h3>
+      <table class="balance-table">
+        <thead>
+          <tr>
+            <th>Ref</th>
+            <th>Tujuan</th>
+            <th>Diterima</th>
+            <th>Potongan</th>
+            <th>Status</th>
+            <th>Waktu</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% (payouts || []).forEach(function(p){ %>
+          <tr>
+            <td class="mono" style="font-size:11px;"><%= p.payout_ref %></td>
+            <td>
+              <%= String(p.bank_code || '').toUpperCase() %> <span class="mono"><%= p.account_number_masked %></span>
+              <div style="font-size:11px; color:#7a6e64;"><%= p.account_name || '-' %></div>
+            </td>
+            <td class="mono"><%= p.amount_fmt %></td>
+            <td class="mono"><%= p.debit_fmt %></td>
+            <td><span class="badge <%= p.status_class %>"><%= p.status_label %></span></td>
+            <td class="mono"><%= p.created_at_fmt %></td>
+          </tr>
+          <% }) %>
+          <% if (!payouts || !payouts.length) { %>
+          <tr><td colspan="6" style="padding:14px; color:#7a6e64;">Belum ada payout.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </section>
+
+    <h3 style="margin:0 0 4px; font-size:16px; font-weight:700;">Riwayat Saldo</h3>
+    <p style="margin:0 0 12px; font-size:12px; color:#7a6e64;">Total <b><%= total %></b> entri (settlement + payout).</p>
 
     <form method="GET" action="/merchant/balance" class="filter-bar">
       <div class="field">
@@ -204,7 +367,7 @@
       <thead>
         <tr>
           <th>Ref</th>
-          <th>Source</th>
+          <th>Jenis</th>
           <th>TX</th>
           <th>Gross</th>
           <th>Fee</th>
@@ -216,7 +379,7 @@
         <% (rows || []).forEach(function(r){ %>
         <tr>
           <td class="mono" style="font-size:11px;"><%= r.settlement_ref %></td>
-          <td><span class="badge"><%= r.source %></span></td>
+          <td><span class="badge"><%= r.entry_label %></span></td>
           <td class="mono"><%= r.tx_count %></td>
           <td class="mono">Rp <%= r.gross_fmt %></td>
           <td class="mono">Rp <%= r.midtrans_fee_fmt %></td>
@@ -250,5 +413,14 @@
       <% } %>
     </div>
   </div>
+
+  <% if (payoutConfig.enabled) { %>
+  <%#
+    Data lewat atribut + file /public/js/merchant-payout.js — Helmet CSP
+    script-src 'self' memblokir script inline.
+  #%>
+  <div id="payout-meta" hidden data-csrf="<%= csrfToken %>"></div>
+  <script src="/public/js/merchant-payout.js" defer></script>
+  <% } %>
 </body>
 </html>

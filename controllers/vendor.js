@@ -1,6 +1,7 @@
 // controllers/vendor.js
 const { pool } = require("../utils/db");
 const orderModel = require("../models/order");
+const payoutService = require("../services/payout-service");
 const { clean, errBody, jsonErr, secureEqual } = require("../helper-function/http");
 
 const OPEN_PAYMENT_STATUSES = new Set(["PENDING", "CREATED"]);
@@ -334,20 +335,47 @@ exports.applyMidtransNotification = async (payload = {}) => {
   }
 };
 
+/** Fail closed: tanpa token di env, webhook tidak boleh diproses. */
+const rejectUntrustedInternal = (req, res) => {
+  const expectedToken = clean(process.env.VENDOR_PAYMENT_INTERNAL_TOKEN);
+  if (!expectedToken) {
+    return jsonErr(res, 503, "VENDOR_PAYMENT_INTERNAL_TOKEN belum diset di Core");
+  }
+  if (!secureEqual(clean(req.headers["x-internal-token"]), expectedToken)) {
+    return jsonErr(res, 401, "Unauthorized internal request");
+  }
+  return null;
+};
+
 exports.webhook = async (req, res, next) => {
   try {
-    const internalToken = clean(req.headers["x-internal-token"]);
-    const expectedToken = clean(process.env.VENDOR_PAYMENT_INTERNAL_TOKEN);
-
-    // Fail closed: tanpa token di env, webhook tidak boleh diproses.
-    if (!expectedToken) {
-      return jsonErr(res, 503, "VENDOR_PAYMENT_INTERNAL_TOKEN belum diset di Core");
-    }
-    if (!secureEqual(internalToken, expectedToken)) {
-      return jsonErr(res, 401, "Unauthorized internal request");
-    }
+    const rejected = rejectUntrustedInternal(req, res);
+    if (rejected) return rejected;
 
     const result = await exports.applyMidtransNotification(req.body || {});
+    return res.status(result.httpStatus).json(result.body);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+/**
+ * Notifikasi payout Iris. Signature Iris dan challenge GET sudah dilakukan
+ * vendor; di sini yang diverifikasi adalah bahwa pengirimnya memang vendor.
+ */
+exports.payoutWebhook = async (req, res, next) => {
+  try {
+    const rejected = rejectUntrustedInternal(req, res);
+    if (rejected) return rejected;
+
+    const body = req.body || {};
+    const result = await payoutService.applyNotification({
+      reference_no: body.reference_no,
+      status: body.status,
+      amount: body.amount,
+      error_message: body.error_message,
+      raw: body,
+    });
     return res.status(result.httpStatus).json(result.body);
   } catch (err) {
     return next(err);

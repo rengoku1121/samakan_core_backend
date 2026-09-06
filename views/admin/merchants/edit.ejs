@@ -37,6 +37,7 @@
       padding:12px 12px;border-radius:12px;margin-bottom:12px;font-size:13px}
     .banner-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e;padding:12px;border-radius:12px;margin-bottom:12px;font-size:13px;}
     .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
+    .sep{border:0;border-top:1px solid var(--border);margin:20px 0 4px}
     .idpill{
       display:inline-flex;align-items:center;gap:8px;
       padding:6px 10px;border-radius:999px;
@@ -115,6 +116,14 @@
         <input id="name" name="name" value="<%= value?.name || '' %>" required />
         <div class="hint">Kode merchant tidak bisa diubah. Perubahan nama berdampak ke tampilan laporan.</div>
 
+        <hr class="sep" />
+        <%- include('_terms', { value, payoutFeeBearerGlobal }) %>
+        <div class="hint" style="margin-top:10px;">
+          Perubahan syarat hanya berlaku untuk settlement berikutnya. Saldo yang sudah tercatat
+          di ledger tidak dihitung ulang.
+        </div>
+        <hr class="sep" />
+
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
           <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
@@ -158,6 +167,7 @@
     </div>
   </div>
   <script src="/public/js/admin-merchant-soft-delete.js" defer></script>
+  <script src="/public/js/admin-merchant-terms.js" defer></script>
   <% } %>
 </body>
 </html>

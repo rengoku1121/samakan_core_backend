@@ -10,6 +10,7 @@ const slotRoutes = require("./admin/slots");
 const orderRoutes = require("./admin/orders");
 const notificationRoutes = require("./admin/notifications");
 const settlementRoutes = require("./admin/settlement");
+const payoutRoutes = require("./admin/payouts");
 const settingsRoutes = require("./admin/settings");
 const xyRoutes = require("./admin/xy");
 
@@ -23,6 +24,7 @@ router.use("/slots", slotRoutes);
 router.use("/orders", orderRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/settlement", settlementRoutes);
+router.use("/payouts", payoutRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/xy", xyRoutes);
 

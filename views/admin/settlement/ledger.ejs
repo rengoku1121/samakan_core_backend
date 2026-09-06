@@ -156,7 +156,7 @@
         <tr>
           <th>Ref</th>
           <th>Merchant</th>
-          <th>Source</th>
+          <th>Jenis</th>
           <th>TX</th>
           <th>Gross</th>
           <th>Fee</th>
@@ -169,7 +169,7 @@
         <tr>
           <td class="mono" style="font-size:11px;"><%= r.settlement_ref %></td>
           <td><b><%= r.merchant_code || "" %></b> <%= r.merchant_name %></td>
-          <td><span class="badge"><%= r.source %></span></td>
+          <td><span class="badge"><%= r.entry_label %></span></td>
           <td class="mono"><%= r.tx_count %></td>
           <td class="mono">Rp <%= r.gross_fmt %></td>
           <td class="mono">Rp <%= r.midtrans_fee_fmt %></td>

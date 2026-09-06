@@ -1,5 +1,7 @@
 // models/settlement.js
 const { pool } = require("../utils/db");
+const merchantModel = require("./merchant");
+const { computeOrderSplit } = require("../helper-function/partnership");
 
 /** Get fee config from system_settings */
 exports.getFeeConfig = async (conn) => {
@@ -36,8 +38,10 @@ exports.findEligibleOrders = async ({ merchant_id } = {}) => {
     params.push(merchant_id);
   }
   const sql = `
-    SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at
+    SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at,
+           m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer
     FROM orders o
+    LEFT JOIN merchants m ON m.id = o.merchant_id
     WHERE ${where.join(" AND ")}
     ORDER BY o.id ASC
   `;
@@ -51,8 +55,10 @@ exports.findEligibleByOrderIds = async (orderIds) => {
   const placeholders = orderIds.map(() => "?").join(",");
   const sql = `
     SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at, o.is_settled,
+           m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer,
            EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item
     FROM orders o
+    LEFT JOIN merchants m ON m.id = o.merchant_id
     WHERE (o.order_code IN (${placeholders}) OR o.payment_ref IN (${placeholders}))
     ORDER BY o.id ASC
   `;
@@ -64,10 +70,13 @@ exports.findEligibleByOrderIds = async (orderIds) => {
  * Execute settlement for a batch of orders, grouped by merchant.
  * @param {object} params
  * @param {Array} params.orders - [{id, order_code, merchant_id, total}]
- * @param {object} params.feeConfig - {midtrans_fee_percent, owner_fee_percent} — satu-satunya sumber fee
+ * @param {object} params.feeConfig - {midtrans_fee_percent} — tarif Midtrans, satu-satunya sumber fee
  * @param {string} params.source - 'excel' | 'force'
  * @param {string} [params.notes]
  * @returns {object} { settlement_ref, merchants: [{merchant_id, net_amount, ...}] }
+ *
+ * Bagi hasil diambil dari kolom merchant (partnership_type + revenue_share_percent),
+ * bukan lagi dari owner_fee_percent global.
  */
 exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
   const conn = await pool.getConnection();
@@ -77,8 +86,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     const now = new Date();
     const ref = `STL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
 
-    const midPct = feeConfig.midtrans_fee_percent / 100;
-    const ownPct = feeConfig.owner_fee_percent / 100;
+    const midtransPercent = Number(feeConfig?.midtrans_fee_percent || 0);
 
     const merchantMap = {};
     const inputById = new Map();
@@ -121,20 +129,31 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       eligibleLocked = lockedRows.filter((r) => !already.has(Number(r.id)));
     }
 
+    // Kunci baris merchant supaya persentase bagi hasil tidak bisa diubah admin
+    // di tengah batch yang sedang dihitung.
+    const termsByMerchant = await merchantModel.findTermsByIds(
+      eligibleLocked.map((r) => r.merchant_id),
+      conn,
+      { forUpdate: true }
+    );
+
     const settledRows = [];
     for (const row of eligibleLocked) {
-      const gross = Number(row.total || 0);
-      // Fee hanya dari Settings (midtrans_fee_percent / owner_fee_percent), bukan kolom Excel.
-      const midFee = Math.round(gross * midPct * 100) / 100;
-      const ownFee = Math.round(gross * ownPct * 100) / 100;
-      const net = gross - midFee - ownFee;
+      const merchantId = Number(row.merchant_id);
+      // Tarif Midtrans dari Settings; bagi hasil & penanggung fee dari merchant.
+      const split = computeOrderSplit({
+        gross: Number(row.total || 0),
+        terms: termsByMerchant.get(merchantId),
+        midtrans_fee_percent: midtransPercent,
+      });
       settledRows.push({
         id: Number(row.id),
-        merchant_id: Number(row.merchant_id),
-        gross,
-        midFee,
-        ownFee,
-        net,
+        merchant_id: merchantId,
+        gross: split.gross_amount,
+        midFee: split.midtrans_fee_amount,
+        platformMidFee: split.platform_midtrans_fee_amount,
+        ownFee: split.owner_fee_amount,
+        net: split.net_amount,
         hasMismatch: 0,
       });
     }
@@ -150,23 +169,25 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     const chunkSize = 1000;
     for (let i = 0; i < settledRows.length; i += chunkSize) {
       const chunk = settledRows.slice(i, i + chunkSize);
-      const values = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+      const values = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
       const params = [];
       for (const r of chunk) {
-        params.push(ref, r.id, r.merchant_id, r.gross, r.midFee, r.ownFee, r.net, r.hasMismatch);
+        params.push(ref, r.id, r.merchant_id, r.gross, r.midFee, r.platformMidFee, r.ownFee, r.net, r.hasMismatch);
         if (!merchantMap[r.merchant_id]) {
-          merchantMap[r.merchant_id] = { tx_count: 0, gross: 0, midFee: 0, ownFee: 0, net: 0 };
+          merchantMap[r.merchant_id] = { tx_count: 0, gross: 0, midFee: 0, platformMidFee: 0, ownFee: 0, net: 0 };
         }
         const m = merchantMap[r.merchant_id];
         m.tx_count++;
         m.gross += r.gross;
         m.midFee += r.midFee;
+        m.platformMidFee += r.platformMidFee;
         m.ownFee += r.ownFee;
         m.net += r.net;
       }
       await conn.query(
         `INSERT INTO merchant_settlement_items
-         (settlement_ref, order_id, merchant_id, gross_amount, midtrans_fee_amount, owner_fee_amount, net_amount, fee_mismatch_warning)
+         (settlement_ref, order_id, merchant_id, gross_amount, midtrans_fee_amount,
+          platform_midtrans_fee_amount, owner_fee_amount, net_amount, fee_mismatch_warning)
          VALUES ${values}`,
         params
       );
@@ -179,6 +200,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
         tx_count: agg.tx_count,
         gross_amount: agg.gross,
         midtrans_fee_amount: agg.midFee,
+        platform_midtrans_fee_amount: agg.platformMidFee,
         owner_fee_amount: agg.ownFee,
         net_amount: agg.net,
       });
@@ -186,15 +208,19 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
 
     const mids = Object.keys(merchantMap);
     if (mids.length) {
-      const values = mids.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+      const values = mids.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
       const params = [];
       for (const mid of mids) {
         const agg = merchantMap[mid];
-        params.push(mid, ref, agg.tx_count, agg.gross, agg.midFee, agg.ownFee, agg.net, source, notes || null);
+        params.push(
+          mid, ref, agg.tx_count, agg.gross, agg.midFee, agg.platformMidFee,
+          agg.ownFee, agg.net, source, notes || null
+        );
       }
       await conn.query(
         `INSERT INTO merchant_balance_ledger
-         (merchant_id, settlement_ref, tx_count, gross_amount, midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
+         (merchant_id, settlement_ref, tx_count, gross_amount, midtrans_fee_amount,
+          platform_midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
          VALUES ${values}`,
         params
       );
@@ -206,11 +232,13 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       const idPh = ids.map(() => "?").join(",");
 
       const feeCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const platformFeeCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
       const ownCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
       const netCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
 
       const params = [now, ref];
       for (const r of chunk) params.push(r.id, r.midFee);
+      for (const r of chunk) params.push(r.id, r.platformMidFee);
       for (const r of chunk) params.push(r.id, r.ownFee);
       for (const r of chunk) params.push(r.id, r.net);
       params.push(...ids);
@@ -221,6 +249,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
              settled_at = ?,
              settlement_ref = ?,
              midtrans_fee_amount = CASE id ${feeCase} ELSE midtrans_fee_amount END,
+             platform_midtrans_fee_amount = CASE id ${platformFeeCase} ELSE platform_midtrans_fee_amount END,
              owner_fee_amount = CASE id ${ownCase} ELSE owner_fee_amount END,
              net_amount = CASE id ${netCase} ELSE net_amount END
          WHERE id IN (${idPh})`,
@@ -260,6 +289,7 @@ exports.getAllMerchantBalances = async () => {
       COALESCE(SUM(mbl.net_amount), 0) AS balance,
       COALESCE(SUM(mbl.gross_amount), 0) AS total_gross,
       COALESCE(SUM(mbl.midtrans_fee_amount), 0) AS total_midtrans_fee,
+      COALESCE(SUM(mbl.platform_midtrans_fee_amount), 0) AS total_platform_midtrans_fee,
       COALESCE(SUM(mbl.owner_fee_amount), 0) AS total_owner_fee,
       COALESCE(SUM(mbl.tx_count), 0) AS total_tx,
       MAX(mbl.created_at) AS last_settlement_at
@@ -279,6 +309,7 @@ exports.getMerchantBalance = async (merchant_id) => {
       COALESCE(SUM(net_amount), 0) AS balance,
       COALESCE(SUM(gross_amount), 0) AS total_gross,
       COALESCE(SUM(midtrans_fee_amount), 0) AS total_midtrans_fee,
+      COALESCE(SUM(platform_midtrans_fee_amount), 0) AS total_platform_midtrans_fee,
       COALESCE(SUM(owner_fee_amount), 0) AS total_owner_fee,
       COALESCE(SUM(tx_count), 0) AS total_tx,
       MAX(created_at) AS last_settlement_at
@@ -286,7 +317,17 @@ exports.getMerchantBalance = async (merchant_id) => {
     WHERE merchant_id = ?
   `;
   const [rows] = await pool.query(sql, [merchant_id]);
-  return rows[0] || { balance: 0, total_gross: 0, total_midtrans_fee: 0, total_owner_fee: 0, total_tx: 0, last_settlement_at: null };
+  return (
+    rows[0] || {
+      balance: 0,
+      total_gross: 0,
+      total_midtrans_fee: 0,
+      total_platform_midtrans_fee: 0,
+      total_owner_fee: 0,
+      total_tx: 0,
+      last_settlement_at: null,
+    }
+  );
 };
 
 /** Ledger history for a merchant (or all) */
@@ -380,6 +421,7 @@ exports.resetOrphanSettledFlags = async () => {
          o.settled_at = NULL,
          o.settlement_ref = NULL,
          o.midtrans_fee_amount = 0,
+         o.platform_midtrans_fee_amount = 0,
          o.owner_fee_amount = 0,
          o.net_amount = 0
      WHERE o.is_settled = 1

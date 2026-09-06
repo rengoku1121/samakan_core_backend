@@ -33,6 +33,7 @@
     .alert{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);
       padding:12px 12px;border-radius:12px;margin-bottom:12px;font-size:13px}
     .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
+    .sep{border:0;border-top:1px solid var(--border);margin:20px 0 4px}
   </style>
 </head>
 
@@ -73,6 +74,10 @@
           </div>
         </div>
 
+        <hr class="sep" />
+        <%- include('_terms', { value, payoutFeeBearerGlobal }) %>
+        <hr class="sep" />
+
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
           <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
@@ -88,5 +93,7 @@
       </form>
     </div>
   </div>
+
+  <script src="/public/js/admin-merchant-terms.js" defer></script>
 </body>
 </html>

@@ -27,7 +27,7 @@
   <div class="topbar">Samakan Admin • Force Settlement</div>
   <div class="wrap">
     <h1>Force Settlement</h1>
-    <div class="muted">Settle semua order yang sudah <b>DISPENSED</b> dan belum settle. Fee: Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>, Owner <b><%= feeConfig.owner_fee_percent %>%</b>.</div>
+    <div class="muted">Settle semua order yang sudah <b>DISPENSED</b> dan belum settle. Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>; bagi hasil mengikuti syarat kerja sama tiap merchant.</div>
 
     <% if (!groups.length) { %>
     <div class="card"><div class="muted">Tidak ada order yang eligible untuk di-settle saat ini.</div></div>
@@ -36,7 +36,8 @@
     <% groups.forEach(function(g){ %>
     <div class="group">
       <div class="group-header"><%= g.merchant_code %> • <%= g.merchant_name %></div>
-      <div class="muted"><%= g.count %> order • Gross: Rp <%= g.total_fmt %></div>
+      <div class="muted"><%= g.count %> order • Gross: Rp <%= g.total_fmt %> • Masuk saldo merchant: <b>Rp <%= g.net_fmt %></b></div>
+      <div class="muted"><%= g.terms_summary %></div>
     </div>
     <% }) %>
 
