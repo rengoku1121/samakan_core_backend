@@ -21,6 +21,7 @@ const RESERVE_ERRORS = {
   INQUIRY_CONSUMED: [409, "Inquiry sudah dipakai. Cek riwayat payout Anda."],
   INSUFFICIENT_BALANCE: [409, "Saldo tidak mencukupi."],
   DUPLICATE_DEBIT: [409, "Permintaan ganda terdeteksi."],
+  MERCHANT_INACTIVE: [403, "Merchant nonaktif atau diarsipkan. Payout baru ditolak."],
 };
 
 function merchantId(req) {
@@ -111,15 +112,23 @@ exports.inquiry = async (req, res, next) => {
       return jsonErr(res, 400, "Nama pemilik rekening tidak diketahui. Periksa kembali nomor rekening.");
     }
 
-    const inquiry = await payoutModel.createInquiry({
-      merchant_id: mid,
-      bank_code: bankCode,
-      bank_name: clean(req.body.bank_name) || null,
-      account_number: accountNumber,
-      account_name: accountName,
-      amount,
-      config,
-    });
+    let inquiry;
+    try {
+      inquiry = await payoutModel.createInquiry({
+        merchant_id: mid,
+        bank_code: bankCode,
+        bank_name: clean(req.body.bank_name) || null,
+        account_number: accountNumber,
+        account_name: accountName,
+        amount,
+        config,
+      });
+    } catch (err) {
+      if (err && err.code === "MERCHANT_INACTIVE") {
+        return jsonErr(res, 403, "Merchant nonaktif atau diarsipkan. Payout baru ditolak.");
+      }
+      throw err;
+    }
 
     return jsonOk(res, {
       inquiry_token: inquiry.inquiry_token,

@@ -28,6 +28,7 @@ const MIGRATIONS = [
   "migrate-settlement-orphan-guard.js",
   "migrate-payout-iris.js",
   "migrate-merchant-partnership.js",
+  "migrate-order-refund-reversal.js",
 ];
 
 let failed = 0;

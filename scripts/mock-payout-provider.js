@@ -75,6 +75,9 @@ function createMockPayoutProvider(options = {}) {
 
     async createPayout(args) {
       state.calls.create += 1;
+      if (state.createMode === "ratelimit") {
+        return { ok: false, definitive: false, code: "PROVIDER_429", message: "rate limit", payload: null };
+      }
       if (state.createMode === "reject") return rejected("PROVIDER_400", "invalid beneficiary");
       // Provider sudah membuat payout, hanya responsnya yang tidak sampai.
       const row = upsert(args);
@@ -88,6 +91,9 @@ function createMockPayoutProvider(options = {}) {
 
     async approvePayout({ provider_reference }) {
       state.calls.approve += 1;
+      if (state.approveMode === "auth") {
+        return { ok: false, definitive: true, code: "PROVIDER_401", message: "otp required", payload: null };
+      }
       if (state.approveMode === "reject") return rejected("PROVIDER_403", "approver key rejected");
       const row = store.get(String(provider_reference));
       if (!row) return rejected("PROVIDER_404", "payout not found");

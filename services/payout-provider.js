@@ -56,6 +56,9 @@ function classifyError(err) {
     payload?.message || payload?.error_message || err?.message || "provider error"
   ).slice(0, 255);
 
+  if (status === 429) {
+    return unknown("PROVIDER_429", message, payload);
+  }
   if (status && status >= 400 && status < 500) {
     return definitive(`PROVIDER_${status}`, message, payload);
   }

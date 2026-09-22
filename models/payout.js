@@ -151,6 +151,19 @@ async function insertLedgerEntry(conn, { merchant_id, payout_id, entry_type, ref
 
 // ----------------------------------------------------------------- inquiry
 
+async function assertMerchantPayoutable(merchant_id, conn = pool) {
+  const [rows] = await conn.query(
+    `SELECT id, is_active, deleted_at FROM merchants WHERE id = ? LIMIT 1`,
+    [merchant_id]
+  );
+  const row = rows[0];
+  if (!row) return { ok: false, code: "MERCHANT_NOT_FOUND" };
+  if (row.deleted_at || Number(row.is_active) !== 1) {
+    return { ok: false, code: "MERCHANT_INACTIVE" };
+  }
+  return { ok: true };
+}
+
 exports.createInquiry = async ({
   merchant_id,
   bank_code,
@@ -161,6 +174,12 @@ exports.createInquiry = async ({
   config,
   ttl_ms,
 }) => {
+  const allowed = await assertMerchantPayoutable(merchant_id);
+  if (!allowed.ok) {
+    const err = new Error(allowed.code);
+    err.code = allowed.code;
+    throw err;
+  }
   const amounts = exports.computeAmounts(amount, config);
   const token = crypto.randomBytes(24).toString("hex");
   const ttl = Number(ttl_ms) > 0 ? Number(ttl_ms) : DEFAULT_INQUIRY_TTL_MS;
@@ -240,12 +259,16 @@ exports.reserveFromInquiry = async ({ inquiry_token, merchant_id, user_id }) => 
 
     // Kunci merchant dulu: seluruh reserve merchant ini jadi serial.
     const [merchants] = await conn.query(
-      `SELECT id FROM merchants WHERE id = ? LIMIT 1 FOR UPDATE`,
+      `SELECT id, is_active, deleted_at FROM merchants WHERE id = ? LIMIT 1 FOR UPDATE`,
       [merchant_id]
     );
     if (!merchants[0]) {
       await conn.rollback();
       return { ok: false, code: "MERCHANT_NOT_FOUND" };
+    }
+    if (merchants[0].deleted_at || Number(merchants[0].is_active) !== 1) {
+      await conn.rollback();
+      return { ok: false, code: "MERCHANT_INACTIVE" };
     }
 
     const [inquiries] = await conn.query(
@@ -392,7 +415,7 @@ exports.findByProviderReference = async (provider_reference) => {
 exports.findDisbursementTarget = async (id) => {
   const [rows] = await pool.query(
     `SELECT id, payout_ref, merchant_id, bank_code, account_number, account_name, amount,
-            status, provider_reference, create_idempotency_key, approve_idempotency_key
+            status, provider_reference, create_idempotency_key, approve_idempotency_key, created_at
      FROM merchant_payouts WHERE id = ? LIMIT 1`,
     [id]
   );

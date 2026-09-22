@@ -15,6 +15,7 @@ const { fmtMoney } = require("../../helper-function/http");
 const ledgerEntryLabel = (row) => {
   if (row.entry_type === "PAYOUT_DEBIT") return "Payout";
   if (row.entry_type === "PAYOUT_REFUND") return "Refund Payout";
+  if (row.entry_type === "ORDER_REFUND_REVERSAL") return "Reversal Refund Pembeli";
   return `Settlement ${row.source || ""}`.trim();
 };
 
@@ -298,6 +299,11 @@ exports.confirmSettlement = async (req, res, next) => {
     if (!orders.length) {
       return res.redirect("/admin/settlement/upload");
     }
+
+    // Body preview hanya identitas. Nominal/merchant/status selalu dibaca ulang dari DB.
+    orders = orders
+      .map((o) => ({ id: Number(o && o.id) || 0 }))
+      .filter((o) => o.id > 0);
 
     const feeConfig = await settlementModel.getFeeConfig();
     const source = req.body.source || "excel";

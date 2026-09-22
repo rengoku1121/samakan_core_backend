@@ -31,6 +31,7 @@ function getConfig() {
 
 /** True jika semua credential wajib sudah diisi. */
 exports.isConfigured = () => {
+  if (String(process.env.XY_E2E_STUB || "") === "1") return true;
   const c = getConfig();
   return Boolean(c.baseUrl && c.key && c.secret && c.merchantId);
 };
@@ -77,6 +78,13 @@ function buildSign({ secret, timestamp, params }) {
  * @param {Record<string, unknown>} businessParams
  */
 async function post(path, businessParams = {}) {
+  if (String(process.env.XY_E2E_STUB || "") === "1") {
+    return {
+      httpStatus: 200,
+      data: { code: "1", message: "e2e-stub", data: [] },
+      requestMeta: { url: path, timestamp: Date.now(), reqData: "" },
+    };
+  }
   if (!exports.isConfigured()) {
     const err = new Error(
       "XY Platform belum dikonfigurasi. Isi XY_API_BASE_URL, XY_API_KEY, XY_API_SECRET, XY_MERCHANT_ID di .env"

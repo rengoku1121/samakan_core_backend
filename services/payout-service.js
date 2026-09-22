@@ -30,7 +30,33 @@ function readProviderPayout(data) {
 const errText = (result) =>
   String(result?.message || result?.code || "provider error").slice(0, 255);
 
+const IRIS_IDEM_TTL_MS = Number(process.env.IRIS_IDEMPOTENCY_TTL_MS || 24 * 60 * 60 * 1000);
+
+const AUTH_FAIL = new Set(["PROVIDER_401", "PROVIDER_403"]);
+
+function isIdempotencyExpired(createdAt) {
+  const t = new Date(createdAt).getTime();
+  if (!Number.isFinite(t)) return false;
+  return Date.now() - t > IRIS_IDEM_TTL_MS;
+}
+
 async function handleProviderFailure(payout_id, result, stage) {
+  // Approve 401/403 (OTP / key Approver) = operasional, bukan gagal definitif.
+  // Payout mungkin sudah dibuat di Iris; refund otomatis bisa dobel transfer.
+  if (result.definitive && stage === "APPROVE" && AUTH_FAIL.has(String(result.code))) {
+    await payoutModel.markUnknown({
+      payout_id,
+      error_code: `APPROVE_${result.code}`.slice(0, 64),
+      error_message: errText(result),
+      payload: result.payload,
+    });
+    console.warn("[payout] approve butuh intervensi (auth/OTP), saldo tidak dikembalikan", {
+      payout_id,
+      code: result.code,
+    });
+    return { ok: false, code: "PAYOUT_NEEDS_AUTH", status: STATUS.UNKNOWN };
+  }
+
   if (result.definitive) {
     const applied = await payoutModel.failDefinitively({
       payout_id,
@@ -79,6 +105,15 @@ exports.submitToProvider = async ({ payout_id, provider = defaultProvider }) => 
   }
 
   let referenceNo = target.provider_reference || null;
+
+  if (!referenceNo && isIdempotencyExpired(target.created_at)) {
+    await payoutModel.markUnknown({
+      payout_id,
+      error_code: "IDEMPOTENCY_EXPIRED",
+      error_message: "Idempotency key Iris sudah kedaluwarsa; cek dashboard Iris secara manual",
+    });
+    return { ok: false, code: "IDEMPOTENCY_EXPIRED", status: STATUS.UNKNOWN };
+  }
 
   if (!referenceNo) {
     const created = await provider.createPayout({
@@ -155,6 +190,14 @@ exports.reconcilePayout = async ({ payout_id, provider = defaultProvider }) => {
   // dengan idempotency key yang sama supaya Iris mengembalikan payout yang
   // sama, bukan membuat transfer baru.
   if (!payout.provider_reference) {
+    if (isIdempotencyExpired(payout.created_at)) {
+      await payoutModel.markUnknown({
+        payout_id,
+        error_code: "IDEMPOTENCY_EXPIRED",
+        error_message: "Idempotency key Iris sudah kedaluwarsa; cek dashboard Iris secara manual",
+      });
+      return { ok: false, code: "IDEMPOTENCY_EXPIRED", status: STATUS.UNKNOWN };
+    }
     return exports.submitToProvider({ payout_id, provider });
   }
 

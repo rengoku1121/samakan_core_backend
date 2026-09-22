@@ -1092,29 +1092,95 @@ exports.listReconciliationAdmin = async ({ stuckAfterMinutes = 15, limit = 100 }
   return rows;
 };
 
-exports.markRefunded = async ({ id, refund_reference, refund_notes, refunded_by_admin_id }, conn) => {
-  const executor = conn || pool;
-  const sql = `
-    UPDATE orders
-    SET
-      status = 'REFUNDED',
-      refund_reference = ?,
-      refund_notes = ?,
-      refunded_at = CURRENT_TIMESTAMP(3),
-      refunded_by_admin_id = ?,
-      updated_at = CURRENT_TIMESTAMP(3)
-    WHERE id = ?
-      AND status = 'DISPENSE_FAILED'
-    LIMIT ?
-  `;
-  const [result] = await executor.query(sql, [
-    refund_reference || null,
-    refund_notes || null,
-    refunded_by_admin_id || null,
-    id,
-    1,
-  ]);
-  return result.affectedRows > 0;
+/**
+ * Catat refund pembeli. Jika order sudah dikreditkan ke saldo merchant,
+ * tulis ORDER_REFUND_REVERSAL tepat sekali (saldo boleh negatif).
+ * Status yang boleh: DISPENSE_FAILED atau DISPENSED. REFUNDED = idempotent.
+ */
+exports.markRefunded = async ({ id, refund_reference, refund_notes, refunded_by_admin_id }) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [orders] = await conn.query(
+      `SELECT id, merchant_id, status, total FROM orders WHERE id = ? LIMIT 1 FOR UPDATE`,
+      [id]
+    );
+    const order = orders[0];
+    if (!order) {
+      await conn.rollback();
+      return { ok: false, code: "ORDER_NOT_FOUND" };
+    }
+
+    const status = String(order.status || "").toUpperCase();
+    if (status === "REFUNDED") {
+      await conn.commit();
+      return { ok: true, already: true, reversed: false };
+    }
+    if (status !== "DISPENSE_FAILED" && status !== "DISPENSED") {
+      await conn.rollback();
+      return { ok: false, code: "INVALID_STATUS", status };
+    }
+
+    const [items] = await conn.query(
+      `SELECT id, net_amount, settlement_ref FROM merchant_settlement_items
+       WHERE order_id = ? LIMIT 1 FOR UPDATE`,
+      [order.id]
+    );
+    const item = items[0] || null;
+    let reversed = false;
+
+    if (item) {
+      const net = Math.round(Number(item.net_amount || 0) * 100) / 100;
+      if (net !== 0) {
+        try {
+          await conn.query(
+            `INSERT INTO merchant_balance_ledger
+              (merchant_id, settlement_ref, entry_type, payout_id, order_id, tx_count,
+               gross_amount, midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
+             VALUES (?, ?, 'ORDER_REFUND_REVERSAL', NULL, ?, 0, 0, 0, 0, ?, 'refund', ?)`,
+            [
+              order.merchant_id,
+              item.settlement_ref || `REFUND-${order.id}`,
+              order.id,
+              -net,
+              `Reversal refund order #${order.id}`,
+            ]
+          );
+          reversed = true;
+        } catch (err) {
+          if (!err || err.code !== "ER_DUP_ENTRY") throw err;
+          reversed = false;
+        }
+      }
+    }
+
+    const [upd] = await conn.query(
+      `UPDATE orders
+       SET status = 'REFUNDED',
+           refund_reference = ?,
+           refund_notes = ?,
+           refunded_at = CURRENT_TIMESTAMP(3),
+           refunded_by_admin_id = ?,
+           updated_at = CURRENT_TIMESTAMP(3)
+       WHERE id = ? AND status IN ('DISPENSE_FAILED', 'DISPENSED')
+       LIMIT 1`,
+      [refund_reference || null, refund_notes || null, refunded_by_admin_id || null, order.id]
+    );
+    if (Number(upd.affectedRows) !== 1) {
+      await conn.rollback();
+      return { ok: false, code: "REFUND_RACE" };
+    }
+
+    await conn.commit();
+    return { ok: true, already: false, reversed, net_reversed: reversed ? -Number(item.net_amount) : 0 };
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch (_) {}
+    throw err;
+  } finally {
+    conn.release();
+  }
 };
 
 /**

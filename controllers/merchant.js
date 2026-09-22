@@ -19,6 +19,7 @@ const { fmtMoney } = require("../helper-function/http");
 const entryTypeLabel = (entryType) => {
   if (entryType === "PAYOUT_DEBIT") return "Payout";
   if (entryType === "PAYOUT_REFUND") return "Refund Payout";
+  if (entryType === "ORDER_REFUND_REVERSAL") return "Reversal Refund Pembeli";
   return "Settlement";
 };
 

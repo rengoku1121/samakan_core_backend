@@ -138,7 +138,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Local / generated (jangan di-commit)
+# Lokal — jangan di-push
 tmp/*
 !tmp/.gitkeep
 cookies.txt
@@ -146,6 +146,25 @@ login_headers.txt
 login_out.html
 *.xlsx
 !db/**/*.xlsx
+
+# Kunci dan rahasia yang tidak boleh masuk repo
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+credentials.json
+service-account*.json
+
+# Unggahan runtime dan hasil uji
+uploads/
+public/uploads/
+scripts/e2e/out/
+
+# Dump database lokal
+*.sql.gz
+*.dump
+/backup/
 
 # OS / editor
 .DS_Store
@@ -155,3 +174,4 @@ Desktop.ini
 .vscode/
 *.swp
 *~
+*.code-workspace

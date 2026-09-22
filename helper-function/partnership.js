@@ -115,6 +115,15 @@ const payoutFeeBearerLabel = (bearer, globalBearer) =>
     ? `Ikut Setting (${feeBearerLabel(globalBearer)})`
     : feeBearerLabel(bearer);
 
+/** Bagi hasil 100% berarti merchant tidak pernah dapat apa-apa. */
+function validateTerms(terms) {
+  const t = normalizeTerms(terms);
+  if (t.partnership_type === PARTNERSHIP.REVENUE_SHARE && t.revenue_share_percent >= 100) {
+    return "Bagi hasil platform harus di bawah 100%, jika tidak merchant tidak menerima apa pun.";
+  }
+  return null;
+}
+
 /** Ringkasan satu baris untuk ditampilkan di tabel admin / halaman merchant. */
 function termsSummary(terms) {
   const t = normalizeTerms(terms);
@@ -136,5 +145,6 @@ module.exports = {
   feeBearerLabel,
   payoutFeeBearerLabel,
   termsSummary,
+  validateTerms,
   clampPercent,
 };

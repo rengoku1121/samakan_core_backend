@@ -100,7 +100,7 @@ exports.detail = async (req, res, next) => {
 };
 
 const backTo = (req, id, msg) => {
-  const from = clean(req.body.from) === "list" ? "/admin/payouts" : `/admin/payouts/${id}`;
+  const from = clean(req.body && req.body.from) === "list" ? "/admin/payouts" : `/admin/payouts/${id}`;
   return `${from}?msg=${msg}`;
 };
 
@@ -131,7 +131,7 @@ exports.reject = async (req, res, next) => {
     const result = await payoutModel.rejectByAdmin({
       payout_id: id,
       admin_id: Number(req.user.id) || null,
-      reason: clean(req.body.reason),
+      reason: clean(req.body && req.body.reason),
     });
     return res.redirect(backTo(req, id, result.ok ? "rejected" : result.code === "PAYOUT_NOT_FOUND" ? "notfound" : "state"));
   } catch (err) {

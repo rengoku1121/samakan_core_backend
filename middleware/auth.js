@@ -2,6 +2,7 @@
 const userModel = require("../models/user");
 const { verifyAccessToken } = require("../helper-function/jwt");
 const { clearAccessTokenCookieOptions } = require("../helper-function/cookie");
+const { canEditMoneySettings, roleAllowed } = require("../helper-function/rbac");
 
 const extractToken = (req) => {
   // cookie
@@ -84,13 +85,11 @@ exports.requireAuth = async (req, res, next) => {
   }
 };
 
+exports.canEditMoneySettings = canEditMoneySettings;
+
 exports.requireRole = (...roles) => {
   return (req, res, next) => {
-    const role = String(req.user?.role || "").toLowerCase();
-    const allowed = roles.map((r) => String(r || "").toLowerCase());
-    const isSuperAdmin = role === "superadmin";
-    const adminRouteRequested = allowed.includes("admin") || allowed.includes("staff");
-    const canAccess = Boolean(req.user) && (allowed.includes(role) || (isSuperAdmin && adminRouteRequested));
+    const canAccess = roleAllowed(req.user, roles);
 
     if (!canAccess) {
       const accept = String(req.headers.accept || "");

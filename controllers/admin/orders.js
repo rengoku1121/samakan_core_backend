@@ -132,8 +132,8 @@ exports.refund = async (req, res, next) => {
       refunded_by_admin_id: req.user && req.user.id,
     });
 
-    if (!applied) {
-      const err = encodeURIComponent("Order tidak dalam status DISPENSE_FAILED, refund tidak dicatat.");
+    if (!applied || applied.ok === false) {
+      const err = encodeURIComponent("Order tidak bisa direfund dari status saat ini.");
       return res.redirect(`/admin/orders/${id}?err=${err}`);
     }
 

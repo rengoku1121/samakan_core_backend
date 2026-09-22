@@ -192,7 +192,11 @@ exports.createMachineOrder = async (req, res, next) => {
     if (!machineCode) return jsonErr(res, 400, "machineCode is required");
 
     const slot_code = clean(req.body.slot_code);
-    const qty = toPositiveInt(req.body.qty || 1);
+    // Kosong = 1 (klien lama). Angka 0 tidak boleh diam-diam naik jadi 1.
+    const qty =
+      req.body.qty == null || req.body.qty === ""
+        ? toPositiveInt(1)
+        : toPositiveInt(req.body.qty);
     const heat_requested = parseHeatRequested(req.body.heat_requested);
     if (!slot_code) return jsonErr(res, 400, "slot_code is required");
     if (!qty) return jsonErr(res, 400, "qty must be a positive integer");

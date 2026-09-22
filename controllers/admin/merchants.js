@@ -10,7 +10,9 @@ const {
   partnershipLabel,
   termsSummary,
   payoutFeeBearerLabel,
+  validateTerms,
 } = require("../../helper-function/partnership");
+const { canEditMoneySettings } = require("../../helper-function/rbac");
 const { pool } = require("../../utils/db");
 const bcrypt = require("bcryptjs");
 
@@ -41,13 +43,8 @@ const buildNewValue = (body = {}) => ({
   ...buildTerms(body),
 });
 
-/** Bagi hasil 100% berarti merchant tidak pernah dapat apa-apa — hampir pasti salah input. */
-const validateTerms = (terms) => {
-  if (terms.partnership_type === PARTNERSHIP.REVENUE_SHARE && terms.revenue_share_percent >= 100) {
-    return "Bagi hasil platform harus di bawah 100%, jika tidak merchant tidak menerima apa pun.";
-  }
-  return null;
-};
+const termsForActor = (user, submitted, existing) =>
+  canEditMoneySettings(user) ? normalizeTerms(submitted) : normalizeTerms(existing || {});
 
 /** Label "Ikut Setting" harus menyebut nilai global yang berlaku saat ini. */
 const globalPayoutFeeBearer = async () => {
@@ -144,7 +141,8 @@ exports.create = async (req, res, next) => {
     if (!name) {
       return renderNewForm(res, req, { status: 400, error: "Nama merchant wajib diisi.", value });
     }
-    const termsError = validateTerms(value);
+    const terms = termsForActor(req.user, value, null);
+    const termsError = canEditMoneySettings(req.user) ? validateTerms(terms) : null;
     if (termsError) {
       return renderNewForm(res, req, { status: 400, error: termsError, value });
     }
@@ -181,7 +179,7 @@ exports.create = async (req, res, next) => {
       await conn.beginTransaction();
 
       const { id: merchantId } = await merchantModel.createWithAutoCode(
-        { name, is_active, ...buildTerms(req.body) },
+        { name, is_active, ...terms },
         conn
       );
       const password_hash = await bcrypt.hash(password, 10);
@@ -253,12 +251,12 @@ exports.update = async (req, res, next) => {
 
     const name = normalizeName(req.body.name);
     const is_active = req.body.is_active === "0" ? 0 : 1;
-    const terms = buildTerms(req.body);
 
     const merchant = await merchantModel.findById(id);
     if (!merchant) {
       return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
     }
+    const terms = termsForActor(req.user, req.body, merchant);
 
     const renderError = async (status, error) =>
       res.status(status).render("admin/merchants/edit", {
@@ -273,7 +271,7 @@ exports.update = async (req, res, next) => {
 
     if (!name) return renderError(400, "Nama merchant wajib diisi.");
 
-    const termsError = validateTerms(terms);
+    const termsError = canEditMoneySettings(req.user) ? validateTerms(terms) : null;
     if (termsError) return renderError(400, termsError);
 
     if (name !== merchant.name) {
