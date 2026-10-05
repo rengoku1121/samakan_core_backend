@@ -18,6 +18,7 @@ const {
   jsonErr,
   secureEqual,
 } = require("../helper-function/http");
+const { absoluteImageUrl } = require("../helper-function/product-image");
 
 exports.requireKioskInternalToken = (req, res, next) => {
   if (req.method === "OPTIONS") return next();
@@ -94,7 +95,7 @@ exports.getCatalog = async (req, res, next) => {
             product_code: s.product_sku,
             product_name: s.product_name,
             description: s.product_description || "",
-            image_url: s.product_image_url || null,
+            image_url: absoluteImageUrl(req, s.product_image_url),
             price: Number(unitPrice || 0),
             stock: Number(s.stock || 0),
             capacity: s.capacity != null ? Number(s.capacity) : null,

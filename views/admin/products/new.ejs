@@ -30,6 +30,7 @@
     .btn-secondary:hover{background:#fff7ed}
     .alert{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:12px 12px;border-radius:12px;margin-bottom:12px;font-size:13px}
     .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
+    .preview{margin-top:8px;width:120px;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#fff7ed}
   </style>
 </head>
 <body>
@@ -46,7 +47,7 @@
         <div class="alert"><b>Gagal:</b> <%= error %></div>
       <% } %>
 
-      <form method="POST" action="/admin/products">
+      <form method="POST" action="/admin/products" enctype="multipart/form-data">
         <label for="sku">SKU (unique)</label>
         <input id="sku" name="sku" value="<%= value?.sku || '' %>" placeholder="contoh: COKE-330 / AQUA-600" required />
         <div class="hint">Kode unik internal untuk product.</div>
@@ -68,6 +69,17 @@
           <option value="0" <%= (value?.requires_heating ?? 1) ? '' : 'selected' %>>Opsional (boleh tidak dipanaskan)</option>
         </select>
         <div class="hint">Jika wajib, order kiosk dengan pilihan “tidak dipanaskan” akan ditolak.</div>
+
+        <label for="image_file">Gambar produk</label>
+        <input id="image_file" name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+        <div class="hint">Upload JPG, PNG, WEBP, atau GIF. Maksimal 2 MB. Kalau diisi, file ini yang dipakai.</div>
+
+        <label for="image_url">Atau URL gambar</label>
+        <input id="image_url" name="image_url" value="<%= value?.image_url || '' %>" placeholder="https://..." />
+        <div class="hint">Kosongkan kalau sudah upload file. Harus diawali http:// atau https://.</div>
+        <% if (value?.image_url) { %>
+          <img class="preview" src="<%= value.image_url %>" alt="Pratinjau gambar" />
+        <% } %>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">

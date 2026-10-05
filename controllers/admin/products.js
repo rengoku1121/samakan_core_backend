@@ -1,6 +1,7 @@
 // controllers/admin/products.js
 const productModel = require("../../models/product");
 const { formatDateId } = require("../../helper-function/format-date");
+const { parseImageUrl, saveProductImage } = require("../../helper-function/product-image");
 
 const { clean, toNonNegInt: toInt } = require("../../helper-function/http");
 
@@ -11,6 +12,29 @@ const parsePrice = (v) => {
   if (!Number.isFinite(n)) return null;
   const x = Math.floor(n);
   return x >= 0 ? x : null;
+};
+
+/**
+ * File menang atas URL. Tanpa keduanya: create = null, edit = gambar lama
+ * kecuali clear_image dicentang.
+ * @returns {{ url: string|null } | { error: string }}
+ */
+const resolveImage = (req, existingUrl) => {
+  if (req.imageUploadError) return { error: req.imageUploadError };
+  if (req.file) {
+    try {
+      return { url: saveProductImage(req.file) };
+    } catch {
+      return { error: "Gambar tidak bisa disimpan. Pakai JPG, PNG, WEBP, atau GIF." };
+    }
+  }
+  const parsed = parseImageUrl(req.body.image_url);
+  if (parsed === "INVALID") {
+    return { error: "URL gambar harus diawali http:// atau https://, maksimal 500 karakter." };
+  }
+  if (parsed) return { url: parsed };
+  if (req.body.clear_image === "1") return { url: null };
+  return { url: existingUrl || null };
 };
 
 /** Kosong = null; angka 1–3650 hari; selain itu "INVALID". */
@@ -65,7 +89,15 @@ exports.renderNew = async (req, res) => {
     title: "New Product",
     user: req.user,
     error: null,
-    value: { sku: "", name: "", price: "", shelf_life_days: "", requires_heating: 1, is_active: 1 },
+    value: {
+      sku: "",
+      name: "",
+      price: "",
+      shelf_life_days: "",
+      image_url: "",
+      requires_heating: 1,
+      is_active: 1,
+    },
   });
 };
 
@@ -83,6 +115,7 @@ exports.create = async (req, res, next) => {
       name,
       price: clean(req.body.price),
       shelf_life_days: clean(req.body.shelf_life_days),
+      image_url: clean(req.body.image_url),
       requires_heating,
       is_active,
     });
@@ -130,7 +163,25 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    await productModel.create({ sku, name, price, shelf_life_days, requires_heating, is_active });
+    const image = resolveImage(req, null);
+    if (image.error) {
+      return res.status(400).render("admin/products/new", {
+        title: "New Product",
+        user: req.user,
+        error: image.error,
+        value: val(),
+      });
+    }
+
+    await productModel.create({
+      sku,
+      name,
+      image_url: image.url,
+      price,
+      shelf_life_days,
+      requires_heating,
+      is_active,
+    });
     return res.redirect("/admin/products");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
@@ -143,6 +194,7 @@ exports.create = async (req, res, next) => {
           name: clean(req.body.name),
           price: clean(req.body.price),
           shelf_life_days: clean(req.body.shelf_life_days),
+          image_url: clean(req.body.image_url),
           requires_heating: req.body.requires_heating === "0" ? 0 : 1,
           is_active: req.body.is_active === "0" ? 0 : 1,
         },
@@ -173,6 +225,7 @@ exports.renderEdit = async (req, res, next) => {
           product.shelf_life_days != null && product.shelf_life_days !== ""
             ? String(product.shelf_life_days)
             : "",
+        image_url: "",
         requires_heating: product.requires_heating ? 1 : 0,
         is_active: product.is_active ? 1 : 0,
       },
@@ -202,6 +255,7 @@ exports.update = async (req, res, next) => {
       name,
       price: clean(req.body.price),
       shelf_life_days: clean(req.body.shelf_life_days),
+      image_url: clean(req.body.image_url),
       requires_heating,
       is_active,
     });
@@ -256,7 +310,27 @@ exports.update = async (req, res, next) => {
       }
     }
 
-    await productModel.updateById({ id, sku, name, price, shelf_life_days, requires_heating, is_active });
+    const image = resolveImage(req, product.image_url || null);
+    if (image.error) {
+      return res.status(400).render("admin/products/edit", {
+        title: "Edit Product",
+        user: req.user,
+        error: image.error,
+        product,
+        value: valEdit(),
+      });
+    }
+
+    await productModel.updateById({
+      id,
+      sku,
+      name,
+      image_url: image.url,
+      price,
+      shelf_life_days,
+      requires_heating,
+      is_active,
+    });
     return res.redirect("/admin/products");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
@@ -270,6 +344,7 @@ exports.update = async (req, res, next) => {
           name: clean(req.body.name),
           price: clean(req.body.price),
           shelf_life_days: clean(req.body.shelf_life_days),
+          image_url: clean(req.body.image_url),
           requires_heating: req.body.requires_heating === "0" ? 0 : 1,
           is_active: req.body.is_active === "0" ? 0 : 1,
         },

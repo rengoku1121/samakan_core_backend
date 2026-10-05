@@ -89,6 +89,9 @@
                 <td class="mono"><%= p.id %></td>
                 <td class="mono"><b><%= p.sku %></b></td>
                 <td>
+                  <% if (p.image_url) { %>
+                    <img src="<%= p.image_url %>" alt="" style="width:36px;height:36px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;border:1px solid var(--border)" />
+                  <% } %>
                   <b><%= p.name %></b>
                   <div class="muted" style="margin-top:4px;">Updated: <%= p.updated_at_fmt %></div>
                 </td>

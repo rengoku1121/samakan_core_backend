@@ -17,6 +17,7 @@ exports.listPaginated = async ({ limit, offset }) => {
       id,
       sku,
       name,
+      image_url,
       price,
       shelf_life_days,
       requires_heating,
@@ -36,6 +37,7 @@ exports.findById = async (id) => {
       id,
       sku,
       name,
+      image_url,
       price,
       shelf_life_days,
       requires_heating,
@@ -64,20 +66,22 @@ exports.findBySku = async (sku) => {
   return rows[0] || null;
 };
 
-exports.create = async ({ sku, name, price, shelf_life_days, requires_heating, is_active }) => {
+exports.create = async ({ sku, name, image_url, price, shelf_life_days, requires_heating, is_active }) => {
   const sql = `
     INSERT INTO products (
       sku,
       name,
+      image_url,
       price,
       shelf_life_days,
       requires_heating,
       is_active
-    ) VALUES (?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
   const [result] = await pool.query(sql, [
     sku,
     name,
+    image_url || null,
     price,
     shelf_life_days ?? null,
     requires_heating ? 1 : 0,
@@ -86,12 +90,13 @@ exports.create = async ({ sku, name, price, shelf_life_days, requires_heating, i
   return result.insertId;
 };
 
-exports.updateById = async ({ id, sku, name, price, shelf_life_days, requires_heating, is_active }) => {
+exports.updateById = async ({ id, sku, name, image_url, price, shelf_life_days, requires_heating, is_active }) => {
   const sql = `
     UPDATE products
     SET
       sku = ?,
       name = ?,
+      image_url = ?,
       price = ?,
       shelf_life_days = ?,
       requires_heating = ?,
@@ -102,6 +107,7 @@ exports.updateById = async ({ id, sku, name, price, shelf_life_days, requires_he
   const [result] = await pool.query(sql, [
     sku,
     name,
+    image_url || null,
     price,
     shelf_life_days ?? null,
     requires_heating ? 1 : 0,

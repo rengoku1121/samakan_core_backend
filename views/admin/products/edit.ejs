@@ -30,6 +30,10 @@
     .btn-secondary:hover{background:#fff7ed}
     .alert{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:12px 12px;border-radius:12px;margin-bottom:12px;font-size:13px}
     .idpill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#374151;font-weight:900;font-size:12px;}
+    .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
+    .preview{margin-top:8px;width:120px;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--border);background:#fff7ed}
+    .check{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:800;font-size:13px}
+    .check input{width:auto}
   </style>
 </head>
 <body>
@@ -51,7 +55,7 @@
         <div class="alert"><b>Gagal:</b> <%= error %></div>
       <% } %>
 
-      <form method="POST" action="/admin/products/<%= product.id %>">
+      <form method="POST" action="/admin/products/<%= product.id %>" enctype="multipart/form-data">
         <label for="sku">SKU (unique)</label>
         <input id="sku" name="sku" value="<%= value?.sku || '' %>" required />
 
@@ -69,6 +73,20 @@
           <option value="1" <%= (value?.requires_heating ?? 1) ? 'selected' : '' %>>Wajib dipanaskan</option>
           <option value="0" <%= (value?.requires_heating ?? 1) ? '' : 'selected' %>>Opsional (boleh tidak dipanaskan)</option>
         </select>
+
+        <label for="image_file">Gambar produk</label>
+        <% if (product.image_url) { %>
+          <img class="preview" src="<%= product.image_url %>" alt="Gambar sekarang" />
+        <% } %>
+        <input id="image_file" name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+        <div class="hint">Upload baru mengganti gambar lama. JPG, PNG, WEBP, atau GIF. Maksimal 2 MB.</div>
+
+        <label for="image_url">Atau URL gambar</label>
+        <input id="image_url" name="image_url" value="<%= value?.image_url || '' %>" placeholder="https://..." />
+        <div class="hint">Isi URL kalau tidak upload file. Kosongkan untuk mempertahankan gambar yang sudah ada.</div>
+        <% if (product.image_url) { %>
+          <label class="check"><input type="checkbox" name="clear_image" value="1" /> Hapus gambar</label>
+        <% } %>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
