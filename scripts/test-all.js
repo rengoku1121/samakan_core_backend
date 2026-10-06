@@ -38,6 +38,7 @@ if (!run("settlement-report", core, [path.join(__dirname, "test-settlement-repor
 if (!run("login-guard", core, [path.join(__dirname, "test-login-guard.js")])) failed += 1;
 if (!run("rate-limit", core, [path.join(__dirname, "test-rate-limit.js")])) failed += 1;
 if (!run("admin-auth", core, [path.join(__dirname, "test-admin-auth.js")])) failed += 1;
+if (!run("activity-log", core, [path.join(__dirname, "test-activity-log.js")])) failed += 1;
 if (!run("core db suites", core, [path.join(__dirname, "test-all-db.js")])) failed += 1;
 if (!npmRun("core e2e", core, "test:e2e")) failed += 1;
 

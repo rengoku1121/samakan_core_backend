@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Riwayat Aktivitas</h1>
+        <div class="muted"><b><%= total %></b> catatan · masuk, keluar, dan setiap perubahan data. Membuka halaman tidak dicatat. Password tidak disimpan.</div>
+      </div>
+    </div>
+
+    <% if (missing) { %>
+      <div class="alert alert-warn">Tabel aktivitas belum ada. Jalankan migrasi <b>activity-log</b> di server.</div>
+    <% } %>
+
+    <div class="card">
+      <div class="toolbar">
+        <form method="GET" action="/admin/activity">
+          <div>
+            <label for="act-q">Cari</label>
+            <input id="act-q" name="q" value="<%= filters.q %>" placeholder="username atau aktivitas" />
+          </div>
+          <div>
+            <label for="act-action">Jenis</label>
+            <select id="act-action" name="action">
+              <option value="">Semua jenis</option>
+              <% actions.forEach(function(a){ %>
+                <option value="<%= a.id %>" <%= filters.action === a.id ? "selected" : "" %>><%= a.label %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label for="act-role">Peran</label>
+            <select id="act-role" name="role">
+              <option value="">Semua peran</option>
+              <% roles.forEach(function(r){ %>
+                <option value="<%= r %>" <%= filters.role === r ? "selected" : "" %>><%= r %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label for="act-from">Dari tanggal</label>
+            <input id="act-from" type="date" name="date_from" value="<%= filters.date_from %>" />
+          </div>
+          <div>
+            <label for="act-to">Sampai tanggal</label>
+            <input id="act-to" type="date" name="date_to" value="<%= filters.date_to %>" />
+          </div>
+          <button class="btn btn-primary" type="submit">Terapkan</button>
+          <a class="btn btn-ghost" href="/admin/activity">Reset</a>
+        </form>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Waktu</th>
+            <th>User</th>
+            <th>Aktivitas</th>
+            <th>Hasil</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(function(row){ %>
+            <tr>
+              <td class="mono"><%= row.created_at_fmt %></td>
+              <td>
+                <b><%= row.username || "—" %></b>
+                <% if (row.role) { %><div class="muted"><%= row.role %></div><% } %>
+              </td>
+              <td>
+                <span class="badge"><%= row.action_label %></span>
+                <div><%= row.summary %></div>
+                <div class="muted mono"><%= row.method %> <%= row.path %></div>
+              </td>
+              <td>
+                <% if (row.ok) { %>
+                  <span class="badge b-paid">Berhasil</span>
+                <% } else { %>
+                  <span class="badge b-failed">Gagal · <%= row.status_code %></span>
+                <% } %>
+              </td>
+              <td class="mono"><%= row.ip || "—" %></td>
+            </tr>
+          <% }) %>
+          <% if (!rows.length && !missing) { %>
+            <tr><td colspan="5" class="muted" style="padding:22px;text-align:center;">Belum ada aktivitas untuk filter ini.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <%
+        const qs = ["q","action","role","date_from","date_to"]
+          .filter(function(k){ return filters[k]; })
+          .map(function(k){ return k + "=" + encodeURIComponent(filters[k]); })
+          .join("&");
+        const prefix = qs ? qs + "&" : "";
+      %>
+      <div class="pager">
+        <span class="muted">Halaman <%= page %> dari <%= totalPages %></span>
+        <div>
+          <% if (page > 1) { %><a class="btn btn-ghost" href="/admin/activity?<%= prefix %>page=<%= page - 1 %>">Sebelumnya</a><% } %>
+          <% if (page < totalPages) { %><a class="btn btn-ghost" href="/admin/activity?<%= prefix %>page=<%= page + 1 %>">Berikutnya</a><% } %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

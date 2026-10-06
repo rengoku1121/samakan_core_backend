@@ -61,6 +61,7 @@
   </select>
   <div class="hint">Tarifnya mengikuti <b>Midtrans Fee (%)</b> di halaman Settlement.</div>
 
+  <% if (typeof payoutUiEnabled !== 'undefined' && payoutUiEnabled) { %>
   <label for="payout_fee_bearer">Penanggung Fee Payout (per penarikan)</label>
   <select id="payout_fee_bearer" name="payout_fee_bearer" <%= lockAttr %>>
     <option value="inherit" <%= payoutBearer === 'inherit' ? 'selected' : '' %>>Ikut Setting Global (<%= globalBearerLabel %>)</option>
@@ -68,4 +69,7 @@
     <option value="platform" <%= payoutBearer === 'platform' ? 'selected' : '' %>>Platform (saya yang tanggung)</option>
   </select>
   <div class="hint">Nominal fee-nya diatur di Settings &rsaquo; Payout Merchant.</div>
+  <% } else { %>
+  <input type="hidden" name="payout_fee_bearer" value="<%= payoutBearer %>" />
+  <% } %>
 </div>

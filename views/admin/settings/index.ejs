@@ -31,7 +31,7 @@
   <div class="topbar">Samakan Admin • Settings</div>
   <div class="wrap">
     <h1>Settings</h1>
-    <div class="muted">Fee settlement, payout merchant, dan tampilan kiosk.</div>
+    <div class="muted"><%= payoutUiEnabled ? "Fee settlement, payout merchant, dan tampilan kiosk." : "Fee settlement dan tampilan kiosk." %></div>
 
     <% if (typeof success !== 'undefined' && success) { %><div class="ok" style="margin-top:14px;"><%= success %></div><% } %>
     <% if (error) { %><div class="alert" style="margin-top:14px;"><%= error %></div><% } %>
@@ -61,6 +61,7 @@
       </form>
     </div>
 
+    <% if (payoutUiEnabled) { %>
     <div class="card">
       <h2>Payout Merchant (Midtrans Iris)</h2>
       <div class="muted" style="margin-bottom:12px;">
@@ -106,6 +107,7 @@
         </div>
       </form>
     </div>
+    <% } %>
 
     <div class="card">
       <h2>Kiosk UI</h2>

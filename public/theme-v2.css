@@ -1,34 +1,57 @@
-/* Samakan Core — Orange theme (mobile-first) */
+/* Samakan Core — tema warna logo Samakan (mobile-first).
+   Merah #d91f26 + oranye #f15822 + kuning #febd11 + teal #00a38f, marun #8c171a. */
 
 :root {
-  --s-bg: #fff8f1;
-  --s-bg2: #fff1e3;
+  --s-bg: #fff7f3;
+  --s-bg2: #ffeee6;
   --s-surface: #ffffff;
-  --s-surface2: #fffbf7;
-  --s-border: #f1e3d3;
-  --s-border2: #e7cfb6;
-  --s-primary: #f27200;
-  --s-primary-600: #d96400;
-  --s-primary-700: #b35200;
-  --s-primary-50: #fff4e8;
-  --s-primary-100: #ffe6cc;
-  --s-primary-light: #fff4e8;
-  --s-grad: linear-gradient(135deg, #ff9a1f 0%, #ff7a00 100%);
-  --s-ring: 0 0 0 3px rgba(255, 138, 0, 0.22);
-  --s-text: #2b1d12;
-  --s-text2: #57412f;
-  --s-muted: #8c7461;
+  --s-surface2: #fffaf7;
+  --s-border: #f4e2d9;
+  --s-border2: #e9cabd;
+
+  /* Merah Samakan = aksi utama */
+  --s-primary: #d91f26;
+  --s-primary-600: #bc1a21;
+  --s-primary-700: #8c171a;
+  --s-primary-50: #fff3f1;
+  --s-primary-100: #ffdcd5;
+  --s-primary-light: #fff3f1;
+  --s-grad: linear-gradient(135deg, #f15822 0%, #d91f26 100%);
+  --s-ring: 0 0 0 3px rgba(217, 31, 38, 0.2);
+
+  /* Oranye & kuning logo = aksen, bukan aksi */
+  --s-accent: #f15822;
+  --s-accent-50: #fff4ec;
+  --s-yellow: #febd11;
+  --s-yellow-50: #fff8e3;
+  --s-yellow-700: #8a5a00;
+
+  /* Teal logo = nilai positif / sukses */
+  --s-teal: #00a38f;
+  --s-teal-700: #00695c;
+  --s-teal-50: #e8f8f4;
+
+  --s-text: #2a1a16;
+  --s-text2: #5b3f37;
+  --s-muted: #8e7269;
   --s-radius: 12px;
   --s-radius-lg: 16px;
-  --s-shadow-sm: 0 1px 2px rgba(77, 44, 12, 0.05), 0 4px 14px rgba(77, 44, 12, 0.05);
-  --s-shadow: 0 2px 6px rgba(77, 44, 12, 0.06), 0 12px 28px rgba(77, 44, 12, 0.08);
-  --s-shadow-lg: 0 24px 48px rgba(77, 44, 12, 0.18);
+  --s-shadow-sm: 0 1px 2px rgba(92, 26, 20, 0.05), 0 4px 14px rgba(92, 26, 20, 0.05);
+  --s-shadow: 0 2px 6px rgba(92, 26, 20, 0.06), 0 12px 28px rgba(92, 26, 20, 0.09);
+  --s-shadow-lg: 0 24px 48px rgba(92, 26, 20, 0.18);
   --s-font: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --s-display: "DM Sans", system-ui, sans-serif;
-  --s-success: #15803d;
-  --s-danger: #dc2626;
-  --s-warn: #b45309;
+  --s-success: var(--s-teal-700);
+  /* Marun gelap: cukup beda dari merah brand supaya tombol hapus tidak tertukar. */
+  --s-danger: #8c171a;
+  --s-danger-600: #6d1317;
+  --s-warn: var(--s-yellow-700);
   --s-sidebar-w: 248px;
+
+  /* Jarak aman tepi layar (HP berponi / gesture bar) */
+  --s-gutter: 14px;
+  --s-safe-l: max(var(--s-gutter), env(safe-area-inset-left));
+  --s-safe-r: max(var(--s-gutter), env(safe-area-inset-right));
 }
 
 * {
@@ -62,8 +85,9 @@ body.shell-app::before {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 0% 0%, rgba(255, 154, 31, 0.14), transparent 40%),
-    radial-gradient(circle at 100% 100%, rgba(255, 122, 0, 0.08), transparent 45%);
+    radial-gradient(circle at 0% 0%, rgba(241, 88, 34, 0.12), transparent 42%),
+    radial-gradient(circle at 100% 0%, rgba(254, 189, 17, 0.1), transparent 38%),
+    radial-gradient(circle at 100% 100%, rgba(0, 163, 143, 0.08), transparent 45%);
 }
 
 body.shell-app::after {
@@ -89,7 +113,7 @@ body.shell-app::after {
   position: fixed;
   inset: 0;
   z-index: 99990;
-  background: rgba(43, 29, 18, 0.45);
+  background: rgba(42, 26, 22, 0.45);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   opacity: 0;
@@ -115,7 +139,7 @@ body.shell-app::after {
   background: var(--s-surface);
   border-right: 1px solid var(--s-border);
   box-shadow: var(--s-shadow-lg);
-  padding: 16px 12px;
+  padding: calc(16px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -152,18 +176,27 @@ body.shell-app::after {
 }
 
 .shell-logo {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: var(--s-grad);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 18px;
-  box-shadow: 0 6px 14px rgba(255, 122, 0, 0.3);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: contain;
+  padding: 1px;
+  box-shadow: 0 4px 10px rgba(92, 26, 20, 0.14);
   flex-shrink: 0;
+  display: block;
+}
+
+/* Di HP sidebar tertutup, jadi logo tampil di bar atas. */
+.shell-topbar-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+  box-shadow: 0 2px 6px rgba(92, 26, 20, 0.12);
 }
 
 .shell-brand-text {
@@ -309,8 +342,8 @@ body.shell-app::after {
 }
 
 .shell-logout:hover {
-  background: #fef2f2;
-  border-color: #fecaca;
+  background: var(--s-primary-50);
+  border-color: var(--s-primary-100);
 }
 
 /* Topbar */
@@ -321,7 +354,8 @@ body.shell-app::after {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px var(--s-safe-r) 10px var(--s-safe-l);
+  padding-top: calc(10px + env(safe-area-inset-top));
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -425,7 +459,7 @@ body.shell-app::after {
   width: 100%;
   min-width: 0;
   flex: 1;
-  padding: 14px 12px 32px;
+  padding: 14px var(--s-safe-r) calc(32px + env(safe-area-inset-bottom)) var(--s-safe-l);
   background: transparent;
 }
 
@@ -536,7 +570,7 @@ body.shell-app::after {
 /* Link biasa (bukan tombol/nav) */
 .shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn) {
   color: var(--s-primary-700) !important;
-  text-decoration-color: rgba(179, 82, 0, 0.35);
+  text-decoration-color: rgba(140, 23, 26, 0.35);
   transition: color 0.15s ease;
 }
 
@@ -558,8 +592,28 @@ body.shell-app::after {
   border-radius: 10px !important;
   font-family: inherit !important;
   font-size: 14px;
+  line-height: 1.4;
   min-height: 42px;
   max-width: 100%;
+  padding: 10px 14px !important;
+}
+
+/* Panah select jangan nabrak teks */
+.shell select {
+  padding-right: 36px !important;
+}
+
+/* Ikon kalender tetap longgar dari teks dd/mm/yyyy */
+.shell input[type="date"]::-webkit-calendar-picker-indicator,
+.shell input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.shell input[type="time"]::-webkit-calendar-picker-indicator,
+.shell input[type="month"]::-webkit-calendar-picker-indicator {
+  margin-left: 8px;
+}
+
+/* Form mesin: tombol kalender custom butuh ruang di kanan */
+.shell .date-wrap input[type="date"] {
+  padding-right: 46px !important;
 }
 
 .shell textarea {
@@ -586,7 +640,7 @@ body.shell-app::after {
 
 .shell input::placeholder,
 .shell textarea::placeholder {
-  color: #b8a493;
+  color: #bba39a;
 }
 
 /* Filter bar: tiap field melebar penuh di HP, berjajar di layar lebar */
@@ -639,12 +693,14 @@ body.shell-app::after {
   display: block;
 }
 
-/* Preset tanggal (Orders) */
-.shell .date-presets {
+/* Preset tanggal (Orders): selalu satu baris penuh, jangan ikut lebar field */
+.shell .date-presets,
+.shell .toolbar form > .date-presets,
+.shell form.filters > .date-presets {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  flex: 1 1 100%;
+  flex: 1 1 100% !important;
 }
 
 .shell .date-presets a.chip {
@@ -729,7 +785,7 @@ body.shell-app::after {
   background: var(--s-grad) !important;
   color: #ffffff !important;
   border: 1px solid transparent !important;
-  box-shadow: 0 4px 12px rgba(242, 114, 0, 0.28) !important;
+  box-shadow: 0 4px 12px rgba(217, 31, 38, 0.26) !important;
 }
 
 .shell a.btn-primary:hover,
@@ -739,8 +795,8 @@ body.shell-app::after {
 .shell .btn-payout:hover {
   color: #ffffff !important;
   transform: translateY(-1px);
-  background: linear-gradient(135deg, #ff8a00 0%, #e86a00 100%) !important;
-  box-shadow: 0 6px 16px rgba(242, 114, 0, 0.34) !important;
+  background: linear-gradient(135deg, #e04d19 0%, #bc1a21 100%) !important;
+  box-shadow: 0 6px 16px rgba(217, 31, 38, 0.32) !important;
   filter: none;
 }
 
@@ -772,20 +828,25 @@ body.shell-app::after {
   background: var(--s-danger) !important;
   color: #fff !important;
   border: 1px solid transparent !important;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2) !important;
+  box-shadow: 0 2px 8px rgba(140, 23, 26, 0.22) !important;
 }
 
 .shell .btn-danger:hover,
 .shell .btn-reject:hover,
 .shell .btn-modal-danger:hover {
-  background: #b91c1c !important;
+  background: var(--s-danger-600) !important;
   color: #fff !important;
 }
 
 .shell .btn-teal {
-  background: #0f766e !important;
+  background: var(--s-teal-700) !important;
   color: #fff !important;
   border: 1px solid transparent !important;
+}
+
+.shell .btn-teal:hover {
+  background: #00564b !important;
+  color: #fff !important;
 }
 
 .shell .btn-link {
@@ -852,7 +913,7 @@ body.shell-app::after {
 .shell tbody td {
   background: transparent !important;
   background-color: transparent !important;
-  border-bottom: 1px solid #f6ece1 !important;
+  border-bottom: 1px solid #f8ebe4 !important;
   color: var(--s-text) !important;
   padding: 12px 14px !important;
   font-size: 13.5px !important;
@@ -865,7 +926,7 @@ body.shell-app::after {
 
 .shell tbody tr:hover,
 .shell tbody tr:nth-child(2n):hover {
-  background: #fffaf3 !important;
+  background: var(--s-primary-50) !important;
 }
 
 .shell tbody tr:hover td {
@@ -1029,6 +1090,20 @@ body.shell-app::after {
   background: var(--s-surface2);
 }
 
+/* Sebagian halaman memakai .pager sebagai kontrol kecil di dalam .footer,
+   bukan bar paginasi tersendiri — di situ jangan digambar sebagai bar. */
+.shell .footer .pager {
+  padding: 0 !important;
+  border-top: 0;
+  background: transparent;
+  justify-content: flex-end;
+}
+
+.shell .footer {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .shell .pager a {
   color: var(--s-text2) !important;
 }
@@ -1069,42 +1144,42 @@ body.shell-app::after {
 .shell .b-settled,
 .shell .badge.b-paid,
 .shell .b-paid {
-  background: #ecfdf3 !important;
-  border-color: #a7f3c4 !important;
-  color: #166534 !important;
+  background: var(--s-teal-50) !important;
+  border-color: #9bdcd0 !important;
+  color: var(--s-teal-700) !important;
 }
 
 .shell .badge.off,
 .shell .badge.b-failed,
 .shell .b-failed {
-  background: #fef2f2 !important;
-  border-color: #fecaca !important;
-  color: #991b1b !important;
+  background: var(--s-primary-50) !important;
+  border-color: var(--s-primary-100) !important;
+  color: var(--s-primary-700) !important;
 }
 
 .shell .badge.b-not-settled,
 .shell .b-not-settled,
 .shell .badge.b-pending,
 .shell .b-pending {
-  background: #fffbeb !important;
-  border-color: #fde68a !important;
-  color: #92400e !important;
+  background: var(--s-yellow-50) !important;
+  border-color: #ffdf8a !important;
+  color: var(--s-yellow-700) !important;
 }
 
 .shell .badge.b-orphan,
 .shell .b-orphan {
-  background: var(--s-primary-50) !important;
-  border-color: #fdba74 !important;
-  color: #9a3412 !important;
+  background: var(--s-accent-50) !important;
+  border-color: #ffb48d !important;
+  color: #a8380f !important;
 }
 
 .shell .badge.b-refunded,
 .shell .b-refunded,
 .shell .badge.b-other,
 .shell .b-other {
-  background: #f5f5f4 !important;
-  border-color: #e7e5e4 !important;
-  color: #44403c !important;
+  background: #f6f2f0 !important;
+  border-color: #e6ddd8 !important;
+  color: #5b4a44 !important;
 }
 
 /* ========== Alerts ========== */
@@ -1122,38 +1197,38 @@ body.shell-app::after {
 .shell .alert-warn,
 .shell .banner-warn,
 .shell .alert.warn {
-  background: #fffbeb !important;
-  border-color: #fcd34d !important;
-  color: #92400e !important;
+  background: var(--s-yellow-50) !important;
+  border-color: #ffd453 !important;
+  color: var(--s-yellow-700) !important;
 }
 
 .shell .alert-ok,
 .shell .alert-success,
 .shell .alert.ok {
-  background: #ecfdf3 !important;
-  border-color: #a7f3c4 !important;
-  color: #166534 !important;
+  background: var(--s-teal-50) !important;
+  border-color: #9bdcd0 !important;
+  color: var(--s-teal-700) !important;
 }
 
 .shell .alert-err,
 .shell .alert-danger,
 .shell .alert-error,
 .shell .alert.err {
-  background: #fef2f2 !important;
-  border-color: #fecaca !important;
-  color: #991b1b !important;
-}
-
-.shell .alert-info,
-.shell .alert.info {
   background: var(--s-primary-50) !important;
   border-color: var(--s-primary-100) !important;
   color: var(--s-primary-700) !important;
 }
 
+.shell .alert-info,
+.shell .alert.info {
+  background: var(--s-accent-50) !important;
+  border-color: #ffcdaf !important;
+  color: #a8380f !important;
+}
+
 /* ========== Modal ========== */
 .shell .modal-overlay.is-open {
-  background: rgba(43, 29, 18, 0.45) !important;
+  background: rgba(42, 26, 22, 0.45) !important;
   backdrop-filter: blur(3px) !important;
 }
 
@@ -1207,6 +1282,19 @@ body.shell-app::after {
   width: 3px;
   background: var(--s-grad);
   opacity: 0.85;
+}
+
+/* Kartu statistik berganti warna seperti potongan warna di logo */
+.shell .grid .stat:nth-child(4n + 2)::after {
+  background: linear-gradient(180deg, #f8832a 0%, var(--s-accent) 100%);
+}
+
+.shell .grid .stat:nth-child(4n + 3)::after {
+  background: linear-gradient(180deg, var(--s-yellow) 0%, #f0a606 100%);
+}
+
+.shell .grid .stat:nth-child(4n + 4)::after {
+  background: linear-gradient(180deg, var(--s-teal) 0%, var(--s-teal-700) 100%);
 }
 
 .shell .grid .box:hover,
@@ -1323,7 +1411,7 @@ body.shell-app::after {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(160deg, #fff8f1 0%, #ffe9d1 100%);
+  background: linear-gradient(160deg, #fff7f3 0%, #ffe6da 100%);
 }
 
 .shell-auth .auth-layout,
@@ -1333,85 +1421,10 @@ body.shell-app::after {
   background: transparent !important;
 }
 
-.shell-auth main.page {
-  min-height: 100vh !important;
-  display: grid !important;
-  grid-template-columns: 1fr !important;
-  gap: 0 !important;
-  background: transparent !important;
-}
-
-.shell-auth .panel-hero {
-  position: relative !important;
-  padding: 28px 22px !important;
-  background: linear-gradient(145deg, #ffa53d 0%, #ff8a00 45%, #e85d00 100%) !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  color: #fff !important;
-  overflow: hidden !important;
-}
-
-.shell-auth .panel-hero h1 {
-  color: #fff !important;
-  font-family: var(--s-display) !important;
-}
-
-.shell-auth .panel-hero p {
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-.shell-auth .logo-badge {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-}
-
-.shell-auth .benefit {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border: 1px solid rgba(255, 255, 255, 0.25) !important;
-  color: #fff !important;
-}
-
-.shell-auth .panel-form {
-  padding: 28px 22px !important;
-  background: var(--s-surface) !important;
-}
-
-.shell-auth .panel-form h2 {
-  font-family: var(--s-display) !important;
-  color: var(--s-text) !important;
-}
-
-.shell-auth .sub {
-  color: var(--s-muted) !important;
-}
-
-.shell-auth .field label {
-  color: var(--s-text2) !important;
-}
-
-.shell-auth .field input {
-  background: var(--s-surface) !important;
-  border: 1px solid var(--s-border2) !important;
-  color: var(--s-text) !important;
-  min-height: 46px;
-}
-
-.shell-auth .field input:focus {
-  border-color: var(--s-primary) !important;
-  box-shadow: var(--s-ring) !important;
-}
-
-.shell-auth .btn {
-  background: var(--s-grad) !important;
-  color: #fff !important;
-  border: 0 !important;
-  box-shadow: 0 6px 16px rgba(242, 114, 0, 0.3) !important;
-}
-
 .shell-auth .alert {
-  background: #fef2f2 !important;
-  border-color: #fecaca !important;
-  color: #991b1b !important;
+  background: var(--s-primary-50) !important;
+  border-color: var(--s-primary-100) !important;
+  color: var(--s-primary-700) !important;
 }
 
 /* ========== Tablet ke atas ========== */
@@ -1444,6 +1457,19 @@ body.shell-app::after {
   }
 }
 
+/* Kode order / mesin jangan patah di tengah */
+.shell td .mono,
+.shell .idpill {
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .shell td .mono {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
 /* ========== Desktop: sidebar tetap ========== */
 @media (min-width: 901px) {
   .app-layout {
@@ -1468,7 +1494,11 @@ body.shell-app::after {
   }
 
   .shell-topbar {
-    padding: 14px 28px;
+    padding: 14px max(28px, env(safe-area-inset-right)) 14px max(28px, env(safe-area-inset-left));
+  }
+
+  .shell-topbar-logo {
+    display: none;
   }
 
   .shell-topbar-h {
@@ -1476,18 +1506,6 @@ body.shell-app::after {
   }
 
   .shell-content {
-    padding: 22px 28px 40px;
-  }
-
-  .shell-auth main.page {
-    grid-template-columns: 1.1fr 0.9fr !important;
-  }
-
-  .shell-auth .panel-hero {
-    padding: 56px 48px !important;
-  }
-
-  .shell-auth .panel-form {
-    padding: 56px 44px !important;
+    padding: 22px max(28px, env(safe-area-inset-right)) 40px max(28px, env(safe-area-inset-left));
   }
 }

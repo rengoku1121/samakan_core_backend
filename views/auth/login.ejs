@@ -2,207 +2,446 @@
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title><%= title %> • Samakan Core</title>
 
   <style>
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body { margin: 0; font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1e293b; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color: #2a1a16;
+      background: #fff7f3;
+    }
 
-    .page {
+    .lg {
       min-height: 100vh;
-      width: 100%;
-      padding: 0;
-      background: #f8fafc;
-      display: grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap: 0;
-    }
-
-    .panel-hero {
-      padding: 56px 54px;
-      position: relative;
-      overflow: hidden;
-      background: linear-gradient(145deg, #2563eb 0%, #4f46e5 100%);
-      color: #fff;
-    }
-
-    .panel-hero::before {
-      content: "";
-      position: absolute;
-      width: 420px;
-      height: 420px;
-      right: -130px;
-      top: -120px;
-      border-radius: 999px;
-      background: radial-gradient(circle, rgba(255,255,255,.15), rgba(255,255,255,0) 65%);
-    }
-
-    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; }
-    .logo-badge {
-      width: 40px; height: 40px;
-      border-radius: 14px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,.2);
-      border: 1px solid rgba(255,255,255,.3);
-      font-weight: 800;
-    }
-
-    .panel-hero h1 {
-      margin: 26px 0 10px;
-      font-size: 38px;
-      line-height: 1.1;
-      max-width: 14ch;
-      font-weight: 700;
-    }
-
-    .panel-hero p {
-      margin: 0;
-      max-width: 50ch;
-      line-height: 1.7;
-      opacity: .9;
-      font-size: 15px;
-    }
-
-    .benefits {
-      margin-top: 26px;
-      display: grid;
-      gap: 10px;
-      max-width: 420px;
-    }
-
-    .benefit {
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-size: 13px;
-    }
-
-    .panel-form {
-      padding: 56px 48px;
-      background: #fff;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
-      justify-content: center;
     }
 
-    .panel-form h2 { margin: 0 0 6px; font-size: 24px; color: #1e293b; font-weight: 700; }
-    .sub { margin: 0 0 18px; color: #64748b; font-size: 14px; }
-
-    .alert {
-      margin-bottom: 12px;
-      border-radius: 10px;
-      border: 1px solid #fecaca;
-      background: #fef2f2;
-      color: #991b1b;
-      padding: 10px 12px;
-      font-size: 13px;
-    }
-
-    .field { margin-bottom: 14px; }
-    .field label { display: block; margin-bottom: 6px; font-size: 12px; color: #64748b; font-weight: 600; }
-    .field input {
-      width: 100%;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      background: #fff;
-      padding: 12px 13px;
-      font-size: 14px;
-      outline: none;
-      transition: .2s ease;
-      color: #1e293b;
-    }
-
-    .field input:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
-    }
-
-    .hint { margin: 4px 0 16px; font-size: 12px; color: #94a3b8; }
-
-    .btn {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 12px 14px;
+    /* ---------- Panel brand ---------- */
+    .lg-hero {
+      position: relative;
+      overflow: hidden;
       color: #fff;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      background: #2563eb;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, .2);
-      transition: transform .15s ease, box-shadow .15s ease;
+      background: linear-gradient(165deg, #8c171a 0%, #d91f26 38%, #f15822 72%, #f8832a 100%);
+      padding: calc(28px + env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) 76px max(22px, env(safe-area-inset-left));
+      text-align: center;
     }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37, 99, 235, .25); }
-    .btn:active { transform: translateY(0); }
 
-    @media (max-width: 1000px) {
-      .page { grid-template-columns: 1fr; }
-      .panel-hero { padding: 28px 24px; }
-      .panel-hero h1 { font-size: 28px; max-width: none; }
-      .panel-form { padding: 28px 24px; }
+    .lg-hero::before {
+      content: "";
+      position: absolute;
+      width: 360px;
+      height: 360px;
+      right: -140px;
+      top: -150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 65%);
+      pointer-events: none;
+    }
+
+    .lg-bands {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 70px;
+      display: block;
+      pointer-events: none;
+    }
+
+    .lg-hero-inner { position: relative; z-index: 1; }
+
+    .lg-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      background: #fff;
+      padding: 3px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 14px;
+      box-shadow: 0 10px 26px rgba(60, 10, 8, 0.28);
+    }
+
+    .shell-auth .lg-hero h1 {
+      margin: 0 0 6px !important;
+      font-size: 24px !important;
+      line-height: 1.2 !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.015em;
+      color: #fff !important;
+    }
+
+    .lg-tagline {
+      margin: 0 auto;
+      max-width: 34ch;
+      font-size: 14px;
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .lg-points {
+      display: none;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ---------- Form ---------- */
+    .lg-main {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      margin-top: -28px;
+      background: #fff;
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -10px 30px rgba(92, 26, 20, 0.08);
+      padding: 28px max(22px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lg-card { width: 100%; max-width: 400px; margin: 0 auto; }
+
+    .lg-card h2 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: #2a1a16;
+    }
+
+    .lg-sub { margin: 0 0 22px; font-size: 14px; color: #8e7269; }
+
+    .lg-alert {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 0 0 16px;
+      padding: 11px 13px;
+      border-radius: 12px;
+      border: 1px solid #ffdcd5;
+      background: #fff3f1;
+      color: #8c171a;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .lg-field { margin: 0 0 16px; }
+
+    .shell-auth .lg-field label {
+      display: block;
+      margin: 0 0 7px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #5b3f37 !important;
+    }
+
+    .shell #lg-identifier,
+    .shell #lg-password {
+      width: 100%;
+      min-height: 50px;
+      border-radius: 12px !important;
+      font-size: 16px;
+      background: #fffaf7 !important;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .shell #lg-identifier:focus,
+    .shell #lg-password:focus { background: #fff !important; }
+
+    .shell #lg-password { padding-right: 76px !important; }
+
+    .lg-pass { position: relative; }
+
+    .lg-toggle {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 38px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: #8c171a;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .lg-toggle:hover { background: #fff3f1; }
+    .lg-toggle:focus-visible { outline: 2px solid #d91f26; outline-offset: 1px; }
+
+    .lg-submit {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 6px;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      background: linear-gradient(135deg, #f15822 0%, #d91f26 100%);
+      box-shadow: 0 8px 20px rgba(217, 31, 38, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .lg-submit:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(217, 31, 38, 0.34); }
+    .lg-submit:active { transform: translateY(0); }
+    .lg-submit:focus-visible { outline: 3px solid rgba(217, 31, 38, 0.35); outline-offset: 2px; }
+
+    .lg-foot {
+      margin-top: auto;
+      padding-top: 26px;
+      text-align: center;
+      font-size: 12px;
+      color: #a98d83;
+    }
+
+    .lg-input { position: relative; }
+
+    .lg-input-ico {
+      display: none;
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 19px;
+      height: 19px;
+      color: #b8988d;
+      pointer-events: none;
+      transition: color 0.15s ease;
+    }
+
+    .lg-input:focus-within .lg-input-ico { color: #d91f26; }
+
+    /* ---------- HP & tablet: latar brand penuh, form jadi kartu mengambang ---------- */
+    @media (max-width: 899px) {
+      .lg {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(172deg, #8c171a 0%, #d91f26 30%, #f15822 64%, #f8832a 100%);
+      }
+
+      .lg-hero {
+        position: static;
+        background: none;
+        padding: calc(34px + env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 26px max(24px, env(safe-area-inset-left));
+      }
+
+      .lg-hero::before {
+        width: 300px;
+        height: 300px;
+        right: -110px;
+        top: -120px;
+      }
+
+      .lg-bands { height: 128px; }
+
+      .lg-logo {
+        width: 108px;
+        height: 108px;
+        margin-bottom: 16px;
+        box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.16), 0 12px 28px rgba(60, 10, 8, 0.3);
+      }
+
+      .shell-auth .lg-hero h1 { font-size: 26px !important; }
+
+      .lg-tagline { font-size: 14px; max-width: 30ch; }
+
+      .lg-main {
+        position: relative;
+        z-index: 2;
+        margin: 0;
+        background: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0 max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+      }
+
+      .lg-card {
+        background: #fff;
+        border-radius: 24px;
+        padding: 26px 20px 22px;
+        box-shadow: 0 24px 48px rgba(60, 10, 8, 0.28), 0 2px 6px rgba(60, 10, 8, 0.08);
+      }
+
+      .lg-card h2 { font-size: 22px; }
+
+      .lg-sub { margin-bottom: 20px; }
+
+      .lg-input-ico { display: block; }
+
+      .shell #lg-identifier,
+      .shell #lg-password { padding-left: 44px !important; }
+
+      .lg-foot {
+        position: relative;
+        z-index: 2;
+        padding: 28px 0 calc(18px + env(safe-area-inset-bottom));
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 500;
+      }
+    }
+
+    @media (max-width: 899px) and (min-width: 560px) {
+      .lg-card { padding: 32px 32px 28px; }
+    }
+
+    /* ---------- Layar besar: dua kolom ---------- */
+    @media (min-width: 900px) {
+      .lg { flex-direction: row; }
+
+      .lg-hero {
+        flex: 1.1;
+        display: flex;
+        align-items: center;
+        text-align: left;
+        padding: 56px 64px 140px;
+      }
+
+      .lg-hero-inner { max-width: 480px; }
+
+      .lg-bands { height: 150px; }
+
+      .lg-logo { width: 132px; height: 132px; margin: 0 0 28px; }
+
+      .shell-auth .lg-hero h1 { font-size: 40px !important; line-height: 1.1 !important; margin-bottom: 14px !important; }
+
+      .lg-tagline { margin: 0; font-size: 16px; max-width: 40ch; }
+
+      .lg-points { display: grid; gap: 12px; margin-top: 30px; }
+
+      .lg-points li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.95);
+      }
+
+      .lg-points svg {
+        flex-shrink: 0;
+        width: 26px;
+        height: 26px;
+        padding: 5px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .lg-main {
+        flex: 0.9;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+        justify-content: center;
+        padding: 56px 56px 28px;
+      }
+
+      .lg-card { margin: auto; }
+
+      .lg-card h2 { font-size: 28px; }
+
+      .lg-foot { margin-top: 0; }
+    }
+
+    @media (min-width: 1400px) {
+      .lg-hero { padding-left: 96px; }
+      .shell-auth .lg-hero h1 { font-size: 46px !important; }
     }
   </style>
 </head>
 
 <body>
-  <main class="page">
-    <section class="panel-hero">
-      <div class="logo">
-        <span class="logo-badge">S</span>
-        <span>Samakan Core</span>
+  <div class="lg">
+    <section class="lg-hero">
+      <div class="lg-hero-inner">
+        <img class="lg-logo" src="/public/samakan-logo.png" alt="Samakan by Kyojin" width="132" height="132" />
+        <h1>Samakan Core</h1>
+        <p class="lg-tagline">Pantau transaksi dari satu dashboard.</p>
+        <ul class="lg-points">
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>
+            Ringkasan omzet dan transaksi setiap hari
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>
+            Catatan pembayaran QRIS dan settlement yang rapi
+          </li>
+        </ul>
       </div>
-      <h1>Cozy workspace for smarter vending ops.</h1>
-      <p>
-        Pantau transaksi, performa machine, dan operasional merchant dalam satu
-        dashboard yang clean, nyaman, dan cepat dipakai setiap hari.
-      </p>
-      <div class="benefits">
-        <div class="benefit">Owner-ready dashboard and performance KPIs</div>
-        <div class="benefit">Secure payment records and audit trail</div>
-        <div class="benefit">Fast daily workflow for admin and merchant</div>
-      </div>
+
+      <svg class="lg-bands" viewBox="0 0 600 150" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 52 C150 18 330 92 600 40 L600 150 L0 150 Z" fill="#febd11" />
+        <path d="M0 86 C170 52 380 124 600 78 L600 150 L0 150 Z" fill="#00a38f" />
+        <path d="M0 118 C200 92 400 150 600 112 L600 150 L0 150 Z" fill="#00584a" />
+      </svg>
     </section>
 
-    <section class="panel-form">
-      <h2>Sign in</h2>
-      <div class="sub">Gunakan akun yang sudah terdaftar</div>
+    <main class="lg-main">
+      <div class="lg-card">
+        <h2>Masuk</h2>
+        <p class="lg-sub">Gunakan akun yang sudah terdaftar.</p>
 
-      <% if (error) { %>
-        <div class="alert"><%= error %></div>
-      <% } %>
+        <% if (error) { %>
+          <div class="lg-alert" role="alert"><%= error %></div>
+        <% } %>
 
-      <form method="POST" action="/auth/login">
-        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
-        <div class="field">
-          <label>Email / Username</label>
-          <input
-            name="identifier"
-            placeholder="admin@samakan.local"
-            value="<%= value && value.identifier ? value.identifier : '' %>"
-            required
-          />
-        </div>
+        <form method="POST" action="/auth/login">
+          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
 
-        <div class="field">
-          <label>Password</label>
-          <input
-            type="password"
-            name="password"
-            placeholder="••••••••"
-            required
-          />
-        </div>
+          <div class="lg-field">
+            <label for="lg-identifier">Email atau username</label>
+            <div class="lg-input">
+            <svg class="lg-input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            <input
+              id="lg-identifier"
+              name="identifier"
+              placeholder="nama@samakan.id"
+              autocomplete="username"
+              autocapitalize="none"
+              spellcheck="false"
+              value="<%= value && value.identifier ? value.identifier : '' %>"
+              required
+            />
+            </div>
+          </div>
 
-        <div class="hint">Tekan Enter untuk login</div>
+          <div class="lg-field">
+            <label for="lg-password">Password</label>
+            <div class="lg-pass lg-input">
+              <svg class="lg-input-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+              <input
+                id="lg-password"
+                type="password"
+                name="password"
+                placeholder="Masukkan password"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="lg-toggle" id="lg-toggle" aria-controls="lg-password" aria-pressed="false" hidden>Lihat</button>
+            </div>
+          </div>
 
-        <button class="btn" type="submit">Login</button>
-      </form>
-    </section>
-  </main>
+          <button class="lg-submit" type="submit">Masuk</button>
+        </form>
+      </div>
+
+      <p class="lg-foot">Samakan by Kyojin · samakan.id</p>
+    </main>
+  </div>
+
+  <script src="/public/js/login-password.js" defer></script>
 </body>
 </html>

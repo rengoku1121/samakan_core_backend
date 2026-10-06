@@ -29,6 +29,7 @@ const MIGRATIONS = [
   "migrate-payout-iris.js",
   "migrate-merchant-partnership.js",
   "migrate-order-refund-reversal.js",
+  "migrate-activity-log.js",
 ];
 
 let failed = 0;

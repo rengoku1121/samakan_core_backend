@@ -6,6 +6,7 @@ const helmet = require("helmet");
 const { verifyAccessToken } = require("./jwt");
 const { isCookieSecure } = require("./cookie");
 const { wrapHtmlWithShell, themeHeadExtras } = require("./app-shell");
+const { payoutUiEnabled } = require("./feature-flags");
 
 function isProduction() {
   return process.env.NODE_ENV === "production";
@@ -115,6 +116,7 @@ function shouldHydrateShellUser(req) {
   const p = String(req.path || "");
   if (p.startsWith("/api") || p.startsWith("/vendor") || p.startsWith("/public")) return false;
   if (p === "/health" || p === "/sw.js" || p === "/manifest.webmanifest") return false;
+  if (p === "/favicon.svg" || p === "/favicon.ico") return false;
   return true;
 }
 
@@ -133,6 +135,7 @@ function hydrateShellUser(req) {
 }
 
 function shellRender(req, res, next) {
+  res.locals.payoutUiEnabled = payoutUiEnabled;
   if (shouldHydrateShellUser(req)) hydrateShellUser(req);
 
   const originalRender = res.render.bind(res);

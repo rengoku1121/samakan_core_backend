@@ -1,8 +1,10 @@
 const { escapeHtml } = require("../utils/escape-html");
 
-const SHELL_ASSET_VER = "20261005a";
-const THEME_VER = "20261005a";
-const THEME_COLOR = "#ff8a00";
+const { payoutUiEnabled } = require("./feature-flags");
+
+const SHELL_ASSET_VER = "20261006d";
+const THEME_VER = "20261006d";
+const THEME_COLOR = "#d91f26";
 
 /** Full URL path (e.g. /auth/login). req.path alone is wrong under mounted routers (/login only). */
 function fullRequestPath(req) {
@@ -25,6 +27,7 @@ const ICONS = {
   send: '<path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/>',
   cloud: '<path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>',
   logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
 };
 
@@ -64,6 +67,7 @@ const ADMIN_NAV = [
     group: "Sistem",
     items: [
       { href: "/admin/xy", label: "XY Platform", icon: "cloud" },
+      { href: "/admin/activity", label: "Riwayat Aktivitas", icon: "history" },
       { href: "/admin/settings", label: "Settings", icon: "cog" },
     ],
   },
@@ -94,6 +98,7 @@ const PAGE_TITLES = [
   ["/admin/settlement", "Settlement"],
   ["/admin/payouts", "Payout Merchant"],
   ["/admin/xy", "XY Platform"],
+  ["/admin/activity", "Riwayat Aktivitas"],
   ["/admin/settings", "Settings"],
   ["/orders/qris", "Generate QRIS"],
   ["/orders", "Orders"],
@@ -112,6 +117,7 @@ function headerTitleForPath(rawPath) {
   const pathFull = stripTrailingSlash(rawPath);
   if (pathFull === "/admin") return "Dashboard";
   if (pathFull === "/merchant") return "Dashboard";
+  if (!payoutUiEnabled && matchesPrefix(pathFull, "/merchant/balance")) return "Saldo";
   const hit = PAGE_TITLES.find(([prefix]) => matchesPrefix(pathFull, prefix));
   return hit ? hit[1] : "Samakan Core";
 }
@@ -129,8 +135,21 @@ function activeHref(groups, rawPath) {
   return best;
 }
 
-function navHtmlForRole(userRole, pathFull) {
+function navForRole(userRole) {
   const groups = userRole === "merchant" ? MERCHANT_NAV : ADMIN_NAV;
+  if (payoutUiEnabled) return groups;
+  return groups
+    .map((g) => ({
+      ...g,
+      items: g.items
+        .filter((it) => it.href !== "/admin/payouts")
+        .map((it) => (it.href === "/merchant/balance" ? { ...it, label: "Saldo" } : it)),
+    }))
+    .filter((g) => g.items.length);
+}
+
+function navHtmlForRole(userRole, pathFull) {
+  const groups = navForRole(userRole);
   const current = activeHref(groups, pathFull);
   const body = groups
     .map((g) => {
@@ -184,7 +203,7 @@ function wrapHtmlWithShell(html, req) {
     <aside class="shell-sidebar" id="shell-drawer" aria-label="Navigasi utama">
       <div class="shell-sidebar-top">
         <a class="brand" href="${brandHref}">
-          <span class="shell-logo" aria-hidden="true">S</span>
+          <img class="shell-logo" src="/public/samakan-logo.png?v=${SHELL_ASSET_VER}" alt="" width="42" height="42" />
           <span class="shell-brand-text"><b>Samakan</b><small>Core · ${safeWorkspaceBadge}</small></span>
         </a>
         <button type="button" class="shell-drawer-close" id="shell-drawer-close" aria-label="Tutup menu">
@@ -201,6 +220,7 @@ function wrapHtmlWithShell(html, req) {
         <button type="button" class="shell-menu-toggle" id="shell-menu-toggle" aria-expanded="false" aria-controls="shell-drawer" aria-label="Buka menu">
           <span class="shell-hamburger" aria-hidden="true"><span></span><span></span><span></span></span>
         </button>
+        <img class="shell-topbar-logo" src="/public/samakan-logo.png?v=${SHELL_ASSET_VER}" alt="" width="32" height="32" />
         <div class="shell-topbar-title">
           <span class="shell-topbar-kicker">Samakan ${safeWorkspaceBadge}</span>
           <span class="shell-topbar-h">${safeHeaderTitle}</span>
@@ -220,6 +240,7 @@ function wrapHtmlWithShell(html, req) {
 
 function themeHeadExtras() {
   return `  <link rel="stylesheet" href="/public/theme-v2.css?v=${THEME_VER}" />
+  <link rel="icon" href="/favicon.svg?v=${SHELL_ASSET_VER}" type="image/svg+xml" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="${THEME_COLOR}" />
   <script src="/public/js/shell-fonts.js?v=${SHELL_ASSET_VER}" defer></script>`;

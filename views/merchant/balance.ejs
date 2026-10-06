@@ -223,6 +223,7 @@
       margin:14px 0 0; padding:12px 14px; font-size:13px; line-height:1.55;
       background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; color:#334155;
     }
+    .ledger-sub { margin: 0; font-size: 12px; color: #7a6e64; }
   </style>
 </head>
 <body>
@@ -256,9 +257,10 @@
 
     <p class="terms-note">
       <b>Skema kerja sama:</b> <%= partnership.summary %>.
-      Saldo tersedia sudah bersih bagian Anda, jadi seluruhnya bisa ditarik.
+      Saldo tersedia sudah bersih bagian Anda<% if (payoutUiEnabled) { %>, jadi seluruhnya bisa ditarik<% } %>.
     </p>
 
+    <% if (payoutUiEnabled) { %>
     <section class="payout-panel">
       <h3>Tarik Saldo (Payout)</h3>
       <% if (!payoutConfig.enabled) { %>
@@ -338,9 +340,10 @@
         </tbody>
       </table>
     </section>
+    <% } %>
 
-    <h3 style="margin:0 0 4px; font-size:16px; font-weight:700;">Riwayat Saldo</h3>
-    <p style="margin:0 0 12px; font-size:12px; color:#7a6e64;">Total <b><%= total %></b> entri (settlement + payout).</p>
+    <h3 style="margin: 1rem 0;font-size:16px;font-weight:700;">Riwayat Saldo</h3>
+    <p class="ledger-sub">Total <b><%= total %></b> entri<%= payoutUiEnabled ? " (settlement + payout)" : "" %>.</p>
 
     <form method="GET" action="/merchant/balance" class="filter-bar">
       <div class="field">
@@ -414,7 +417,7 @@
     </div>
   </div>
 
-  <% if (payoutConfig.enabled) { %>
+  <% if (payoutUiEnabled && payoutConfig.enabled) { %>
   <%#
     Data lewat atribut + file /public/js/merchant-payout.js — Helmet CSP
     script-src 'self' memblokir script inline.

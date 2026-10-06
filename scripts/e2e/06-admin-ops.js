@@ -17,6 +17,7 @@ module.exports = async function run(ctx) {
   eq("GET order detail", (await request(ctx, "GET", `/admin/orders/${orderId}`, { jar: admin.jar })).status, 200);
 
   eq("GET settings", (await request(ctx, "GET", "/admin/settings", { jar: admin.jar })).status, 200);
+  eq("GET activity", (await request(ctx, "GET", "/admin/activity", { jar: admin.jar })).status, 200);
   const kioskUi = await request(ctx, "POST", "/admin/settings/kiosk-ui", {
     jar: admin.jar,
     body: { catalog_columns: "3", catalog_mode: "slot" },

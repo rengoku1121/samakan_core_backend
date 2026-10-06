@@ -278,7 +278,9 @@
                 <td>
                   <b><%= m.partnership_label %></b>
                   <div class="muted" style="font-size:12px;"><%= m.terms_summary %></div>
+                  <% if (payoutUiEnabled) { %>
                   <div class="muted" style="font-size:12px;">Fee payout: <%= m.payout_fee_bearer_label %></div>
+                  <% } %>
                 </td>
                 <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
                   <td class="mono muted"><%= m.deleted_at_fmt || "—" %></td>

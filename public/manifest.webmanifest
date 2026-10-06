@@ -3,8 +3,8 @@
   "short_name": "Samakan",
   "start_url": "/admin",
   "display": "standalone",
-  "background_color": "#fff8f1",
-  "theme_color": "#ff8a00",
+  "background_color": "#fff7f3",
+  "theme_color": "#d91f26",
   "description": "Samakan Core admin operations.",
   "icons": []
 }

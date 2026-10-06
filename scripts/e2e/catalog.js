@@ -84,6 +84,7 @@ const CORE_ROUTES = [
   ["POST", "/admin/payouts/:id/approve"],
   ["POST", "/admin/payouts/:id/reject"],
   ["POST", "/admin/payouts/:id/reconcile"],
+  ["GET", "/admin/activity"],
   ["GET", "/admin/settings"],
   ["POST", "/admin/settings/fees"],
   ["POST", "/admin/settings/kiosk-ui"],

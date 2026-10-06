@@ -32,6 +32,7 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use(cookieParser(process.env.COOKIE_SECRET || undefined));
+  app.use(require("./middleware/activity-log").activityLogger);
 
   app.set("views", path.join(__dirname, "views"));
   app.set("view engine", "ejs");
@@ -55,6 +56,11 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
     res.type("application/manifest+json");
     res.setHeader("Cache-Control", "public, max-age=86400");
     return res.sendFile(path.join(publicDir, "manifest.webmanifest"));
+  });
+  app.get(["/favicon.svg", "/favicon.ico"], (req, res) => {
+    res.type("image/svg+xml");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    return res.sendFile(path.join(publicDir, "favicon.svg"));
   });
 
   const authRoutes = require("./routes/auth");

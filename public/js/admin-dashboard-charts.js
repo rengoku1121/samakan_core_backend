@@ -30,21 +30,21 @@
   }
 
   var STATUS_COLORS = {
-    PENDING: "#94a3b8",
-    PAID: "#2563eb",
-    DISPENSING: "#0ea5e9",
-    DISPENSED: "#16a34a",
-    DISPENSE_FAILED: "#dc2626",
-    PAID_ITEM_MISSING: "#f59e0b",
-    PAID_STOCK_FAILED: "#ea580c",
-    EXPIRED: "#64748b",
-    CANCELLED: "#475569",
+    PENDING: "#c7a79c",
+    PAID: "#00a38f",
+    DISPENSING: "#00828e",
+    DISPENSED: "#00695c",
+    DISPENSE_FAILED: "#d91f26",
+    PAID_ITEM_MISSING: "#febd11",
+    PAID_STOCK_FAILED: "#f15822",
+    EXPIRED: "#a98d83",
+    CANCELLED: "#8e7269",
   };
 
   function colorForStatus(status, index) {
     var key = String(status || "").toUpperCase();
     if (STATUS_COLORS[key]) return STATUS_COLORS[key];
-    var fallback = ["#1e40af", "#0369a1", "#0f766e", "#a16207", "#9f1239", "#6d28d9"];
+    var fallback = ["#d91f26", "#f15822", "#febd11", "#00a38f", "#00584a", "#8c171a"];
     return fallback[index % fallback.length];
   }
 
@@ -54,7 +54,7 @@
     if (!data) return;
 
     Chart.defaults.font.family = "DM Sans, system-ui, sans-serif";
-    Chart.defaults.color = "#64748b";
+    Chart.defaults.color = "#8e7269";
     Chart.defaults.plugins.legend.labels.boxWidth = 12;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
 
@@ -74,8 +74,8 @@
               data: daily.map(function (r) {
                 return r.turnover;
               }),
-              backgroundColor: "rgba(37, 99, 235, 0.55)",
-              borderColor: "#2563eb",
+              backgroundColor: "rgba(217, 31, 38, 0.5)",
+              borderColor: "#d91f26",
               borderWidth: 1,
               borderRadius: 6,
               yAxisID: "y",
@@ -87,12 +87,12 @@
               data: daily.map(function (r) {
                 return r.transactions;
               }),
-              borderColor: "#0f766e",
-              backgroundColor: "rgba(15, 118, 110, 0.12)",
+              borderColor: "#00695c",
+              backgroundColor: "rgba(0, 163, 143, 0.12)",
               borderWidth: 2,
               tension: 0.35,
               pointRadius: 3,
-              pointBackgroundColor: "#0f766e",
+              pointBackgroundColor: "#00695c",
               yAxisID: "y1",
               order: 1,
             },
@@ -187,8 +187,8 @@
               data: products.map(function (r) {
                 return r.qty;
               }),
-              backgroundColor: "rgba(14, 165, 233, 0.65)",
-              borderColor: "#0284c7",
+              backgroundColor: "rgba(241, 88, 34, 0.6)",
+              borderColor: "#f15822",
               borderWidth: 1,
               borderRadius: 6,
             },

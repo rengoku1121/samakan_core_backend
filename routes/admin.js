@@ -13,6 +13,7 @@ const settlementRoutes = require("./admin/settlement");
 const payoutRoutes = require("./admin/payouts");
 const settingsRoutes = require("./admin/settings");
 const xyRoutes = require("./admin/xy");
+const activityRoutes = require("./admin/activity");
 
 router.get("/", requireAuth, requireRole("admin", "staff"), admin.renderHome);
 
@@ -26,6 +27,7 @@ router.use("/notifications", notificationRoutes);
 router.use("/settlement", settlementRoutes);
 router.use("/payouts", payoutRoutes);
 router.use("/settings", settingsRoutes);
+router.use("/activity", activityRoutes);
 router.use("/xy", xyRoutes);
 
 module.exports = router;
