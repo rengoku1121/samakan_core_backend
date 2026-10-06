@@ -1,8 +1,9 @@
 // models/order.js
 const crypto = require("crypto");
 const { pool } = require("../utils/db");
+const { pushDateRangeWhere } = require("../helper-function/date-range");
 
-exports.countAdmin = async ({ status, merchant_id, machine_id, settlement_ref }) => {
+function adminOrdersWhere({ status, merchant_id, machine_id, settlement_ref, date_from, date_to }) {
   const where = [];
   const params = [];
 
@@ -10,6 +11,23 @@ exports.countAdmin = async ({ status, merchant_id, machine_id, settlement_ref })
   if (merchant_id) { where.push("o.merchant_id = ?"); params.push(merchant_id); }
   if (machine_id) { where.push("o.machine_id = ?"); params.push(machine_id); }
   if (settlement_ref) { where.push("o.settlement_ref LIKE ?"); params.push(`%${settlement_ref}%`); }
+  pushDateRangeWhere(where, params, "o.created_at", { date_from, date_to });
+
+  return { where, params };
+}
+
+function merchantOrdersWhere({ merchant_id, status, date_from, date_to }) {
+  const where = ["o.merchant_id = ?"];
+  const params = [merchant_id];
+
+  if (status) { where.push("o.status = ?"); params.push(status); }
+  pushDateRangeWhere(where, params, "o.created_at", { date_from, date_to });
+
+  return { where, params };
+}
+
+exports.countAdmin = async (filter) => {
+  const { where, params } = adminOrdersWhere(filter);
 
   const sql = `
     SELECT
@@ -21,14 +39,8 @@ exports.countAdmin = async ({ status, merchant_id, machine_id, settlement_ref })
   return Number(rows[0]?.total || 0);
 };
 
-exports.listAdmin = async ({ status, merchant_id, machine_id, settlement_ref, limit, offset }) => {
-  const where = [];
-  const params = [];
-
-  if (status) { where.push("o.status = ?"); params.push(status); }
-  if (merchant_id) { where.push("o.merchant_id = ?"); params.push(merchant_id); }
-  if (machine_id) { where.push("o.machine_id = ?"); params.push(machine_id); }
-  if (settlement_ref) { where.push("o.settlement_ref LIKE ?"); params.push(`%${settlement_ref}%`); }
+exports.listAdmin = async ({ limit, offset, ...filter }) => {
+  const { where, params } = adminOrdersWhere(filter);
 
   const sql = `
     SELECT
@@ -66,14 +78,18 @@ exports.listAdmin = async ({ status, merchant_id, machine_id, settlement_ref, li
 };
 
 /** Ringkasan angka di halaman admin orders (mengikuti filter). */
-exports.getAdminOrdersSummary = async ({ status, merchant_id, machine_id }) => {
-  const where = [];
-  const params = [];
+exports.getAdminOrdersSummary = async (filter) => {
+  const { where, params } = adminOrdersWhere(filter);
+  return ordersSummary(where, params);
+};
 
-  if (status) { where.push("o.status = ?"); params.push(status); }
-  if (merchant_id) { where.push("o.merchant_id = ?"); params.push(merchant_id); }
-  if (machine_id) { where.push("o.machine_id = ?"); params.push(machine_id); }
+/** Ringkasan angka di halaman merchant orders (mengikuti filter, selalu milik merchant ini). */
+exports.getMerchantOrdersSummary = async (filter) => {
+  const { where, params } = merchantOrdersWhere(filter);
+  return ordersSummary(where, params);
+};
 
+async function ordersSummary(where, params) {
   // Semua status "uang sudah masuk" (PAID/pemenuhan sebagian/dispense gagal),
   // TIDAK termasuk REFUNDED - uang itu sudah dikembalikan ke pembeli. Lihat
   // docs/architecture.md Fase 6-7 untuk daftar lengkap status order.
@@ -95,13 +111,10 @@ exports.getAdminOrdersSummary = async ({ status, merchant_id, machine_id }) => {
     pending_amount: Number(r.pending_amount || 0),
     paid_orders: Number(r.paid_orders || 0),
   };
-};
+}
 
-exports.countMerchant = async ({ merchant_id, status }) => {
-  const where = ["o.merchant_id = ?"];
-  const params = [merchant_id];
-
-  if (status) { where.push("o.status = ?"); params.push(status); }
+exports.countMerchant = async (filter) => {
+  const { where, params } = merchantOrdersWhere(filter);
 
   const sql = `
     SELECT
@@ -145,11 +158,8 @@ exports.merchantDashboardStats = async (merchant_id) => {
   };
 };
 
-exports.listMerchant = async ({ merchant_id, status, limit, offset }) => {
-  const where = ["o.merchant_id = ?"];
-  const params = [merchant_id];
-
-  if (status) { where.push("o.status = ?"); params.push(status); }
+exports.listMerchant = async ({ limit, offset, ...filter }) => {
+  const { where, params } = merchantOrdersWhere(filter);
 
   const sql = `
     SELECT

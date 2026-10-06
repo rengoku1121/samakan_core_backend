@@ -10,6 +10,8 @@ const {
   settlementStatusLabel,
   settlementStatusBadgeClass,
 } = require("../../helper-function/settlement-status");
+const { resolveDateRange, datePresets, rangeLabel } = require("../../helper-function/date-range");
+const { buildQuery, presetLinks } = require("../../helper-function/list-query");
 
 exports.list = async (req, res, next) => {
   try {
@@ -17,20 +19,29 @@ exports.list = async (req, res, next) => {
     const merchant_id = toInt(req.query.merchant_id, 0) || null;
     const machine_id = toInt(req.query.machine_id, 0) || null;
     const settlement_ref = clean(req.query.settlement_ref);
+    const { date_from, date_to } = resolveDateRange(req.query);
 
-    const page = Math.max(1, toInt(req.query.page, 1));
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 20)));
-    const offset = (page - 1) * limit;
 
-    const filter = { status: status || null, merchant_id, machine_id, settlement_ref: settlement_ref || null };
-    const [total, rows, unsettled, orphan] = await Promise.all([
+    const filter = {
+      status: status || null,
+      merchant_id,
+      machine_id,
+      settlement_ref: settlement_ref || null,
+      date_from,
+      date_to,
+    };
+    const [total, summary, unsettled, orphan] = await Promise.all([
       orderModel.countAdmin(filter),
-      orderModel.listAdmin({ ...filter, limit, offset }),
+      orderModel.getAdminOrdersSummary(filter),
       settlementModel.getUnsettledSummary().catch(() => ({ unsettled_count: 0, unsettled_amount: 0 })),
       settlementModel.getOrphanSettledSummary().catch(() => ({ orphan_count: 0, orphan_amount: 0 })),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(totalPages, Math.max(1, toInt(req.query.page, 1)));
+    const offset = (page - 1) * limit;
+    const rows = await orderModel.listAdmin({ ...filter, limit, offset });
 
     const mapped = rows.map((r) => {
       const settlement_status_label = settlementStatusLabel(r);
@@ -51,22 +62,35 @@ exports.list = async (req, res, next) => {
     ]);
 
 
+    const filters = {
+      status: status || "",
+      merchant_id: merchant_id ? String(merchant_id) : "",
+      machine_id: machine_id ? String(machine_id) : "",
+      settlement_ref: settlement_ref || "",
+      date_from: date_from || "",
+      date_to: date_to || "",
+    };
+
     return res.render("admin/orders/list", {
       title: "Orders",
       user: req.user,
       rows: mapped,
       merchants,
       machines,
-      filters: {
-        status: status || "",
-        merchant_id: merchant_id ? String(merchant_id) : "",
-        machine_id: machine_id ? String(machine_id) : "",
-        settlement_ref: settlement_ref || "",
-      },
+      filters,
       page,
       limit,
       total,
       totalPages,
+      qsBase: buildQuery({ ...filters, limit }),
+      presets: presetLinks(datePresets(), { ...filters, limit }),
+      rangeLabel: rangeLabel(date_from, date_to),
+      summary: {
+        total_orders: summary.total_orders,
+        paid_orders: summary.paid_orders,
+        sales_revenue_fmt: fmtMoney(summary.sales_revenue),
+        pending_amount_fmt: fmtMoney(summary.pending_amount),
+      },
       unsettled: {
         count: Number(unsettled.unsettled_count || 0),
         amount_fmt: fmtMoney(unsettled.unsettled_amount || 0),

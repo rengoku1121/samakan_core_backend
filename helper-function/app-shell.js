@@ -1,7 +1,8 @@
 const { escapeHtml } = require("../utils/escape-html");
 
-const SHELL_ASSET_VER = "20260815a";
-const THEME_VER = "20260901a";
+const SHELL_ASSET_VER = "20261005a";
+const THEME_VER = "20261005a";
+const THEME_COLOR = "#ff8a00";
 
 /** Full URL path (e.g. /auth/login). req.path alone is wrong under mounted routers (/login only). */
 function fullRequestPath(req) {
@@ -10,42 +11,139 @@ function fullRequestPath(req) {
   return String(req.originalUrl || req.url || "").split("?")[0];
 }
 
-function headerTitleForPath(pathFull) {
-  if (pathFull === "/admin" || pathFull === "/admin/") return "Mission Control";
-  if (pathFull === "/merchant" || pathFull === "/merchant/") return "Merchant Deck";
-  if (pathFull.startsWith("/orders/qris")) return "Generate QRIS";
-  if (pathFull.startsWith("/orders")) return "Orders";
-  if (pathFull.startsWith("/admin/settlement/ledger")) return "Riwayat Saldo";
-  if (pathFull.startsWith("/admin/payouts")) return "Payout Merchant";
-  if (pathFull.startsWith("/admin/xy")) return "XY Platform";
-  if (pathFull.startsWith("/admin/settings")) return "Settings";
-  return "Operations";
+const ICONS = {
+  home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  store: '<path d="M4 9l1.5-5h13L20 9"/><path d="M4 9h16v2a3 3 0 0 1-5.3 2 3 3 0 0 1-5.4 0A3 3 0 0 1 4 11z"/><path d="M5 13v7h14v-7"/>',
+  pin: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  machine: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h5M8 11h5M8 15h5"/><path d="M16 7v8"/>',
+  box: '<path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/>',
+  grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  qr: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM18 14h2M14 18v2"/>',
+  wallet: '<path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3"/><circle cx="16" cy="13.5" r="1.2"/>',
+  ledger: '<path d="M5 4h11l3 3v13H5z"/><path d="M8 10h8M8 14h8M8 18h5"/>',
+  send: '<path d="M4 12l16-8-6 16-2.5-6.5z"/><path d="M11.5 13.5L20 4"/>',
+  cloud: '<path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
+};
+
+function icon(name) {
+  return `<svg class="shell-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 }
 
-function navHtmlForRole(userRole) {
-  if (userRole === "merchant") {
-    return `
-      <nav class="shell-nav">
-        <a href="/merchant">Dashboard</a>
-        <a href="/orders">Orders</a>
-        <a href="/orders/qris">QRIS</a>
-        <a href="/merchant/balance">Saldo &amp; Payout</a>
-      </nav>`;
+const ADMIN_NAV = [
+  {
+    group: "Ringkasan",
+    items: [{ href: "/admin", label: "Dashboard", icon: "home", exact: true }],
+  },
+  {
+    group: "Operasional",
+    items: [
+      { href: "/admin/orders", label: "Orders", icon: "receipt" },
+      { href: "/admin/machines", label: "Machines", icon: "machine" },
+      { href: "/admin/slots", label: "Slots", icon: "grid" },
+      { href: "/admin/products", label: "Products", icon: "box" },
+    ],
+  },
+  {
+    group: "Mitra",
+    items: [
+      { href: "/admin/merchants", label: "Merchants", icon: "store" },
+      { href: "/admin/locations", label: "Locations", icon: "pin" },
+    ],
+  },
+  {
+    group: "Keuangan",
+    items: [
+      { href: "/admin/settlement/ledger", label: "Riwayat Saldo", icon: "ledger" },
+      { href: "/admin/payouts", label: "Payout", icon: "send" },
+    ],
+  },
+  {
+    group: "Sistem",
+    items: [
+      { href: "/admin/xy", label: "XY Platform", icon: "cloud" },
+      { href: "/admin/settings", label: "Settings", icon: "cog" },
+    ],
+  },
+];
+
+const MERCHANT_NAV = [
+  {
+    group: "Merchant",
+    items: [
+      { href: "/merchant", label: "Dashboard", icon: "home", exact: true },
+      { href: "/orders", label: "Orders", icon: "receipt" },
+      { href: "/orders/qris", label: "QRIS", icon: "qr" },
+      { href: "/merchant/balance", label: "Saldo & Payout", icon: "wallet" },
+    ],
+  },
+];
+
+/** Urutan penting: prefix paling spesifik dulu. */
+const PAGE_TITLES = [
+  ["/admin/orders/reconciliation", "Rekonsiliasi Order"],
+  ["/admin/orders", "Orders"],
+  ["/admin/merchants", "Merchants"],
+  ["/admin/locations", "Locations"],
+  ["/admin/machines", "Machines"],
+  ["/admin/products", "Products"],
+  ["/admin/slots", "Slots"],
+  ["/admin/settlement/ledger", "Riwayat Saldo"],
+  ["/admin/settlement", "Settlement"],
+  ["/admin/payouts", "Payout Merchant"],
+  ["/admin/xy", "XY Platform"],
+  ["/admin/settings", "Settings"],
+  ["/orders/qris", "Generate QRIS"],
+  ["/orders", "Orders"],
+  ["/merchant/balance", "Saldo & Payout"],
+];
+
+function stripTrailingSlash(p) {
+  return p.length > 1 ? p.replace(/\/+$/, "") : p;
+}
+
+function matchesPrefix(pathFull, prefix) {
+  return pathFull === prefix || pathFull.startsWith(`${prefix}/`);
+}
+
+function headerTitleForPath(rawPath) {
+  const pathFull = stripTrailingSlash(rawPath);
+  if (pathFull === "/admin") return "Dashboard";
+  if (pathFull === "/merchant") return "Dashboard";
+  const hit = PAGE_TITLES.find(([prefix]) => matchesPrefix(pathFull, prefix));
+  return hit ? hit[1] : "Samakan Core";
+}
+
+/** Link aktif = href terpanjang yang cocok, supaya /orders/qris tidak ikut menyalakan /orders. */
+function activeHref(groups, rawPath) {
+  const pathFull = stripTrailingSlash(rawPath);
+  let best = null;
+  for (const g of groups) {
+    for (const it of g.items) {
+      const ok = it.exact ? pathFull === it.href : matchesPrefix(pathFull, it.href);
+      if (ok && (!best || it.href.length > best.length)) best = it.href;
+    }
   }
-  return `
-      <nav class="shell-nav">
-        <a href="/admin">Dashboard</a>
-        <a href="/admin/merchants">Merchants</a>
-        <a href="/admin/locations">Locations</a>
-        <a href="/admin/machines">Machines</a>
-        <a href="/admin/products">Products</a>
-        <a href="/admin/slots">Slots</a>
-        <a href="/admin/orders">Orders</a>
-        <a href="/admin/xy">XY Platform</a>
-        <a href="/admin/settlement/ledger">Riwayat Saldo</a>
-        <a href="/admin/payouts">Payout</a>
-        <a href="/admin/settings">Settings</a>
-      </nav>`;
+  return best;
+}
+
+function navHtmlForRole(userRole, pathFull) {
+  const groups = userRole === "merchant" ? MERCHANT_NAV : ADMIN_NAV;
+  const current = activeHref(groups, pathFull);
+  const body = groups
+    .map((g) => {
+      const links = g.items
+        .map((it) => {
+          const isActive = it.href === current;
+          return `<a href="${it.href}"${isActive ? ' class="is-active" aria-current="page"' : ""}>${icon(it.icon)}<span>${escapeHtml(it.label)}</span></a>`;
+        })
+        .join("");
+      return `<div class="shell-nav-group"><p class="shell-nav-label">${escapeHtml(g.group)}</p>${links}</div>`;
+    })
+    .join("");
+  return `<nav class="shell-nav" aria-label="Menu">${body}</nav>`;
 }
 
 function wrapHtmlWithShell(html, req) {
@@ -59,13 +157,13 @@ function wrapHtmlWithShell(html, req) {
   const isAuthPage = pathFull.startsWith("/auth");
   const isLoggedIn = Boolean(req.user);
   const userRole = req.user?.role || "";
-  const navHtml = navHtmlForRole(userRole);
+  const navHtml = navHtmlForRole(userRole, pathFull);
 
   const brandHref = userRole === "merchant" ? "/merchant" : "/admin";
-  const workspaceBadge = userRole === "merchant" ? "Merchant" : "Admin";
+  const workspaceBadge =
+    userRole === "merchant" ? "Merchant" : userRole === "staff" ? "Staff" : "Admin";
   const headerTitle = headerTitleForPath(pathFull);
 
-  const safePath = escapeHtml(pathFull);
   const safeHeaderTitle = escapeHtml(headerTitle);
   const safeWorkspaceBadge = escapeHtml(workspaceBadge);
 
@@ -80,34 +178,34 @@ function wrapHtmlWithShell(html, req) {
   </div>
 </body>`
       : `
-<body class="shell shell-app">
+<body class="shell shell-app shell-role-${escapeHtml(userRole || "guest")}">
   <div class="app-layout">
     <div class="shell-drawer-backdrop" id="shell-drawer-backdrop" aria-hidden="true"></div>
     <aside class="shell-sidebar" id="shell-drawer" aria-label="Navigasi utama">
       <div class="shell-sidebar-top">
-        <a class="brand" href="${brandHref}">Samakan Core</a>
+        <a class="brand" href="${brandHref}">
+          <span class="shell-logo" aria-hidden="true">S</span>
+          <span class="shell-brand-text"><b>Samakan</b><small>Core · ${safeWorkspaceBadge}</small></span>
+        </a>
         <button type="button" class="shell-drawer-close" id="shell-drawer-close" aria-label="Tutup menu">
           <span class="shell-drawer-close-icon" aria-hidden="true"></span>
         </button>
       </div>
       ${navHtml}
       <form method="POST" action="/auth/logout" class="shell-logout-form">
-        <button type="submit" class="shell-logout">Logout</button>
+        <button type="submit" class="shell-logout">${icon("logout")}<span>Logout</span></button>
       </form>
     </aside>
     <main class="shell-main">
-      <div class="shell-mobile-bar">
+      <header class="shell-topbar">
         <button type="button" class="shell-menu-toggle" id="shell-menu-toggle" aria-expanded="false" aria-controls="shell-drawer" aria-label="Buka menu">
           <span class="shell-hamburger" aria-hidden="true"><span></span><span></span><span></span></span>
         </button>
-        <div class="shell-mobile-brand">
-          <span class="shell-mobile-title">Samakan</span>
-          <span class="shell-mobile-sub">${safeWorkspaceBadge}</span>
+        <div class="shell-topbar-title">
+          <span class="shell-topbar-kicker">Samakan ${safeWorkspaceBadge}</span>
+          <span class="shell-topbar-h">${safeHeaderTitle}</span>
         </div>
-      </div>
-      <header class="shell-header">
-        <h1>${safeHeaderTitle}</h1>
-        <p class="shell-header-path">${safePath}</p>
+        <span class="shell-role-badge">${safeWorkspaceBadge}</span>
       </header>
       <section class="shell-content">${bodyInner}</section>
     </main>
@@ -123,7 +221,7 @@ function wrapHtmlWithShell(html, req) {
 function themeHeadExtras() {
   return `  <link rel="stylesheet" href="/public/theme-v2.css?v=${THEME_VER}" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="${THEME_COLOR}" />
   <script src="/public/js/shell-fonts.js?v=${SHELL_ASSET_VER}" defer></script>`;
 }
 
@@ -131,4 +229,6 @@ module.exports = {
   fullRequestPath,
   wrapHtmlWithShell,
   themeHeadExtras,
+  headerTitleForPath,
+  activeHref,
 };

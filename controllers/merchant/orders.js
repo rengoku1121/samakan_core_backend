@@ -16,6 +16,8 @@ const {
   settlementStatusLabel,
   settlementStatusBadgeClass,
 } = require("../../helper-function/settlement-status");
+const { resolveDateRange, datePresets, rangeLabel } = require("../../helper-function/date-range");
+const { buildQuery, presetLinks } = require("../../helper-function/list-query");
 
 const parseVendorExpiry = (raw) => {
   if (!raw) return null;
@@ -88,14 +90,19 @@ exports.list = async (req, res, next) => {
     if (!merchant_id) return res.status(403).render("errors/403", { title: "Forbidden", path: req.originalUrl });
 
     const status = clean(req.query.status);
+    const { date_from, date_to } = resolveDateRange(req.query);
 
-    const page = Math.max(1, toInt(req.query.page, 1));
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 20)));
-    const offset = (page - 1) * limit;
 
-    const total = await orderModel.countMerchant({ merchant_id, status: status || null });
-    const rows = await orderModel.listMerchant({ merchant_id, status: status || null, limit, offset });
+    const filter = { merchant_id, status: status || null, date_from, date_to };
+    const [total, summary] = await Promise.all([
+      orderModel.countMerchant(filter),
+      orderModel.getMerchantOrdersSummary(filter),
+    ]);
     const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(totalPages, Math.max(1, toInt(req.query.page, 1)));
+    const offset = (page - 1) * limit;
+    const rows = await orderModel.listMerchant({ ...filter, limit, offset });
 
     const mapped = rows.map((r) => {
       const settlement_status_label = settlementStatusLabel(r);
@@ -110,15 +117,30 @@ exports.list = async (req, res, next) => {
       };
     });
 
+    const filters = {
+      status: status || "",
+      date_from: date_from || "",
+      date_to: date_to || "",
+    };
+
     return res.render("merchant/orders/list", {
       title: "Orders",
       user: req.user,
       rows: mapped,
-      filters: { status: status || "" },
+      filters,
       page,
       limit,
       total,
       totalPages,
+      qsBase: buildQuery({ ...filters, limit }),
+      presets: presetLinks(datePresets(), { ...filters, limit }),
+      rangeLabel: rangeLabel(date_from, date_to),
+      summary: {
+        total_orders: summary.total_orders,
+        paid_orders: summary.paid_orders,
+        sales_revenue_fmt: fmtMoney(summary.sales_revenue),
+        pending_amount_fmt: fmtMoney(summary.pending_amount),
+      },
     });
   } catch (err) {
     return next(err);

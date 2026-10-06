@@ -5,72 +5,78 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title><%= title %></title>
   <style>
-    :root{--bg:#fff6ec;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--orange:#ff8a00;--orange2:#ffb866;--shadow:0 18px 45px rgba(0,0,0,.08);--radius:16px;}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-    .topbar{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:16px 22px;font-weight:900;}
-    .wrap{max-width:1200px;margin:0 auto;padding:22px;}
-    .header{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:14px;}
-    h1{margin:0;font-size:22px}
-    .muted{color:var(--muted);font-size:13px}
-    .card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
-    .toolbar{padding:14px 16px;border-bottom:1px solid #f1f5f9;background:#fff;}
-    form{margin:0;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
-    label{display:block;font-size:12px;font-weight:900;color:#7c2d12;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
-    input,select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:700;font-size:13px;color:#374151;outline:none;min-width:160px;}
-    input:focus,select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
-    .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none}
-    .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;box-shadow:0 14px 28px rgba(255,138,0,.28)}
-    .btn-ghost{background:#fff;border:1px solid var(--border);color:#7c2d12}
-    .btn-ghost:hover{background:#fff7ed}
-    table{width:100%;border-collapse:collapse}
-    thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12;background:#fff2e5;border-bottom:1px solid #f1caa2;padding:12px 14px;}
-    tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;vertical-align:middle;}
-    tbody tr:nth-child(2n){background:#fffdf9}
-    tbody tr:hover{background:#fff4e6}
-    .mono{font-variant-numeric:tabular-nums}
-    .badge{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid var(--border);background:#fff;}
-    .b-pending{border-color:#fde68a;background:#fffbeb;color:#92400e}
-    .b-paid{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
-    .b-failed{border-color:#fecaca;background:#fef2f2;color:#991b1b}
-    .b-other{border-color:#e5e7eb;background:#f9fafb;color:#374151}
-    .b-settled{border-color:#bbf7d0;background:#ecfdf5;color:#065f46}
-    .b-not-settled{border-color:#fde68a;background:#fffbeb;color:#92400e}
-    .b-orphan{border-color:#fdba74;background:#fff7ed;color:#9a3412}
-    .b-refunded{border-color:#e5e7eb;background:#f3f4f6;color:#374151}
-    .alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-size:13px;font-weight:700;}
-    .alert-warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}
-    .pager{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:14px 16px;}
+    .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .stat{padding:14px 16px}
+    .stat-k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .stat-v{font-size:20px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+    .stat-sub{font-size:12px;color:#8c7461;margin-top:2px}
+    .settle-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;margin-bottom:14px}
+    .settle-bar .actions{gap:8px}
+    .alert{margin:0 0 14px}
+    .order-code{font-weight:800}
     .settlement-ref{margin-top:4px;font-size:12px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;display:block}
+    .nowrap{white-space:nowrap}
+    @media (min-width:900px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
   </style>
 </head>
 <body>
-  <div class="topbar">Samakan Admin • Orders</div>
+  <%
+    function statusClass(s) {
+      if (s === "PENDING" || s === "DISPENSING") return "b-pending";
+      if (s === "PAID" || s === "DISPENSED") return "b-paid";
+      if (s === "FAILED" || s === "DISPENSE_FAILED" || s === "PAID_ITEM_MISSING" || s === "PAID_STOCK_FAILED") return "b-failed";
+      if (s === "REFUNDED") return "b-refunded";
+      return "b-other";
+    }
+    const prevPage = Math.max(1, page - 1);
+    const nextPage = Math.min(totalPages, page + 1);
+    const qsPrefix = qsBase ? qsBase + "&" : "";
+  %>
   <div class="wrap">
     <div class="header">
       <div>
         <h1>Orders</h1>
-        <div class="muted">Total: <b><%= total %></b></div>
+        <div class="muted"><b><%= total %></b> order · <%= rangeLabel %></div>
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div>
         <a class="btn btn-ghost" href="/admin/orders/reconciliation">Reconciliation</a>
-        <a class="btn btn-ghost" href="/admin">Dashboard</a>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:14px;">
-      <div class="toolbar" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-        <div class="muted">Belum settle: <b><%= unsettled.count %></b> order • Rp <b><%= unsettled.amount_fmt %></b></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <a class="btn btn-primary" href="/admin/settlement/upload">Upload Settlement</a>
-          <a class="btn btn-ghost" href="/admin/settlement/force">Force Settlement</a>
-        </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-k">Total order</div>
+        <div class="stat-v"><%= summary.total_orders %></div>
+        <div class="stat-sub">Sesuai filter</div>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Order dibayar</div>
+        <div class="stat-v"><%= summary.paid_orders %></div>
+        <div class="stat-sub">Paid / dispense</div>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Omzet</div>
+        <div class="stat-v">Rp <%= summary.sales_revenue_fmt %></div>
+        <div class="stat-sub">Dari order dibayar</div>
+      </div>
+      <div class="stat">
+        <div class="stat-k">Pending</div>
+        <div class="stat-v">Rp <%= summary.pending_amount_fmt %></div>
+        <div class="stat-sub">Menunggu bayar</div>
+      </div>
+    </div>
+
+    <div class="card settle-bar">
+      <div class="muted">Belum settle: <b><%= unsettled.count %></b> order · Rp <b><%= unsettled.amount_fmt %></b></div>
+      <div class="actions">
+        <a class="btn btn-primary" href="/admin/settlement/upload">Upload Settlement</a>
+        <a class="btn btn-ghost" href="/admin/settlement/force">Force Settlement</a>
       </div>
     </div>
 
     <% if (orphan && orphan.count > 0) { %>
       <div class="alert alert-warn">
-        Ada <b><%= orphan.count %></b> order dengan flag settle palsu (FLAG_ORPHAN, saldo belum naik) • Rp <b><%= orphan.amount_fmt %></b>.
+        Ada <b><%= orphan.count %></b> order dengan flag settle palsu (FLAG_ORPHAN, saldo belum naik) · Rp <b><%= orphan.amount_fmt %></b>.
         Reset / settle resmi di <a href="/admin/settlement">Saldo Merchant</a>.
       </div>
     <% } %>
@@ -78,10 +84,26 @@
     <div class="card">
       <div class="toolbar">
         <form method="GET" action="/admin/orders">
+          <div class="date-presets" aria-label="Pilih rentang cepat">
+            <% presets.forEach(function(p){ %>
+              <a class="chip<%= p.active ? ' is-active' : '' %>" href="/admin/orders?<%= p.qs %>"><%= p.label %></a>
+            <% }) %>
+          </div>
+
           <div>
-            <label>Status</label>
-            <select name="status">
-              <option value="" <%= filters.status ? "" : "selected" %>>All</option>
+            <label for="f-date-from">Dari tanggal</label>
+            <input id="f-date-from" type="date" name="date_from" value="<%= filters.date_from %>" />
+          </div>
+
+          <div>
+            <label for="f-date-to">Sampai tanggal</label>
+            <input id="f-date-to" type="date" name="date_to" value="<%= filters.date_to %>" />
+          </div>
+
+          <div>
+            <label for="f-status">Status</label>
+            <select id="f-status" name="status">
+              <option value="" <%= filters.status ? "" : "selected" %>>Semua status</option>
               <% ["PENDING","PAID","PAID_ITEM_MISSING","PAID_STOCK_FAILED","DISPENSING","DISPENSED","DISPENSE_FAILED","FAILED","EXPIRED","CANCELLED","REFUNDED"].forEach(function(s){ %>
                 <option value="<%= s %>" <%= filters.status === s ? "selected" : "" %>><%= s %></option>
               <% }) %>
@@ -89,9 +111,9 @@
           </div>
 
           <div>
-            <label>Merchant</label>
-            <select name="merchant_id">
-              <option value="" <%= filters.merchant_id ? "" : "selected" %>>All</option>
+            <label for="f-merchant">Merchant</label>
+            <select id="f-merchant" name="merchant_id">
+              <option value="" <%= filters.merchant_id ? "" : "selected" %>>Semua merchant</option>
               <% (merchants || []).forEach(function(m){ %>
                 <option value="<%= m.id %>" <%= String(filters.merchant_id) === String(m.id) ? "selected" : "" %>>
                   <%= m.merchant_code ? m.merchant_code + " · " : "" %><%= m.name %> (#<%= m.id %>)
@@ -101,33 +123,32 @@
           </div>
 
           <div>
-            <label>Machine</label>
-            <select name="machine_id">
-              <option value="" <%= filters.machine_id ? "" : "selected" %>>All</option>
+            <label for="f-machine">Machine</label>
+            <select id="f-machine" name="machine_id">
+              <option value="" <%= filters.machine_id ? "" : "selected" %>>Semua mesin</option>
               <% (machines || []).forEach(function(m){ %>
                 <option value="<%= m.id %>" <%= String(filters.machine_id) === String(m.id) ? "selected" : "" %>>
-                  <%= m.code %> <%= m.name ? ('• ' + m.name) : '' %>
+                  <%= m.code %> <%= m.name ? ('· ' + m.name) : '' %>
                 </option>
               <% }) %>
             </select>
           </div>
 
           <div>
-            <label>Settlement Ref</label>
-            <input type="text" name="settlement_ref" value="<%= filters.settlement_ref || '' %>" placeholder="e.g. STL-20260508" />
+            <label for="f-ref">Settlement ref</label>
+            <input id="f-ref" type="text" name="settlement_ref" value="<%= filters.settlement_ref || '' %>" placeholder="mis. STL-20260508" />
           </div>
 
-
           <div>
-            <label>Limit</label>
-            <select name="limit">
+            <label for="f-limit">Per halaman</label>
+            <select id="f-limit" name="limit">
               <% [10,20,30,50].forEach(function(n){ %>
                 <option value="<%= n %>" <%= String(limit) === String(n) ? "selected" : "" %>><%= n %></option>
               <% }) %>
             </select>
           </div>
 
-          <button class="btn btn-primary" type="submit">Filter</button>
+          <button class="btn btn-primary" type="submit">Terapkan</button>
           <a class="btn btn-ghost" href="/admin/orders">Reset</a>
         </form>
       </div>
@@ -140,25 +161,20 @@
             <th>Machine</th>
             <th>Status</th>
             <th>Total</th>
-            <th>Created</th>
-            <th>Paid</th>
+            <th>Dibuat</th>
+            <th>Dibayar</th>
             <th>Settlement</th>
-            <th>Action</th>
+            <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          <% (rows || []).forEach(function(r){
-              const cls = (r.status === "PENDING" || r.status === "DISPENSING") ? "b-pending"
-                : (r.status === "PAID" || r.status === "DISPENSED" ? "b-paid"
-                : ((r.status === "FAILED" || r.status === "DISPENSE_FAILED" || r.status === "PAID_ITEM_MISSING" || r.status === "PAID_STOCK_FAILED") ? "b-failed"
-                : (r.status === "REFUNDED" ? "b-refunded" : "b-other")));
-          %>
+          <% (rows || []).forEach(function(r){ %>
             <tr>
-              <td class="mono"><b><%= r.order_code %></b><div class="muted">#<%= r.id %></div></td>
+              <td class="mono"><span class="order-code"><%= r.order_code %></span><div class="muted">#<%= r.id %></div></td>
               <td><b><%= r.merchant_name %></b><div class="muted mono"><%= r.merchant_code || "—" %> · ID <%= r.merchant_id %></div></td>
               <td><b><%= r.machine_code %></b><div class="muted"><%= r.machine_name || "-" %></div></td>
-              <td><span class="badge <%= cls %>"><%= r.status %></span></td>
-              <td class="mono">Rp <b><%= r.total_fmt %></b></td>
+              <td><span class="badge <%= statusClass(r.status) %>"><%= r.status %></span></td>
+              <td class="mono nowrap">Rp <b><%= r.total_fmt %></b></td>
               <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
               <td class="mono">
@@ -170,25 +186,20 @@
                   <div class="muted mono settlement-ref" title="<%= r.settlement_ref %>"><%= r.settlement_ref %></div>
                 <% } %>
               </td>
-              <td><a class="btn btn-ghost" href="/admin/orders/<%= r.id %>">Detail</a></td>
+              <td><a class="btn btn-ghost btn-sm" href="/admin/orders/<%= r.id %>">Detail</a></td>
             </tr>
           <% }) %>
           <% if (!rows || rows.length === 0) { %>
-            <tr><td colspan="9" class="muted" style="padding:16px;">Tidak ada data.</td></tr>
+            <tr><td colspan="9" class="muted" style="padding:22px;text-align:center;">Tidak ada order untuk filter ini.</td></tr>
           <% } %>
         </tbody>
       </table>
 
       <div class="pager">
-        <div class="muted">Page <b><%= page %></b> / <b><%= totalPages %></b></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <%
-            const prevPage = Math.max(1, page - 1);
-            const nextPage = Math.min(totalPages, page + 1);
-            const qsBase = `status=${encodeURIComponent(filters.status||"")}&merchant_id=${encodeURIComponent(filters.merchant_id||"")}&machine_id=${encodeURIComponent(filters.machine_id||"")}&settlement_ref=${encodeURIComponent(filters.settlement_ref||"")}&limit=${encodeURIComponent(limit)}`;
-          %>
-          <a class="btn btn-ghost" href="/admin/orders?<%= qsBase %>&page=<%= prevPage %>">Prev</a>
-          <a class="btn btn-ghost" href="/admin/orders?<%= qsBase %>&page=<%= nextPage %>">Next</a>
+        <div class="muted">Halaman <b><%= page %></b> dari <b><%= totalPages %></b></div>
+        <div class="actions">
+          <a class="btn btn-ghost btn-sm<%= page <= 1 ? ' is-disabled' : '' %>" href="/admin/orders?<%= qsPrefix %>page=<%= prevPage %>"<%- page <= 1 ? ' aria-disabled="true" tabindex="-1"' : '' %>>‹ Sebelumnya</a>
+          <a class="btn btn-ghost btn-sm<%= page >= totalPages ? ' is-disabled' : '' %>" href="/admin/orders?<%= qsPrefix %>page=<%= nextPage %>"<%- page >= totalPages ? ' aria-disabled="true" tabindex="-1"' : '' %>>Berikutnya ›</a>
         </div>
       </div>
     </div>
