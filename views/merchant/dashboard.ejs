@@ -6,118 +6,171 @@
   <title><%= title %></title>
   <style>
     .merchant-dash { width: 100%; }
-    .merchant-dash-intro {
-      margin: 0 0 20px;
-      padding: 16px 18px;
-      border-radius: 14px;
-      background: #fff;
-      border: 1px solid #e2e8f0;
+    .dash-head { display:flex; justify-content:space-between; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:14px; }
+    .dash-head h2 { margin:0; font-size:22px; font-weight:700; }
+    .muted { color:#8e7269; font-size:13px; line-height:1.45; }
+    .filter { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+    .field { display:grid; gap:5px; }
+    .field label { font-size:12px; color:#8e7269; font-weight:500; }
+    .field input { min-width:160px; padding:9px 10px; border-radius:10px; border:1px solid #f4e2d9; background:#fff; color:#2a1a16; }
+    .btn { border:0; border-radius:10px; padding:10px 14px; color:#fff; font-weight:600; cursor:pointer; background:#d91f26; box-shadow:0 2px 8px rgba(217,31,38,0.18); }
+    .btn:hover { background:#bc1a21; }
+    .stats { display:grid; grid-template-columns:repeat(3, minmax(160px, 1fr)); gap:10px; margin-bottom:14px; }
+    .stats-2 { grid-template-columns:repeat(2, minmax(160px, 1fr)); }
+    .stats-4 { grid-template-columns:repeat(4, minmax(140px, 1fr)); }
+    .stat { border:1px solid #f4e2d9; border-radius:14px; background:#fff; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.03); }
+    .stat b { display:block; font-size:11px; color:#8e7269; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
+    .stat h3 { margin:0; font-size:26px; line-height:1.2; color:#2a1a16; font-weight:700; }
+    .stat .sub { margin-top:6px; font-size:12px; color:#8e7269; line-height:1.4; }
+    .section-label { margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#8e7269; }
+    .charts { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-bottom:6px; }
+    .chart-card {
+      border:1px solid #f4e2d9; border-radius:14px; background:#fff;
+      padding:16px 16px 12px; box-shadow:0 2px 6px rgba(0,0,0,0.03);
+      min-height:320px; display:flex; flex-direction:column;
     }
-    .merchant-dash-intro h2 {
-      margin: 0 0 6px;
-      font-size: 18px;
-      font-weight: 700;
-      color: #1e293b;
-    }
-    .merchant-dash-intro p {
-      margin: 0;
-      font-size: 14px;
-      line-height: 1.5;
-      color: #64748b;
-    }
-    .merchant-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 14px;
-    }
-    .merchant-stat {
-      padding: 16px 18px;
-      border-radius: 14px;
-      background: #fff;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
-    .merchant-stat-k {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 10px;
-    }
-    .merchant-stat-v {
-      font-size: 28px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      color: #1e293b;
-      line-height: 1.15;
-    }
-    .merchant-stat-sub {
-      margin-top: 8px;
-      font-size: 12px;
-      color: #64748b;
-      line-height: 1.45;
+    .chart-card h3 { margin:0 0 4px; font-size:15px; font-weight:700; color:#2a1a16; }
+    .chart-card .chart-sub { margin:0 0 12px; font-size:12px; color:#8e7269; }
+    .chart-wrap { position:relative; flex:1; min-height:240px; }
+    .chart-full { grid-column:1 / -1; }
+    .chart-empty {
+      flex:1; display:flex; align-items:center; justify-content:center;
+      color:#a98d83; font-size:13px; border:1px dashed #f4e2d9; border-radius:12px;
+      min-height:220px; background:#fffaf7;
     }
     .merchant-stat-note {
-      margin-top: 18px;
-      padding: 12px 14px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: #64748b;
-      border-radius: 12px;
-      border: 1px dashed #cbd5e1;
-      background: #f8fafc;
+      margin-top:14px;
+      padding:12px 14px;
+      font-size:12px;
+      line-height:1.5;
+      color:#8e7269;
+      border-radius:12px;
+      border:1px dashed #f4e2d9;
+      background:#fffaf7;
+    }
+    .merchant-stat-note a { color:#d91f26; font-weight:700; text-decoration:none; }
+    .merchant-stat-note a:hover { text-decoration:underline; }
+    @media (max-width: 900px) {
+      .stats, .stats-2, .stats-4, .charts { grid-template-columns:1fr; }
+      .chart-full { grid-column:auto; }
     }
   </style>
 </head>
 <body>
   <div class="merchant-dash">
-    <section class="merchant-dash-intro">
-      <h2>Selamat datang<% if (user && user.role) { %>, <%= user.role %><% } %></h2>
-      <p>Ringkasan order untuk merchant Anda. Gunakan menu di kiri untuk daftar order dan generate QRIS.</p>
+    <section class="dash-head">
+      <div>
+        <h2>Ringkasan penjualan</h2>
+        <div class="muted">Omzet, status order, dan produk terlaris untuk merchant Anda.</div>
+      </div>
+      <form method="GET" action="/merchant" class="filter">
+        <div class="field">
+          <label>Dari tanggal</label>
+          <input type="date" name="date_from" value="<%= dateFrom %>" />
+        </div>
+        <div class="field">
+          <label>Sampai tanggal</label>
+          <input type="date" name="date_to" value="<%= dateTo %>" />
+        </div>
+        <button class="btn" type="submit">Apply</button>
+      </form>
     </section>
 
-    <section class="merchant-stats" aria-label="Statistik order">
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">Total order</div>
-        <div class="merchant-stat-v"><%= stats.total_orders %></div>
-        <div class="merchant-stat-sub">Semua waktu</div>
+    <section class="stats" aria-label="Ringkasan rentang tanggal">
+      <article class="stat">
+        <b>Omzet</b>
+        <h3>Rp <%= summary.turnoverFmt %></h3>
+        <div class="sub">Order yang sudah terbayar di rentang ini</div>
       </article>
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">Nominal menunggu bayar</div>
-        <div class="merchant-stat-v" style="font-size:22px;"><%= statsFmt.pending_amount %></div>
-        <div class="merchant-stat-sub"><%= stats.pending_count %> order berstatus PENDING</div>
+      <article class="stat">
+        <b>Transaksi</b>
+        <h3><%= summary.transactions %></h3>
+        <div class="sub">PAID sampai dispensed</div>
       </article>
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">Sukses bayar</div>
-        <div class="merchant-stat-v"><%= stats.paid_flow_count %></div>
-        <div class="merchant-stat-sub">Sudah terbayar (PAID / DISPENSING / DISPENSED). Sudah keluar mesin: <strong><%= stats.dispensed_count %></strong></div>
+      <article class="stat">
+        <b>Menunggu bayar</b>
+        <h3 style="font-size:22px;">Rp <%= summary.pendingFmt %></h3>
+        <div class="sub"><%= summary.pendingCount %> order PENDING</div>
       </article>
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">QRIS / ref pembayaran</div>
-        <div class="merchant-stat-v"><%= stats.qris_recorded_count %></div>
-        <div class="merchant-stat-sub">Order yang punya payment_ref atau payment_provider di database</div>
+    </section>
+
+    <section class="charts">
+      <article class="chart-card">
+        <h3>Omzet harian</h3>
+        <p class="chart-sub">Nilai penjualan (Rp) dan jumlah transaksi</p>
+        <% if (!charts.daily || !charts.daily.length) { %>
+          <div class="chart-empty">Belum ada data di rentang ini</div>
+        <% } else { %>
+          <div class="chart-wrap"><canvas id="chart-daily" aria-label="Omzet harian"></canvas></div>
+        <% } %>
+      </article>
+
+      <article class="chart-card">
+        <h3>Status order</h3>
+        <p class="chart-sub">Distribusi status di rentang tanggal</p>
+        <% if (!charts.status || !charts.status.length) { %>
+          <div class="chart-empty">Belum ada order</div>
+        <% } else { %>
+          <div class="chart-wrap"><canvas id="chart-status" aria-label="Status order"></canvas></div>
+        <% } %>
+      </article>
+
+      <article class="chart-card chart-full">
+        <h3>Produk terlaris</h3>
+        <p class="chart-sub">8 produk teratas menurut jumlah terjual</p>
+        <% if (!charts.topProducts || !charts.topProducts.length) { %>
+          <div class="chart-empty">Belum ada penjualan produk di rentang ini</div>
+        <% } else { %>
+          <div class="chart-wrap" style="min-height:280px;"><canvas id="chart-products" aria-label="Produk terlaris"></canvas></div>
+        <% } %>
       </article>
     </section>
 
     <% if (balance) { %>
-    <section class="merchant-stats" style="margin-top:16px;" aria-label="Saldo merchant">
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">Saldo tersedia</div>
-        <div class="merchant-stat-v" style="font-size:22px;"><%= balance.balance_fmt %></div>
-        <div class="merchant-stat-sub">Total net setelah fee settlement</div>
+    <div class="section-label">Saldo</div>
+    <section class="stats stats-2" aria-label="Saldo merchant">
+      <article class="stat">
+        <b>Saldo tersedia</b>
+        <h3 style="font-size:22px;"><%= balance.balance_fmt %></h3>
+        <div class="sub">Total bersih setelah fee settlement</div>
       </article>
-      <article class="merchant-stat">
-        <div class="merchant-stat-k">Total gross settled</div>
-        <div class="merchant-stat-v" style="font-size:18px;"><%= balance.total_gross_fmt %></div>
-        <div class="merchant-stat-sub">Fee Midtrans: <%= balance.total_midtrans_fee_fmt %></div>
+      <article class="stat">
+        <b>Total gross settled</b>
+        <h3 style="font-size:22px;"><%= balance.total_gross_fmt %></h3>
+        <div class="sub">Fee Midtrans: <%= balance.total_midtrans_fee_fmt %></div>
       </article>
     </section>
     <% } %>
 
+    <div class="section-label">Semua waktu</div>
+    <section class="stats stats-4" aria-label="Statistik semua waktu">
+      <article class="stat">
+        <b>Total order</b>
+        <h3><%= stats.total_orders %></h3>
+      </article>
+      <article class="stat">
+        <b>Sukses bayar</b>
+        <h3><%= stats.paid_flow_count %></h3>
+        <div class="sub">Keluar mesin: <%= stats.dispensed_count %></div>
+      </article>
+      <article class="stat">
+        <b>Menunggu bayar</b>
+        <h3 style="font-size:20px;"><%= statsFmt.pending_amount %></h3>
+        <div class="sub"><%= stats.pending_count %> order PENDING</div>
+      </article>
+      <article class="stat">
+        <b>QRIS tercatat</b>
+        <h3><%= stats.qris_recorded_count %></h3>
+      </article>
+    </section>
+
     <p class="merchant-stat-note">
-      Saldo dihitung dari order yang sudah di-settle oleh admin. Lihat riwayat lengkap di halaman <a href="/merchant/balance" style="color:#2563eb;">Saldo</a>.
+      Saldo dihitung dari order yang sudah di-settle oleh admin. Lihat riwayat lengkap di halaman <a href="/merchant/balance">Saldo</a>.
     </p>
   </div>
+
+  <script type="application/json" id="dash-charts-data"><%- JSON.stringify(charts || { daily: [], status: [], topProducts: [] }).replace(/</g, '\\u003c') %></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
+  <script src="/public/js/admin-dashboard-charts.js?v=20261006j" defer></script>
 </body>
 </html>

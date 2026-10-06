@@ -356,10 +356,9 @@ body.shell-app::after {
   gap: 12px;
   padding: 10px var(--s-safe-r) 10px var(--s-safe-l);
   padding-top: calc(10px + env(safe-area-inset-top));
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--s-border);
+  background: linear-gradient(90deg, #f8832a 0%, #f15822 46%, #d91f26 100%);
+  border-bottom: 0;
+  box-shadow: 0 8px 18px rgba(140, 23, 26, 0.16);
 }
 
 .shell-menu-toggle {
@@ -369,14 +368,14 @@ body.shell-app::after {
   width: 42px;
   height: 42px;
   border-radius: 11px;
-  border: 1px solid var(--s-border);
-  background: var(--s-surface);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.16);
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .shell-menu-toggle:hover {
-  background: var(--s-primary-50);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .shell-hamburger {
@@ -392,7 +391,7 @@ body.shell-app::after {
   display: block;
   height: 2px;
   width: 100%;
-  background: var(--s-text2);
+  background: #fff;
   border-radius: 2px;
   transition: transform 0.3s ease, opacity 0.2s ease, width 0.2s ease;
   transform-origin: center;
@@ -424,13 +423,13 @@ body.shell-app::after {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--s-primary);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .shell-topbar-h {
   font-size: 17px;
   font-weight: 800;
-  color: var(--s-text);
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -441,9 +440,9 @@ body.shell-app::after {
   align-items: center;
   padding: 5px 11px;
   border-radius: 999px;
-  background: var(--s-primary-50);
-  border: 1px solid var(--s-primary-100);
-  color: var(--s-primary-700);
+  background: rgba(255, 255, 255, 0.94);
+  border: 0;
+  color: #8c171a;
   font-size: 12px;
   font-weight: 700;
 }
@@ -1450,6 +1449,26 @@ body.shell-app::after {
   .shell form.filters > .btn,
   .shell form.filters > button {
     flex: 0 0 auto;
+  }
+
+  /* Dashboard: tanggal dan Apply satu baris, tombol rata dengan kotak input */
+  .shell .dash-head .filter {
+    flex-wrap: nowrap;
+    align-items: flex-end;
+  }
+
+  .shell .dash-head .filter .field {
+    flex: 0 0 176px;
+    width: 176px;
+  }
+
+  .shell .dash-head .filter > button {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    height: 43px;
+    min-height: 43px;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 
   .shell-role-badge {

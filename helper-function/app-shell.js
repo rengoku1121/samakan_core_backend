@@ -3,7 +3,7 @@ const { escapeHtml } = require("../utils/escape-html");
 const { payoutUiEnabled } = require("./feature-flags");
 
 const SHELL_ASSET_VER = "20261006d";
-const THEME_VER = "20261006d";
+const THEME_VER = "20261006j";
 const THEME_COLOR = "#d91f26";
 
 /** Full URL path (e.g. /auth/login). req.path alone is wrong under mounted routers (/login only). */

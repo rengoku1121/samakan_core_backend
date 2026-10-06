@@ -609,18 +609,27 @@ exports.updatePaymentWebhookStatus = async ({
   return result;
 };
 
-exports.getAdminDashboardSummary = async ({ dateFrom, dateTo }) => {
+function merchantScope(merchantId, params) {
+  if (merchantId == null || merchantId === "") return "";
+  params.push(merchantId);
+  return " AND o.merchant_id = ?";
+}
+
+exports.getAdminDashboardSummary = async ({ dateFrom, dateTo, merchantId = null }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
   const params = [dateFrom, dateTo];
+  const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN o.total ELSE 0 END), 0) AS turnover,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN COALESCE(o.owner_fee_amount, 0) ELSE 0 END), 0) AS profit,
-      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions
+      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions,
+      COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN o.total ELSE 0 END), 0) AS pending_amount,
+      COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
     FROM orders o
     WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
   `;
 
   const [rows] = await pool.query(sql, params);
@@ -628,13 +637,17 @@ exports.getAdminDashboardSummary = async ({ dateFrom, dateTo }) => {
     turnover: Number(rows[0]?.turnover || 0),
     profit: Number(rows[0]?.profit || 0),
     transactions: Number(rows[0]?.transactions || 0),
+    pending_amount: Number(rows[0]?.pending_amount || 0),
+    pending_count: Number(rows[0]?.pending_count || 0),
   };
 };
 
 /** Omzet & transaksi per hari (untuk line/bar chart). */
-exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo }) => {
+exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo, merchantId = null }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
+  const params = [dateFrom, dateTo];
+  const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
       DATE(o.created_at) AS day,
@@ -642,31 +655,44 @@ exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo }) => {
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions
     FROM orders o
     WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
     GROUP BY DATE(o.created_at)
     ORDER BY day ASC
   `;
-  const [rows] = await pool.query(sql, [dateFrom, dateTo]);
-  return (rows || []).map((r) => ({
-    day: r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10),
-    turnover: Number(r.turnover || 0),
-    transactions: Number(r.transactions || 0),
-  }));
+  const [rows] = await pool.query(sql, params);
+  return (rows || []).map((r) => {
+    let day = "";
+    if (r.day instanceof Date && !Number.isNaN(r.day.getTime())) {
+      const y = r.day.getFullYear();
+      const m = String(r.day.getMonth() + 1).padStart(2, "0");
+      const d = String(r.day.getDate()).padStart(2, "0");
+      day = `${y}-${m}-${d}`;
+    } else {
+      day = String(r.day || "").slice(0, 10);
+    }
+    return {
+      day,
+      turnover: Number(r.turnover || 0),
+      transactions: Number(r.transactions || 0),
+    };
+  });
 };
 
 /** Breakdown status order di rentang tanggal. */
-exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo }) => {
+exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo, merchantId = null }) => {
+  const params = [dateFrom, dateTo];
+  const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
       o.status,
       COUNT(1) AS count
     FROM orders o
     WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
     GROUP BY o.status
     ORDER BY count DESC
   `;
-  const [rows] = await pool.query(sql, [dateFrom, dateTo]);
+  const [rows] = await pool.query(sql, params);
   return (rows || []).map((r) => ({
     status: String(r.status || "UNKNOWN"),
     count: Number(r.count || 0),
@@ -674,9 +700,12 @@ exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo }) => {
 };
 
 /** Top produk terjual (order paid-like) di rentang tanggal. */
-exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, limit = 8 }) => {
+exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, merchantId = null, limit = 8 }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
+  const params = [dateFrom, dateTo];
+  const merchantSql = merchantScope(merchantId, params);
+  params.push(Number(limit) || 8);
   const sql = `
     SELECT
       COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk') AS product_name,
@@ -685,13 +714,13 @@ exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, limit = 8 }) =
     FROM order_items oi
     INNER JOIN orders o ON o.id = oi.order_id
     WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
       AND o.status IN ${PAID_LIKE}
     GROUP BY COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk')
     ORDER BY qty DESC, revenue DESC
     LIMIT ?
   `;
-  const [rows] = await pool.query(sql, [dateFrom, dateTo, limit]);
+  const [rows] = await pool.query(sql, params);
   return (rows || []).map((r) => ({
     product_name: String(r.product_name || "Produk"),
     qty: Number(r.qty || 0),
