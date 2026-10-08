@@ -23,6 +23,25 @@ module.exports = async function run(ctx) {
   eq("settlement upload GET", uploadGet.status, 200);
   const forceGet = await request(ctx, "GET", "/admin/settlement/force", { jar: admin.jar });
   eq("settlement force GET", forceGet.status, 200);
+  const hidden = (forceGet.text.match(/name="eligible_orders" value="([^"]*)"/) || [])[1] || "";
+  const decoded = hidden
+    .replace(/&amp;/g, "&")
+    .replace(/&#34;|&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+  let formOrders = null;
+  try {
+    formOrders = JSON.parse(decoded);
+  } catch (_) {
+    formOrders = null;
+  }
+  ok("form force mengirim JSON utuh", Array.isArray(formOrders), decoded.slice(0, 120));
+  ok(
+    "form force memuat order dispensed",
+    formOrders.some((o) => Number(o.id) === Number(orderId)),
+    formOrders && formOrders.map((o) => o.id)
+  );
 
   const emptyFile = await request(ctx, "POST", "/admin/settlement/upload/preview", {
     jar: admin.jar,

@@ -43,7 +43,7 @@
 
     <div class="card">
       <form method="POST" action="/admin/settlement/force">
-        <input type="hidden" name="eligible_orders" value="<%= eligibleJson.replace(/"/g, '&quot;') %>" />
+        <input type="hidden" name="eligible_orders" value="<%= eligibleJson %>" />
         <label>Catatan (opsional)</label>
         <textarea name="notes" placeholder="contoh: Force settle batch Mei 2026"></textarea>
         <div class="row">
