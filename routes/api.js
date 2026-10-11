@@ -8,7 +8,9 @@ router.use(api.requireKioskInternalToken);
 
 router.get("/v1/kiosk/ui", api.getKioskUi);
 router.get("/v1/machines/:machineCode/catalog", api.getCatalog);
+router.get("/v1/machines/:machineCode/screensaver", api.getScreensaver);
 router.post("/v1/machines/:machineCode/heartbeat", api.postHeartbeat);
+router.get("/v1/machines/:machineCode/apk", api.getKioskApk);
 router.post("/v1/machines/:machineCode/crash-report", api.reportCrash);
 router.post("/v1/machines/:machineCode/orders", api.createMachineOrder);
 router.get("/v1/orders/:orderCode/status", api.getOrderStatus);

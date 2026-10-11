@@ -159,6 +159,8 @@ service-account*.json
 # Unggahan runtime dan hasil uji
 uploads/
 public/uploads/
+storage/kiosk-apk/*
+!storage/kiosk-apk/.gitkeep
 scripts/e2e/out/
 
 # Dump database lokal

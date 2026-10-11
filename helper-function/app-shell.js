@@ -28,6 +28,8 @@ const ICONS = {
   cloud: '<path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
   history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>',
+  download: '<path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/>',
+  screen: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10.5 9.5v5l4-2.5z"/>',
   logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
 };
 
@@ -54,6 +56,7 @@ const ADMIN_NAV = [
     items: [
       { href: "/admin/merchants", label: "Merchants", icon: "store" },
       { href: "/admin/locations", label: "Locations", icon: "pin" },
+      { href: "/admin/screensaver", label: "Iklan Screensaver", icon: "screen", roles: ["superadmin"] },
     ],
   },
   {
@@ -66,7 +69,7 @@ const ADMIN_NAV = [
   {
     group: "Sistem",
     items: [
-      { href: "/admin/xy", label: "XY Platform", icon: "cloud" },
+      { href: "/admin/kiosk-ota", label: "Pembaruan APK", icon: "download", roles: ["superadmin"] },
       { href: "/admin/activity", label: "Riwayat Aktivitas", icon: "history" },
       { href: "/admin/settings", label: "Settings", icon: "cog" },
     ],
@@ -99,6 +102,9 @@ const PAGE_TITLES = [
   ["/admin/payouts", "Payout Merchant"],
   ["/admin/xy", "XY Platform"],
   ["/admin/activity", "Riwayat Aktivitas"],
+  ["/admin/kiosk-ota", "Pembaruan APK"],
+  ["/admin/screensaver/settings", "Pengaturan Screensaver"],
+  ["/admin/screensaver", "Iklan Screensaver"],
   ["/admin/settings", "Settings"],
   ["/orders/qris", "Generate QRIS"],
   ["/orders", "Orders"],
@@ -136,7 +142,10 @@ function activeHref(groups, rawPath) {
 }
 
 function navForRole(userRole) {
-  const groups = userRole === "merchant" ? MERCHANT_NAV : ADMIN_NAV;
+  const role = String(userRole || "").toLowerCase();
+  const groups = (role === "merchant" ? MERCHANT_NAV : ADMIN_NAV)
+    .map((g) => ({ ...g, items: g.items.filter((it) => !it.roles || it.roles.includes(role)) }))
+    .filter((g) => g.items.length);
   if (payoutUiEnabled) return groups;
   return groups
     .map((g) => ({
@@ -180,7 +189,13 @@ function wrapHtmlWithShell(html, req) {
 
   const brandHref = userRole === "merchant" ? "/merchant" : "/admin";
   const workspaceBadge =
-    userRole === "merchant" ? "Merchant" : userRole === "staff" ? "Staff" : "Admin";
+    userRole === "merchant"
+      ? "Merchant"
+      : userRole === "staff"
+        ? "Staff"
+        : userRole === "superadmin"
+          ? "Superadmin"
+          : "Admin";
   const headerTitle = headerTitleForPath(pathFull);
 
   const safeHeaderTitle = escapeHtml(headerTitle);
@@ -252,4 +267,5 @@ module.exports = {
   themeHeadExtras,
   headerTitleForPath,
   activeHref,
+  navForRole,
 };

@@ -19,6 +19,13 @@ const {
   secureEqual,
 } = require("../helper-function/http");
 const { absoluteImageUrl } = require("../helper-function/product-image");
+const screensaverModel = require("../models/screensaver");
+const kioskOtaModel = require("../models/kiosk-ota");
+const { buildPlaylist, jakartaToday } = require("../helper-function/screensaver-playlist");
+const { withPlayerSettings } = require("../helper-function/screensaver-settings");
+const { parseInstalledVersion, parseVersionCode, publicUpdate } = require("../helper-function/kiosk-ota");
+const { storedFilePath } = require("../helper-function/kiosk-apk");
+const fs = require("fs");
 
 exports.requireKioskInternalToken = (req, res, next) => {
   if (req.method === "OPTIONS") return next();
@@ -67,7 +74,7 @@ exports.getCatalog = async (req, res, next) => {
     }
 
     const [slots, kioskUi] = await Promise.all([
-      slotModel.listActiveByMachineIdForMerchantUi(machine.id),
+      slotModel.listForKioskCatalog(machine.id),
       systemSettings.getKioskUiConfig(),
     ]);
 
@@ -103,8 +110,49 @@ exports.getCatalog = async (req, res, next) => {
             requires_heating: Boolean(s.requires_heating),
             expires_at: expiresAt,
             days_until_expiry: daysUntil(expiresAt),
+            is_expired: Number(s.is_expired) === 1,
           };
         }),
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+/**
+ * GET /api/v1/machines/:machineCode/screensaver
+ * Playlist iklan efektif untuk mesin ini. Harga, catatan kontrak, dan status
+ * pembayaran tidak pernah dikirim ke kiosk.
+ */
+exports.getScreensaver = async (req, res, next) => {
+  try {
+    const machineCode = clean(req.params.machineCode);
+    if (!machineCode) {
+      return jsonErr(res, 400, "machineCode is required");
+    }
+
+    const machine = await machineModel.findActiveByCode(machineCode);
+    if (!machine) {
+      return jsonErr(res, 404, "Machine not found or inactive");
+    }
+
+    const [{ campaigns, media }, player] = await Promise.all([
+      screensaverModel.resolveForMachine(machine, jakartaToday()),
+      systemSettings.getScreensaverPlayerConfig(),
+    ]);
+    const playlist = withPlayerSettings(
+      buildPlaylist(campaigns, media, (stored) => absoluteImageUrl(req, stored)),
+      player
+    );
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({
+      success: true,
+      data: {
+        machine_code: machine.code,
+        generated_at: new Date().toISOString(),
+        ...playlist,
       },
     });
   } catch (err) {
@@ -126,15 +174,58 @@ exports.postHeartbeat = async (req, res, next) => {
     }
 
     const appVersion = clean(req.body?.app_version) || null;
-    await machineModel.touchHeartbeat({ id: machine.id, app_version: appVersion });
+    const versionCode = parseInstalledVersion(req.body?.version_code);
+    const otaStatus = String(req.body?.ota_status || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "")
+      .slice(0, 32) || null;
+    const otaError = String(req.body?.ota_error || "").replace(/\s+/g, " ").trim().slice(0, 255) || null;
+    await machineModel.touchHeartbeat({
+      id: machine.id,
+      app_version: appVersion,
+      version_code: versionCode,
+      ota_status: otaStatus,
+      ota_error: otaError,
+    });
 
+    const offered = versionCode == null ? null : await kioskOtaModel.pickForMachine(machine.id, versionCode);
+    const update = publicUpdate(offered);
+
+    res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({
       success: true,
       data: {
         machine_code: machine.code,
         received_at: new Date().toISOString(),
+        update,
       },
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+/** GET /api/v1/machines/:machineCode/apk?version_code=N — hanya rilis yang resolver izinkan. */
+exports.getKioskApk = async (req, res, next) => {
+  try {
+    const machineCode = clean(req.params.machineCode);
+    const versionCode = parseVersionCode(req.query.version_code);
+    if (!machineCode || versionCode == null) return jsonErr(res, 404, "APK not found");
+
+    const machine = await machineModel.findActiveByCode(machineCode);
+    if (!machine) return jsonErr(res, 404, "Machine not found or inactive");
+
+    const offered = await kioskOtaModel.pickForMachine(machine.id, versionCode - 1);
+    if (!offered || Number(offered.version_code) !== versionCode) return jsonErr(res, 404, "APK not found");
+
+    const abs = storedFilePath(offered.file_name);
+    if (!abs || !fs.existsSync(abs)) return jsonErr(res, 404, "APK not found");
+
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    res.setHeader("Content-Length", String(offered.file_size));
+    return res.sendFile(abs);
   } catch (err) {
     return next(err);
   }

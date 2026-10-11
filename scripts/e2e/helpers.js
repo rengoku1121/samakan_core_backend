@@ -211,6 +211,24 @@ async function merchantCsrf(ctx, session) {
   return csrf;
 }
 
+async function cleanupScreensaverCampaigns(like) {
+  const { removeStoredFile } = require("../../helper-function/screensaver-media");
+  let rows = [];
+  try {
+    [rows] = await pool.query(
+      `SELECT m.file_path FROM screensaver_campaign_media m
+       INNER JOIN screensaver_campaigns c ON c.id = m.campaign_id
+       WHERE c.name LIKE ?`,
+      [like]
+    );
+  } catch (err) {
+    if (err.code === "ER_NO_SUCH_TABLE") return;
+    throw err;
+  }
+  rows.forEach((r) => removeStoredFile(r.file_path));
+  await pool.query(`DELETE FROM screensaver_campaigns WHERE name LIKE ?`, [like]);
+}
+
 async function cleanupE2e() {
   const like = `${TAG}%`;
   try {
@@ -222,6 +240,7 @@ async function cleanupE2e() {
     );
   } catch (_) {}
   await pool.query(`DELETE FROM users WHERE username LIKE ? OR email LIKE ?`, [like, like]);
+  await cleanupScreensaverCampaigns(like);
   await cleanupPrefix(TAG);
 }
 
@@ -235,6 +254,14 @@ async function seedUsersAndCatalog() {
     email: `${TAG}-admin@local.test`,
     password_hash,
     role: "admin",
+    merchant_id: null,
+    is_active: 1,
+  });
+  await userModel.insertUser({
+    username: `${TAG}-super`,
+    email: `${TAG}-super@local.test`,
+    password_hash,
+    role: "superadmin",
     merchant_id: null,
     is_active: 1,
   });

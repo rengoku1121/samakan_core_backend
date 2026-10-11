@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap narrow">
+    <div class="header">
+      <div>
+        <h1>Pengaturan Screensaver</h1>
+        <div class="meta">Waktu diam, durasi foto default, dan lama tayang tiap slide bawaan di semua mesin.</div>
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke iklan</a>
+      </div>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><b>Gagal:</b> <%= error %></div><% } %>
+
+    <form method="POST" action="/admin/screensaver/settings">
+      <div class="card">
+        <h2>Waktu pemutar</h2>
+        <div class="grid2">
+          <div>
+            <label for="idle_seconds">Diam sebelum screensaver (detik)</label>
+            <input type="number" id="idle_seconds" name="idle_seconds" min="10" max="180" required value="<%= config.idle_seconds %>" />
+            <div class="hint">Default 30 detik. Berlaku di beranda dan katalog (katalog kembali ke home dulu).</div>
+          </div>
+          <div>
+            <label for="default_image_seconds">Durasi foto default (detik)</label>
+            <input type="number" id="default_image_seconds" name="default_image_seconds" min="3" max="60" required value="<%= config.default_image_seconds %>" />
+            <div class="hint">Dipakai slide bawaan yang belum diisi khusus, dan foto iklan baru.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Slide bawaan</h2>
+        <p class="hint" style="margin-top:0">Centang untuk menayangkan. Durasi 3–60 detik per slide. Minimal satu slide harus aktif. Slide promo tetap mengikuti tanggal habis di kiosk.</p>
+        <div class="slide-list">
+          <% config.slides.forEach(function (s) { %>
+            <div class="slide-row">
+              <label class="choice slide-on">
+                <input type="checkbox" name="slide_enabled" value="<%= s.id %>" <%= s.enabled ? 'checked' : '' %> />
+                <span>Tayang</span>
+              </label>
+              <div>
+                <b><%= s.label %></b>
+                <div class="muted"><%= s.id %></div>
+              </div>
+              <div>
+                <label for="slide_seconds_<%= s.id %>">Durasi (detik)</label>
+                <input type="number" id="slide_seconds_<%= s.id %>" name="slide_seconds[<%= s.id %>]" min="3" max="60" value="<%= s.seconds %>" />
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-primary" type="submit">Simpan pengaturan</button>
+        <a class="btn btn-ghost" href="/admin/screensaver">Batal</a>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

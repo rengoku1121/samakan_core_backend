@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap narrow">
+    <div class="header">
+      <div>
+        <h1><%= release ? release.version_name : 'Unggah APK' %></h1>
+        <div class="meta">Keystore harus sama dengan APK di mesin. Beda kunci membuat Android menolak pemasangan.</div>
+      </div>
+      <a class="btn btn-ghost" href="/admin/kiosk-ota">Kembali</a>
+    </div>
+
+    <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><b>Gagal:</b> <%= error %></div><% } %>
+
+    <% if (release) { %>
+      <div class="card">
+        <h2>Berkas</h2>
+        <p>code <b><%= release.version_code %></b> · <%= release.version_name %> · <%= release.size_mb %> MB</p>
+        <p class="muted">SHA-256 <code><%= release.sha256 %></code></p>
+        <p>
+          <% if (release.status === 'released') { %><span class="badge on">Dirilis</span>
+          <% } else if (release.status === 'retired') { %><span class="badge off">Ditarik</span>
+          <% } else { %><span class="badge warn">Draf</span><% } %>
+          <% if (release.reached != null) { %> <span class="muted"><%= release.reached %> mesin aktif sudah heartbeat di code ini atau lebih baru.</span><% } %>
+        </p>
+        <% if (!release.file_ok) { %><div class="alert alert-error">File APK tidak ada di server.</div><% } %>
+        <div class="row">
+          <% if (release.status !== 'released') { %>
+            <form method="POST" action="/admin/kiosk-ota/<%= release.id %>/release">
+              <button class="btn btn-primary" type="submit" <%= release.status === 'retired' ? 'disabled' : '' %>>Rilis</button>
+            </form>
+          <% } %>
+          <% if (release.status === 'released') { %>
+            <form method="POST" action="/admin/kiosk-ota/<%= release.id %>/retire">
+              <button class="btn btn-ghost" type="submit">Tarik rilis</button>
+            </form>
+          <% } %>
+          <% if (release.status !== 'released') { %>
+            <form method="POST" action="/admin/kiosk-ota/<%= release.id %>/delete">
+              <button class="btn btn-danger" type="submit">Hapus file</button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
+    <form method="POST" action="<%= release ? '/admin/kiosk-ota/' + release.id : '/admin/kiosk-ota' %>" enctype="multipart/form-data">
+      <% if (!release) { %>
+        <div class="card">
+          <h2>Versi</h2>
+          <div class="grid2">
+            <div>
+              <label for="version_name">Nama versi</label>
+              <input type="text" id="version_name" name="version_name" required placeholder="1.3.0" value="<%= value.version_name %>" />
+            </div>
+            <div>
+              <label for="version_code">versionCode</label>
+              <input type="number" id="version_code" name="version_code" required min="<%= minVersion %>" value="<%= value.version_code %>" />
+              <div class="hint">Angka di dalam APK. Untuk file yang baru di-build: nama <b>1.3.0</b>, code <b>4</b>.</div>
+            </div>
+          </div>
+          <label for="apk_file">File APK</label>
+          <input type="file" id="apk_file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required />
+          <div class="file-status" id="apk-file-status">Belum ada file.</div>
+          <div class="hint">Pilih <b>app-release.apk</b>. Maksimal 120 MB. Kalau unggahan gagal, file harus dipilih ulang.</div>
+        </div>
+      <% } %>
+
+      <% if (!release || release.status !== 'retired') { %>
+        <div class="card">
+          <h2>Target</h2>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="target_scope" value="machine" <%= value.target_scope !== 'global' ? 'checked' : '' %> />
+              Mesin tertentu
+            </label>
+            <label class="choice">
+              <input type="radio" name="target_scope" value="global" <%= value.target_scope === 'global' ? 'checked' : '' %> />
+              Semua mesin
+            </label>
+          </div>
+          <p class="scope-note" id="global-note">Berlaku untuk semua mesin aktif. Daftar mesin tidak dipakai.</p>
+          <div id="machine-pick">
+            <label>Mesin</label>
+            <div class="pick-list">
+              <% machines.forEach(function (m) { %>
+                <label class="choice">
+                  <input type="checkbox" name="target_machine_ids" value="<%= m.id %>" <%= value.target_machine_ids.indexOf(Number(m.id)) >= 0 ? 'checked' : '' %> />
+                  <%= m.code %> <span class="muted"><%= m.name || '' %></span>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+          <label for="notes">Catatan</label>
+          <textarea id="notes" name="notes" maxlength="500"><%= value.notes %></textarea>
+          <div class="row" style="margin-top:14px">
+            <button class="btn btn-primary" type="submit"><%= release ? 'Simpan target' : 'Simpan draf' %></button>
+          </div>
+        </div>
+      <% } %>
+    </form>
+  </div>
+  <script src="/public/js/admin-kiosk-ota.js" defer></script>
+</body>
+</html>

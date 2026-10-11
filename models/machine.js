@@ -100,6 +100,9 @@ exports.findById = async (id) => {
       m.total_downtime_hours,
       m.last_heartbeat_at,
       m.last_heartbeat_app_version,
+      m.last_heartbeat_version_code,
+      m.last_ota_status,
+      m.last_ota_error,
       m.last_crash_at,
       m.last_crash_source,
       m.last_crash_message,
@@ -161,17 +164,27 @@ exports.findActiveByCode = async (code) => {
   return rows[0] || null;
 };
 
-/** Mencatat heartbeat APK kiosk (Fase 4). Dipanggil tiap periode oleh Kiosk API. */
-exports.touchHeartbeat = async ({ id, app_version }) => {
+/** Mencatat heartbeat APK kiosk. version_code kosong = klien lama, kolom diisi NULL. */
+exports.touchHeartbeat = async ({ id, app_version, version_code = null, ota_status = null, ota_error = null }) => {
   const sql = `
     UPDATE machines
     SET
       last_heartbeat_at = CURRENT_TIMESTAMP(3),
-      last_heartbeat_app_version = ?
+      last_heartbeat_app_version = ?,
+      last_heartbeat_version_code = ?,
+      last_ota_status = ?,
+      last_ota_error = ?
     WHERE id = ?
     LIMIT ?
   `;
-  const [result] = await pool.query(sql, [app_version ?? null, id, 1]);
+  const [result] = await pool.query(sql, [
+    app_version ?? null,
+    version_code,
+    ota_status,
+    ota_error,
+    id,
+    1,
+  ]);
   return result.affectedRows === 1;
 };
 

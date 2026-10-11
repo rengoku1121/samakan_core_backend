@@ -20,6 +20,8 @@ const SUITES = [
   ["06-admin-ops", require("./06-admin-ops")],
   ["07-xy-stub", require("./07-xy-stub")],
   ["08-onboard-two-partnerships", require("./08-onboard-two-partnerships")],
+  ["09-screensaver-ads", require("./09-screensaver-ads")],
+  ["10-kiosk-ota", require("./10-kiosk-ota")],
 ];
 
 async function main() {

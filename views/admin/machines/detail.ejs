@@ -91,6 +91,8 @@
         <dd class="mono">
           <%= m.last_heartbeat_at_fmt %>
           <% if (m.last_heartbeat_app_version) { %> <span class="muted">· APK v<%= m.last_heartbeat_app_version %></span><% } %>
+          <% if (m.last_heartbeat_version_code) { %> <span class="muted">· code <%= m.last_heartbeat_version_code %></span><% } %>
+          <% if (m.last_ota_error) { %><div style="margin-top:6px;font-weight:400;">OTA: <%= m.last_ota_error %></div><% } %>
         </dd>
 
         <dt>Crash terakhir (kiosk hardening Fase 7)</dt>

@@ -1,5 +1,10 @@
 // models/system-settings.js
 const { pool } = require("../utils/db");
+const {
+  KEYS: SCREENSAVER_KEYS,
+  BUILTIN_SLIDES,
+  normalizePlayerConfig,
+} = require("../helper-function/screensaver-settings");
 
 const clampCatalogColumns = (n) => {
   const x = Number(n);
@@ -50,4 +55,30 @@ exports.updateKioskUiConfig = async ({ catalog_columns, catalog_mode }) => {
     exports.setSetting("kiosk_catalog_mode", mode),
   ]);
   return { catalog_columns: cols, catalog_mode: mode };
+};
+
+function screensaverSettingKeys() {
+  return [SCREENSAVER_KEYS.idle, SCREENSAVER_KEYS.image, ...BUILTIN_SLIDES.map((s) => SCREENSAVER_KEYS.slide(s.id))];
+}
+
+exports.getSettingsByKeys = async (keys) => {
+  const list = (keys || []).map(String).filter(Boolean);
+  if (!list.length) return {};
+  const [rows] = await pool.query(
+    `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN (?)`,
+    [list]
+  );
+  const out = {};
+  for (const r of rows) out[r.setting_key] = r.setting_value;
+  return out;
+};
+
+exports.getScreensaverPlayerConfig = async () =>
+  normalizePlayerConfig(await exports.getSettingsByKeys(screensaverSettingKeys()));
+
+exports.updateScreensaverPlayerConfig = async (pairs) => {
+  for (const [key, value] of pairs || []) {
+    await exports.setSetting(key, value);
+  }
+  return exports.getScreensaverPlayerConfig();
 };

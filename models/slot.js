@@ -192,6 +192,46 @@ exports.listActiveByMachineIdForMerchantUi = async (machine_id) => {
   return rows;
 };
 
+/**
+ * Katalog kiosk. Slot yang tanggalnya sudah lewat tetap dikirim supaya fotonya
+ * tampil, dengan is_expired = 1. Pembuatan order tetap memakai query yang
+ * menolak slot kedaluwarsa.
+ */
+exports.listForKioskCatalog = async (machine_id) => {
+  const sql = `
+    SELECT
+      ms.id,
+      ms.machine_id,
+      ms.slot_code,
+      ms.product_id,
+      p.sku AS product_sku,
+      p.name AS product_name,
+      p.description AS product_description,
+      p.image_url AS product_image_url,
+      p.price AS product_base_price,
+      p.shelf_life_days,
+      p.requires_heating,
+      ms.price AS slot_price,
+      ms.stock,
+      ms.capacity,
+      ms.expires_at,
+      ms.is_active,
+      CASE
+        WHEN ms.expires_at IS NOT NULL AND ms.expires_at < CURDATE() THEN 1
+        ELSE 0
+      END AS is_expired
+    FROM machine_slots ms
+    INNER JOIN products p ON p.id = ms.product_id
+    WHERE ms.machine_id = ?
+      AND ms.is_active = 1
+      AND p.is_active = 1
+    ORDER BY ms.slot_code ASC
+    LIMIT ?
+  `;
+  const [rows] = await pool.query(sql, [machine_id, 500]);
+  return rows;
+};
+
 exports.updateById = async ({
   id,
   machine_id,

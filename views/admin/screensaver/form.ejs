@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <%
+    const isEdit = Boolean(campaign);
+    const merchantName = {};
+    merchants.forEach(function (m) { merchantName[String(m.id)] = m.name; });
+    const has = function (list, id) { return (list || []).map(Number).indexOf(Number(id)) >= 0; };
+  %>
+  <div class="wrap narrow">
+    <div class="header">
+      <div>
+        <h1><%= isEdit ? 'Edit campaign' : 'Campaign iklan baru' %></h1>
+        <div class="meta">Iklan tampil di screensaver kiosk setelah campaign aktif, lunas, dan masuk periode tayang.</div>
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke daftar</a>
+      </div>
+    </div>
+
+    <% if (error) { %><div class="alert alert-error"><b>Gagal:</b> <%= error %></div><% } %>
+    <% if (typeof notice !== 'undefined' && notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+
+    <form method="POST" action="<%= isEdit ? '/admin/screensaver/' + campaign.id : '/admin/screensaver' %>" enctype="multipart/form-data" id="campaign-form">
+      <div class="card">
+        <h2>Campaign</h2>
+        <label for="name">Nama campaign</label>
+        <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
+
+        <label for="advertiser_name">Pemasang iklan (opsional)</label>
+        <input type="text" id="advertiser_name" name="advertiser_name" maxlength="140" value="<%= value.advertiser_name %>" placeholder="contoh: PT Kopi Nusantara / merchant pemilik mesin" />
+
+        <div class="grid2">
+          <div>
+            <label for="playlist_mode">Mode playlist</label>
+            <select id="playlist_mode" name="playlist_mode">
+              <option value="merge" <%= value.playlist_mode === 'merge' ? 'selected' : '' %>><%= playlistLabels.merge %></option>
+              <option value="replace" <%= value.playlist_mode === 'replace' ? 'selected' : '' %>><%= playlistLabels.replace %></option>
+            </select>
+            <div class="hint">Gantikan = slide bawaan Samakan disembunyikan selama campaign ini tayang. Kalau semua media gagal dimuat, kiosk tetap kembali ke slide bawaan.</div>
+          </div>
+          <div>
+            <label for="priority">Urutan tayang</label>
+            <input type="number" id="priority" name="priority" min="1" max="9999" value="<%= value.priority %>" />
+            <div class="hint">Angka kecil tayang lebih dulu bila ada beberapa campaign di mesin yang sama.</div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label for="start_date">Mulai tayang</label>
+            <input type="date" id="start_date" name="start_date" value="<%= value.start_date %>" />
+          </div>
+          <div>
+            <label for="end_date">Selesai tayang</label>
+            <input type="date" id="end_date" name="end_date" value="<%= value.end_date %>" />
+          </div>
+        </div>
+        <div class="hint">Tanggal mengikuti WIB dan termasuk hari terakhir. Kosongkan bila tanpa batas.</div>
+      </div>
+
+      <div class="card">
+        <h2>Biaya &amp; status</h2>
+        <div class="grid3">
+          <div>
+            <label for="price_amount">Harga (Rp)</label>
+            <input type="text" id="price_amount" name="price_amount" inputmode="numeric" value="<%= value.price_amount %>" placeholder="contoh: 1500000" />
+          </div>
+          <div>
+            <label for="payment_status">Pembayaran</label>
+            <select id="payment_status" name="payment_status">
+              <% Object.keys(paymentLabels).forEach(function (k) { %>
+                <option value="<%= k %>" <%= value.payment_status === k ? 'selected' : '' %>><%= paymentLabels[k] %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div>
+            <label for="status">Status campaign</label>
+            <select id="status" name="status">
+              <% Object.keys(statusLabels).forEach(function (k) { %>
+                <option value="<%= k %>" <%= value.status === k ? 'selected' : '' %>><%= statusLabels[k] %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+        <div class="hint">Pembayaran dicatat manual. Iklan baru tayang setelah status <b>Lunas</b> dan campaign <b>Aktif</b>.</div>
+
+        <label for="notes">Catatan kontrak (internal, tidak dikirim ke kiosk)</label>
+        <textarea id="notes" name="notes" maxlength="1000" placeholder="contoh: invoice INV-2026-10-01, transfer BCA 12 Okt"><%= value.notes %></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Target</h2>
+        <div class="choices" role="radiogroup" aria-label="Target iklan">
+          <label class="choice"><input type="radio" name="target_scope" value="global" <%= value.target_scope === 'global' ? 'checked' : '' %> /> Semua mesin</label>
+          <label class="choice"><input type="radio" name="target_scope" value="merchant" <%= value.target_scope === 'merchant' ? 'checked' : '' %> /> Merchant tertentu</label>
+          <label class="choice"><input type="radio" name="target_scope" value="machine" <%= value.target_scope === 'machine' ? 'checked' : '' %> /> Mesin tertentu</label>
+        </div>
+
+        <div class="target-panel" data-scope="global" <%= value.target_scope === 'global' ? '' : 'hidden' %>>
+          <div class="hint">Iklan tampil di semua mesin aktif.</div>
+        </div>
+
+        <div class="target-panel" data-scope="merchant" <%= value.target_scope === 'merchant' ? '' : 'hidden' %>>
+          <label>Merchant</label>
+          <div class="pick-list">
+            <% if (!merchants.length) { %><div class="muted">Belum ada merchant aktif.</div><% } %>
+            <% merchants.forEach(function (m) { %>
+              <label class="choice"><input type="checkbox" name="target_merchant_ids" value="<%= m.id %>" <%= has(value.target_merchant_ids, m.id) ? 'checked' : '' %> /> <%= m.name %> <span class="muted"><%= m.merchant_code || '' %></span></label>
+            <% }) %>
+          </div>
+          <div class="hint">Iklan tampil di semua mesin milik merchant yang dipilih, termasuk mesin yang ditambahkan nanti.</div>
+        </div>
+
+        <div class="target-panel" data-scope="machine" <%= value.target_scope === 'machine' ? '' : 'hidden' %>>
+          <label for="target_machine_merchant_id">Batasi ke merchant (opsional)</label>
+          <select id="target_machine_merchant_id" name="target_machine_merchant_id">
+            <option value="">Semua merchant</option>
+            <% merchants.forEach(function (m) { %>
+              <option value="<%= m.id %>" <%= String(value.target_machine_merchant_id) === String(m.id) ? 'selected' : '' %>><%= m.name %></option>
+            <% }) %>
+          </select>
+          <div class="hint">Mesin yang dipilih wajib milik merchant ini. Bila mesin nanti pindah merchant, iklan otomatis berhenti di mesin itu.</div>
+          <label>Mesin</label>
+          <div class="pick-list" id="machine-pick">
+            <% machines.forEach(function (m) { %>
+              <label class="choice" data-merchant-id="<%= m.merchant_id == null ? '' : m.merchant_id %>">
+                <input type="checkbox" name="target_machine_ids" value="<%= m.id %>" <%= has(value.target_machine_ids, m.id) ? 'checked' : '' %> />
+                <b><%= m.code %></b> <%= m.name || '' %>
+                <span class="muted">· <%= m.merchant_id == null ? 'tanpa merchant' : (merchantName[String(m.merchant_id)] || 'merchant #' + m.merchant_id) %><%= m.is_active ? '' : ' · nonaktif' %></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2><%= isEdit ? 'Tambah media' : 'Media' %></h2>
+        <label for="media_files">Foto atau video</label>
+        <input type="file" id="media_files" name="media_files" multiple accept="image/jpeg,image/png,image/webp,video/mp4" />
+        <div class="hint">
+          Maksimal <%= limits.maxFiles %> file per simpan. Foto JPG/PNG/WEBP maksimal <%= limits.imageMb %> MB, video MP4 (H.264) maksimal <%= limits.videoMb %> MB.
+          Ukuran ideal 1080×1920 (potret). Media tayang berurutan sesuai urutan upload.
+        </div>
+        <ul class="file-seconds" id="media-file-list"></ul>
+        <div class="grid2">
+          <div>
+            <label for="image_seconds">Durasi default foto baru (detik)</label>
+            <input type="number" id="image_seconds" name="image_seconds" min="3" max="60" value="<%= value.image_seconds %>" />
+            <div class="hint">Bisa diubah per file di daftar di atas, atau per media setelah tersimpan. Video kosong = sampai selesai.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn btn-primary" type="submit"><%= isEdit ? 'Simpan perubahan' : 'Buat campaign' %></button>
+        <a class="btn btn-ghost" href="/admin/screensaver">Batal</a>
+      </div>
+    </form>
+
+    <% if (isEdit) { %>
+      <div style="height:18px"></div>
+      <div class="card" id="media-manager">
+        <div class="section-title">
+          <h2>Media campaign (<%= campaign.media.length %>)</h2>
+          <span class="muted">Urutan atas ke bawah = urutan tayang</span>
+        </div>
+        <% if (!campaign.media.length) { %>
+          <div class="empty">Belum ada media. Tambahkan lewat form di atas.</div>
+        <% } %>
+        <% campaign.media.forEach(function (m, i) { %>
+          <div class="media-row" data-media-id="<%= m.id %>">
+            <div>
+              <% if (m.media_type === 'video') { %>
+                <video class="thumb" src="<%= m.file_path %>" muted controls preload="metadata"></video>
+              <% } else { %>
+                <img class="thumb" src="<%= m.file_path %>" alt="" loading="lazy" />
+              <% } %>
+            </div>
+            <div class="stack">
+              <div><b><%= i + 1 %>. <%= m.media_type === 'video' ? 'Video' : 'Foto' %></b> <span class="muted"><%= m.original_name || '' %></span></div>
+              <div class="muted"><%= m.mime_type %> · <%= m.size_fmt %><%= m.media_type === 'image' ? ' · ' + m.seconds + ' detik' : (m.seconds ? ' · batas ' + m.seconds + ' detik' : ' · sampai video selesai') %></div>
+              <% if (m.status !== 'active') { %><span class="badge off">Nonaktif</span><% } %>
+            </div>
+            <div class="media-actions">
+              <form class="inline-form" method="POST" action="/admin/screensaver/<%= campaign.id %>/media/<%= m.id %>/move">
+                <input type="hidden" name="direction" value="up" />
+                <button class="btn btn-ghost btn-sm" type="submit" <%= i === 0 ? 'disabled' : '' %> aria-label="Naikkan">↑</button>
+              </form>
+              <form class="inline-form" method="POST" action="/admin/screensaver/<%= campaign.id %>/media/<%= m.id %>/move">
+                <input type="hidden" name="direction" value="down" />
+                <button class="btn btn-ghost btn-sm" type="submit" <%= i === campaign.media.length - 1 ? 'disabled' : '' %> aria-label="Turunkan">↓</button>
+              </form>
+              <form class="inline-form row" method="POST" action="/admin/screensaver/<%= campaign.id %>/media/<%= m.id %>">
+                <% if (m.media_type === 'image') { %>
+                  <label class="sr-only" for="seconds-<%= m.id %>">Durasi detik</label>
+                  <input type="number" id="seconds-<%= m.id %>" name="seconds" min="3" max="60" value="<%= m.seconds %>" title="Durasi foto (detik)" aria-label="Durasi foto (detik)" />
+                <% } else { %>
+                  <label class="sr-only" for="seconds-<%= m.id %>">Batas video detik</label>
+                  <input type="number" id="seconds-<%= m.id %>" name="seconds" min="3" max="180" value="<%= m.seconds %>" placeholder="selesai" title="Batas video (detik, kosong = sampai selesai)" aria-label="Batas video (detik)" />
+                <% } %>
+                <select name="status" aria-label="Status media">
+                  <option value="active" <%= m.status === 'active' ? 'selected' : '' %>>Aktif</option>
+                  <option value="inactive" <%= m.status !== 'active' ? 'selected' : '' %>>Nonaktif</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" type="submit">Simpan</button>
+              </form>
+              <form class="inline-form" method="POST" action="/admin/screensaver/<%= campaign.id %>/media/<%= m.id %>/delete">
+                <button class="btn btn-danger btn-sm" type="submit" data-confirm="Hapus media ini? File akan dihapus permanen.">Hapus</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+
+      <div class="card">
+        <h2>Hapus campaign</h2>
+        <div class="hint">Campaign, target, dan semua file medianya dihapus permanen. Untuk berhenti sementara, pakai status <b>Dijeda</b>.</div>
+        <div style="height:10px"></div>
+        <form method="POST" action="/admin/screensaver/<%= campaign.id %>/delete">
+          <button class="btn btn-danger" type="submit" data-confirm="Hapus campaign ini beserta semua medianya?">Hapus campaign</button>
+        </form>
+      </div>
+    <% } %>
+  </div>
+  <script src="/public/js/admin-screensaver.js" defer></script>
+</body>
+</html>

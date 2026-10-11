@@ -14,6 +14,8 @@ const payoutRoutes = require("./admin/payouts");
 const settingsRoutes = require("./admin/settings");
 const xyRoutes = require("./admin/xy");
 const activityRoutes = require("./admin/activity");
+const screensaverRoutes = require("./admin/screensaver");
+const kioskOtaRoutes = require("./admin/kiosk-ota");
 
 router.get("/", requireAuth, requireRole("admin", "staff"), admin.renderHome);
 
@@ -28,6 +30,8 @@ router.use("/settlement", settlementRoutes);
 router.use("/payouts", payoutRoutes);
 router.use("/settings", settingsRoutes);
 router.use("/activity", activityRoutes);
+router.use("/screensaver", screensaverRoutes);
+router.use("/kiosk-ota", kioskOtaRoutes);
 router.use("/xy", xyRoutes);
 
 module.exports = router;

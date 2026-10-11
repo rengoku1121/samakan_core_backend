@@ -38,6 +38,12 @@ const ALLOWED = new Set([
   "bank_code",
   "reason",
   "reject_reason",
+  "payment_status",
+  "playlist_mode",
+  "target_scope",
+  "direction",
+  "version_code",
+  "version_name",
 ]);
 
 /** Paling spesifik dulu. */
@@ -70,6 +76,20 @@ const RULES = [
   ["POST", /^\/admin\/settings\/fees$/, "settings", "Ubah pengaturan fee"],
   ["POST", /^\/admin\/settings\/kiosk-ui$/, "settings", "Ubah tampilan kiosk"],
   ["POST", /^\/admin\/settings\/payout$/, "settings", "Ubah pengaturan payout"],
+  ["POST", /^\/admin\/kiosk-ota\/?$/, "ota", "Unggah APK kiosk"],
+  ["POST", /^\/admin\/kiosk-ota\/[^/]+\/release$/, "ota", "Rilis APK kiosk"],
+  ["POST", /^\/admin\/kiosk-ota\/[^/]+\/retire$/, "ota", "Tarik rilis APK kiosk"],
+  ["POST", /^\/admin\/kiosk-ota\/[^/]+\/delete$/, "ota", "Hapus APK kiosk"],
+  ["POST", /^\/admin\/kiosk-ota\/[^/]+$/, "ota", "Ubah target APK kiosk"],
+  ["POST", /^\/admin\/screensaver\/settings$/, "ads", "Ubah pengaturan screensaver"],
+  ["POST", /^\/admin\/screensaver\/?$/, "ads", "Tambah campaign iklan screensaver"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/status$/, "ads", "Ubah status tayang iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/payment$/, "ads", "Ubah status pembayaran iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/delete$/, "ads", "Hapus campaign iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/media\/[^/]+\/move$/, "ads", "Ubah urutan media iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/media\/[^/]+\/delete$/, "ads", "Hapus media iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+\/media\/[^/]+$/, "ads", "Ubah media iklan"],
+  ["POST", /^\/admin\/screensaver\/[^/]+$/, "ads", "Ubah campaign iklan screensaver"],
   ["POST", /^\/admin\/notifications\/subscribe$/, "notify", "Aktifkan notifikasi"],
   ["POST", /^\/admin\/notifications\/unsubscribe$/, "notify", "Matikan notifikasi"],
   ["POST", /^\/merchant\/payouts\/inquiry$/, "payout", "Cek rekening payout"],
@@ -91,6 +111,8 @@ const ACTION_LABELS = {
   payout: "Payout",
   qris: "QRIS",
   notify: "Notifikasi",
+  ads: "Iklan",
+  ota: "OTA",
   other: "Lainnya",
 };
 

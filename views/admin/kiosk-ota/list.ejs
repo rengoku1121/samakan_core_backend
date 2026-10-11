@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Pembaruan APK</h1>
+        <div class="meta">
+          Unggah APK rilis (ditandatangani keystore yang sama dengan mesin). Mesin online mengunduh sendiri saat tidak sedang bayar atau mengeluarkan barang.
+          versionCode minimal <%= minVersion %>. APK 1.2.0 (code 3) dipasang sekali lewat USB karena baru berisi pengunduh.
+        </div>
+      </div>
+      <a class="btn btn-primary" href="/admin/kiosk-ota/new">+ Unggah APK</a>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (errorNotice) { %><div class="alert alert-error"><b>Gagal:</b> <%= errorNotice %></div><% } %>
+
+    <div class="card flush">
+      <% if (!rows.length) { %>
+        <div class="empty">Belum ada APK. Unggah dulu sebagai draf, pilih mesin uji, lalu rilis.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Versi</th>
+              <th>Target</th>
+              <th>Status</th>
+              <th>Mesin sudah di versi ini</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (r) { %>
+              <tr>
+                <td>
+                  <b><%= r.version_name %></b>
+                  <div class="muted">code <%= r.version_code %> · <%= r.size_mb %> MB</div>
+                </td>
+                <td><%= r.target_label %></td>
+                <td>
+                  <% if (r.status === 'released') { %><span class="badge on">Dirilis</span>
+                  <% } else if (r.status === 'retired') { %><span class="badge off">Ditarik</span>
+                  <% } else { %><span class="badge warn">Draf</span><% } %>
+                </td>
+                <td><%= r.reached == null ? '—' : r.reached %></td>
+                <td><a class="btn btn-ghost btn-sm" href="/admin/kiosk-ota/<%= r.id %>">Detail</a></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>
