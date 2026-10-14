@@ -21,12 +21,11 @@ function homeFor(role) {
   return ADMIN_HOME_ROLES.has(role) ? "/dashboard" : "/merchant";
 }
 
-function loginPage(res, { status = 200, error = null, identifier = "", deny = "" } = {}) {
+function loginPage(res, { status = 200, error = null, identifier = "" } = {}) {
   const csrfToken = issueCsrf(res);
   return res.status(status).render("auth/login", {
     title: "Login",
     error,
-    deny,
     csrfToken,
     value: { identifier },
   });
@@ -75,34 +74,14 @@ async function openSession(req, res, user) {
     sid,
   });
   clearPending(req, res);
-  const cookieOpts = accessTokenCookieOptions(req);
-  res.cookie("access_token", token, cookieOpts);
-  const xff = String(req.headers["x-forwarded-for"] || "");
-  const opened = {
-    kind: "open",
-    role: user.role,
-    cookieSecure: cookieOpts.secure,
-    reqSecure: Boolean(req.secure),
-    protocol: req.protocol,
-    hasCf: Boolean(req.headers["cf-connecting-ip"]),
-    ipSource: attempts.cloudflareVisitorIp(req) ? "cf" : "forwarded",
-    xffHops: xff.split(",").map((s) => s.trim()).filter(Boolean).length,
-    trust: String(req.app && req.app.get("trust proxy")),
-    home: homeFor(user.role),
-  };
-  require("../middleware/auth").rememberAuth(opened);
-  // #region agent log
-  fetch("http://127.0.0.1:7747/ingest/b65552d9-3460-4b5c-aa0d-9260f9c34b9f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9a4bf9" }, body: JSON.stringify({ sessionId: "9a4bf9", runId: "pre-fix", hypothesisId: "E", location: "controllers/auth.js:openSession", message: "session opened", data: opened, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
+  res.cookie("access_token", token, accessTokenCookieOptions(req));
   await attempts.clearFails(user.username, attempts.clientIp(req));
   if (user.email) await attempts.clearFails(user.email, attempts.clientIp(req));
   await userModel.updateLastLogin(user.id);
   return res.redirect(homeFor(user.role));
 }
 
-exports.renderLogin = async (req, res) => loginPage(res, {
-  deny: String((req.query && req.query.deny) || "").slice(0, 48),
-});
+exports.renderLogin = async (req, res) => loginPage(res);
 
 exports.login = async (req, res, next) => {
   try {

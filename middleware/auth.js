@@ -17,111 +17,64 @@ const extractToken = (req) => {
   return null;
 };
 
-const authEvents = [];
-function rememberAuth(entry) {
-  authEvents.push({ at: Date.now(), ...entry });
-  if (authEvents.length > 8) authEvents.shift();
-}
-exports.rememberAuth = rememberAuth;
-exports.recentAuthEvents = () => authEvents.slice();
-
-function authDebug(hypothesisId, location, message, data) {
-  // #region agent log
-  fetch("http://127.0.0.1:7747/ingest/b65552d9-3460-4b5c-aa0d-9260f9c34b9f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9a4bf9" }, body: JSON.stringify({ sessionId: "9a4bf9", runId: "pre-fix", hypothesisId, location, message, data, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
-}
-
-function requestNet(req) {
-  const xff = String((req.headers && req.headers["x-forwarded-for"]) || "");
-  return {
-    hasCookie: Boolean(req.cookies && req.cookies.access_token),
-    secure: Boolean(req.secure),
-    protocol: req.protocol,
-    hasCf: Boolean(req.headers && req.headers["cf-connecting-ip"]),
-    ipSource: attempts.cloudflareVisitorIp(req) ? "cf" : "forwarded",
-    xffHops: xff.split(",").map((s) => s.trim()).filter(Boolean).length,
-    trust: String(req.app && req.app.get("trust proxy")),
-  };
-}
-
-const deny = (req, res, reason, extra) => {
-  const why = String(reason || "unknown").slice(0, 48);
-  const denyData = {
-    kind: "deny",
-    reason: why,
-    ...requestNet(req),
-    ipOk: extra ? extra.ipOk : undefined,
-    uaOk: extra ? extra.uaOk : undefined,
-  };
-  rememberAuth(denyData);
-  authDebug((extra && extra.hypothesisId) || "D", "middleware/auth.js:deny", "auth deny", denyData);
-  try { res.setHeader("X-Auth-Deny", why); } catch (_) {}
-
+const deny = (req, res) => {
   // clear token to force relogin
   res.clearCookie("access_token", clearAccessTokenCookieOptions(req));
 
   const accept = String(req.headers.accept || "");
   if (!accept.includes("application/json")) {
-    return res.redirect("/auth/login?deny=" + encodeURIComponent(why));
+    return res.redirect("/auth/login");
   }
   return res.status(401).json({
     message: "Unauthorized"
   });
 };
 
-function clientBind(session, req) {
+function sameClient(session, req) {
   const ip = attempts.clientIp(req);
   const ua = String((req.headers && req.headers["user-agent"]) || "").slice(0, 180);
-  return {
-    ipOk: attempts.keyOfIp(session.ip) === ip,
-    uaOk: String(session.user_agent || "") === ua,
-  };
+  return attempts.keyOfIp(session.ip) === ip && String(session.user_agent || "") === ua;
 }
 
 exports.requireAuth = async (req, res, next) => {
   try {
     const token = extractToken(req);
-    if (!token) return deny(req, res, "no-token", { hypothesisId: "A" });
+    if (!token) return deny(req, res);
 
     // 1) verify JWT signature + expiry
     const decoded = verifyAccessToken(token);
-    if (decoded.purpose === "otp" || !decoded.sid) return deny(req, res, "bad-token", { hypothesisId: "D" });
+    if (decoded.purpose === "otp" || !decoded.sid) return deny(req, res);
 
     const userId = decoded.sub;
     const tokenRole = decoded.role;
     const tokenMerchantId = decoded.merchant_id ?? null;
 
-    if (!userId || !tokenRole) return deny(req, res, "bad-token", { hypothesisId: "D" });
+    if (!userId || !tokenRole) return deny(req, res);
 
     // 2) STRICT REVOKE: check DB every request
     const dbUser = await userModel.getAuthStateById(userId);
 
     // user deleted / not found
-    if (!dbUser) return deny(req, res, "no-user", { hypothesisId: "D" });
+    if (!dbUser) return deny(req, res);
 
     // disabled
-    if (!dbUser.is_active) return deny(req, res, "inactive", { hypothesisId: "D" });
+    if (!dbUser.is_active) return deny(req, res);
 
     // optional but strongly recommended: role must match token
-    if (dbUser.role !== tokenRole) return deny(req, res, "role", { hypothesisId: "D" });
+    if (dbUser.role !== tokenRole) return deny(req, res);
 
     const tokenVersion = Number(decoded.av);
     const dbVersion = Number(dbUser.auth_version) || 0;
     if (!Number.isInteger(tokenVersion) || tokenVersion !== dbVersion) {
       await sessions.revoke(decoded.sid);
-      return deny(req, res, "auth-version", { hypothesisId: "D" });
+      return deny(req, res);
     }
 
     const session = await sessions.getOpen(decoded.sid);
-    if (!session || String(session.user_id) !== String(dbUser.id)) return deny(req, res, "no-session", { hypothesisId: "D" });
-    const { ipOk, uaOk } = clientBind(session, req);
-    if (!ipOk || !uaOk) {
+    if (!session || String(session.user_id) !== String(dbUser.id)) return deny(req, res);
+    if (!sameClient(session, req)) {
       await sessions.revoke(decoded.sid);
-      return deny(req, res, !ipOk ? "ip-mismatch" : "ua-mismatch", {
-        hypothesisId: !ipOk ? "B" : "C",
-        ipOk,
-        uaOk,
-      });
+      return deny(req, res);
     }
 
     // if merchant, merchant_id in token must match DB (normalize: JWT number vs MySQL string)
@@ -132,13 +85,13 @@ exports.requireAuth = async (req, res, next) => {
       return Number.isFinite(n) ? n : null;
     };
     if (dbUser.role === "merchant" && normMid(dbMerchantId) !== normMid(tokenMerchantId)) {
-      return deny(req, res, "merchant-id", { hypothesisId: "D" });
+      return deny(req, res);
     }
 
     // merchant soft-deleted or missing merchant row
     if (dbUser.role === "merchant") {
       if (normMid(dbMerchantId) == null || dbUser.merchant_deleted_at != null) {
-        return deny(req, res, "merchant-deleted", { hypothesisId: "D" });
+        return deny(req, res);
       }
     }
 
@@ -151,7 +104,7 @@ exports.requireAuth = async (req, res, next) => {
 
     return next();
   } catch (err) {
-    return deny(req, res, "exception", { hypothesisId: "D" });
+    return deny(req, res);
   }
 };
 

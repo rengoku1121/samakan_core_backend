@@ -109,7 +109,6 @@ module.exports = {
   keyOf,
   keyOfIp,
   clientIp,
-  cloudflareVisitorIp,
   isLockedState,
   nextState,
   isLocked,

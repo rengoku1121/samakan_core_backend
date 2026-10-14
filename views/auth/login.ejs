@@ -397,10 +397,6 @@
         <% if (error) { %>
           <div class="lg-alert" role="alert"><%= error %></div>
         <% } %>
-        <% if (typeof deny === "string" && deny) { %>
-          <div class="lg-alert" role="status">Sesi ditolak: <%= deny %></div>
-        <% } %>
-        <script src="/public/js/auth-deny-debug.js?v=9a4bf9"></script>
 
         <form method="POST" action="/auth/login">
           <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
