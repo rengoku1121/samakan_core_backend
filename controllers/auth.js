@@ -21,11 +21,12 @@ function homeFor(role) {
   return ADMIN_HOME_ROLES.has(role) ? "/dashboard" : "/merchant";
 }
 
-function loginPage(res, { status = 200, error = null, identifier = "" } = {}) {
+function loginPage(res, { status = 200, error = null, identifier = "", deny = "" } = {}) {
   const csrfToken = issueCsrf(res);
   return res.status(status).render("auth/login", {
     title: "Login",
     error,
+    deny,
     csrfToken,
     value: { identifier },
   });
@@ -86,7 +87,9 @@ async function openSession(req, res, user) {
   return res.redirect(homeFor(user.role));
 }
 
-exports.renderLogin = async (req, res) => loginPage(res);
+exports.renderLogin = async (req, res) => loginPage(res, {
+  deny: String((req.query && req.query.deny) || "").slice(0, 48),
+});
 
 exports.login = async (req, res, next) => {
   try {

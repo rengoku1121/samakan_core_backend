@@ -58,6 +58,10 @@ function helmetOptions() {
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "script-src": ["'self'"],
         "worker-src": ["'self'", "blob:"],
+        // #region agent log
+        "connect-src": ["'self'", "http://127.0.0.1:7747", "http://localhost:7747"],
+        // #endregion
+
         ...(harden ? {} : { "upgrade-insecure-requests": null }),
       },
     },
