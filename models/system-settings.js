@@ -47,6 +47,18 @@ exports.getKioskUiConfig = async () => {
   };
 };
 
+/** Kosong atau selain "1" berarti OTP email mati. */
+exports.getLoginOtpEnabled = async () => {
+  const raw = await exports.getSetting("login_otp_enabled", "0");
+  return String(raw).trim() === "1";
+};
+
+exports.setLoginOtpEnabled = async (enabled) => {
+  const value = enabled ? "1" : "0";
+  await exports.setSetting("login_otp_enabled", value);
+  return value === "1";
+};
+
 exports.updateKioskUiConfig = async ({ catalog_columns, catalog_mode }) => {
   const cols = clampCatalogColumns(catalog_columns);
   const mode = normalizeCatalogMode(catalog_mode);

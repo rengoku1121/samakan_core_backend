@@ -75,4 +75,68 @@
 
   syncScope();
   syncMachines();
+  mountAdSlides();
 })();
+
+function mountAdSlides() {
+  document.querySelectorAll("[data-ad-slides]").forEach(function (root) {
+    var track = root.querySelector("[data-ad-track]");
+    var slides = root.querySelectorAll("[data-ad-slide]");
+    var prev = root.querySelector("[data-ad-prev]");
+    var next = root.querySelector("[data-ad-next]");
+    var dots = root.querySelectorAll("[data-ad-dot]");
+    var label = root.querySelector("[data-ad-count]");
+    var total = slides.length;
+    var index = 0;
+    if (!track || total < 2 || !prev || !next) return;
+
+    function show(nextIndex) {
+      index = (nextIndex + total) % total;
+      track.style.transform = "translateX(" + -index * 100 + "%)";
+      for (var i = 0; i < slides.length; i++) {
+        slides[i].setAttribute("aria-hidden", i === index ? "false" : "true");
+      }
+      for (var d = 0; d < dots.length; d++) dots[d].classList.toggle("is-on", d === index);
+      if (label) label.textContent = index + 1 + " / " + total;
+    }
+
+    prev.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      show(index - 1);
+    });
+    next.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      show(index + 1);
+    });
+    for (var n = 0; n < dots.length; n++) {
+      (function (dotIndex) {
+        dots[dotIndex].addEventListener("click", function (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          show(dotIndex);
+        });
+      })(n);
+    }
+
+    var startX = 0;
+    var tracking = false;
+    root.addEventListener("pointerdown", function (ev) {
+      if (ev.target.closest("[data-ad-prev], [data-ad-next], [data-ad-dot]")) return;
+      tracking = true;
+      startX = ev.clientX;
+    });
+    root.addEventListener("pointerup", function (ev) {
+      if (!tracking) return;
+      tracking = false;
+      var delta = ev.clientX - startX;
+      if (delta > 36) show(index - 1);
+      else if (delta < -36) show(index + 1);
+    });
+    root.addEventListener("pointercancel", function () {
+      tracking = false;
+    });
+    show(0);
+  });
+}

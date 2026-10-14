@@ -10,6 +10,18 @@ const {
 } = require("../../helper-function/slot-code");
 
 const { clean, toNonNegInt: toInt, cleanDate, parseUInt } = require("../../helper-function/http");
+const { slotProductError } = require("../../helper-function/partnership");
+
+function productsForMachine(products, machine) {
+  return (products || []).filter((product) => !slotProductError(machine, product));
+}
+
+function productHint(machine) {
+  const model = String((machine && machine.commercial_model) || "legacy");
+  if (model === "cruise") return "Hanya menu milik mitra menu mesin ini.";
+  if (model === "plus" || model === "basic") return "Hanya menu milik pemilik mesin ini.";
+  return "Mesin lama memakai katalog bersama, tanpa pemilik menu.";
+}
 
 const defaultExpiresFromShelfLifeDays = (days) => {
   const n = Number(days);
@@ -139,8 +151,9 @@ exports.renderNew = async (req, res, next) => {
       title: "New Slot",
       user: req.user,
       error: null,
-      machine,     // ✅ lock machine object
-      products,
+      machine,
+      products: productsForMachine(products, machine),
+      productHint: productHint(machine),
       value: {
         slot_code: "",
         product_id: "",
@@ -178,13 +191,15 @@ exports.create = async (req, res, next) => {
     // ✅ machine harus valid, karena kita lock berdasarkan context
     if (!machine_id || !machine) return res.redirect("/admin/slots");
 
+    const allowedProducts = productsForMachine(products, machine);
     const rerender = (statusCode, errorMsg) => {
       return res.status(statusCode).render("admin/slots/new", {
         title: "New Slot",
         user: req.user,
         error: errorMsg,
         machine,
-        products,
+        products: allowedProducts,
+        productHint: productHint(machine),
         value: {
           slot_code,
           product_id: product_id ? String(product_id) : "",
@@ -199,6 +214,10 @@ exports.create = async (req, res, next) => {
 
     if (codeCheck.error) return rerender(400, codeCheck.error);
     if (!product_id) return rerender(400, "Product wajib dipilih.");
+    const chosenProduct = (products || []).find((row) => String(row.id) === String(product_id));
+    if (!chosenProduct) return rerender(400, "Product wajib dipilih.");
+    const menuError = slotProductError(machine, chosenProduct);
+    if (menuError) return rerender(400, menuError);
     if (slot_price === "INVALID") return rerender(400, "Slot price harus angka (atau kosong untuk pakai harga product).");
     const capErr = validateStockVsCapacity(stock, capacity);
     if (capErr) return rerender(400, capErr);
@@ -240,7 +259,8 @@ exports.create = async (req, res, next) => {
           user: req.user,
           error: "Slot code ini sudah ada di machine tersebut.",
           machine,
-          products,
+          products: productsForMachine(products, machine),
+          productHint: productHint(machine),
           value: {
             slot_code: validateSlotCode(req.body.slot_code).slot_code,
             product_id: clean(req.body.product_id),
@@ -273,13 +293,15 @@ exports.renderEdit = async (req, res, next) => {
       productModel.listAllForSelect(),
     ]);
 
+    const machine = (machines || []).find((row) => String(row.id) === String(slot.machine_id)) || null;
     return res.render("admin/slots/edit", {
       title: "Edit Slot",
       user: req.user,
       error: null,
       slot,
       machines,
-      products,
+      products: productsForMachine(products, machine),
+      productHint: productHint(machine),
       value: {
         machine_id: String(slot.machine_id),
         slot_code: slot.slot_code || "",
@@ -319,10 +341,12 @@ exports.update = async (req, res, next) => {
     const is_active = req.body.is_active === "0" ? 0 : 1;
     const expires_at_input = cleanDate(req.body.expires_at) || "";
 
-    const [machines, products] = await Promise.all([
+    const [machines, allProducts] = await Promise.all([
       machineModel.listAllForSelect(),
       productModel.listAllForSelect(),
     ]);
+    const machineForMenu = (machines || []).find((row) => String(row.id) === String(machine_id)) || null;
+    const products = productsForMachine(allProducts, machineForMenu);
 
     const editFormValue = (over = {}) => ({
       machine_id: String(machine_id || ""),
@@ -366,7 +390,22 @@ exports.update = async (req, res, next) => {
         slot: current,
         machines,
         products,
+        productHint: productHint(machineForMenu),
         value: editFormValue({ product_id: "" }),
+      });
+    }
+    const chosenProduct = (allProducts || []).find((row) => String(row.id) === String(product_id));
+    const menuError = chosenProduct && machineForMenu ? slotProductError(machineForMenu, chosenProduct) : "Product wajib dipilih.";
+    if (menuError) {
+      return res.status(400).render("admin/slots/edit", {
+        title: "Edit Slot",
+        user: req.user,
+        error: menuError,
+        slot: current,
+        machines,
+        products,
+        productHint: productHint(machineForMenu),
+        value: editFormValue(),
       });
     }
     if (slot_price === "INVALID") {

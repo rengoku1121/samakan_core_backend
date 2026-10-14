@@ -1,0 +1,51 @@
+<%
+  const pagerLimits = (typeof limits !== "undefined" && limits && limits.length) ? limits : [10, 20, 50];
+  const pagerLimit = Number(limit) || pagerLimits[0];
+  const pagerTotal = Number(total) || 0;
+  const pagerPages = Math.max(1, Number(totalPages) || 1);
+  const pagerPage = Math.min(Math.max(1, Number(page) || 1), pagerPages);
+  const pagerShown = Number(typeof shown !== "undefined" ? shown : 0) || 0;
+  const pagerStart = pagerShown ? (pagerPage - 1) * pagerLimit + 1 : 0;
+  const pagerEnd = pagerShown ? pagerStart + pagerShown - 1 : 0;
+  const pagerKeep = String(typeof keepQs !== "undefined" ? keepQs : "")
+    .replace(/^\?/, "")
+    .split("&")
+    .filter(function (part) {
+      return part && part.indexOf("limit=") !== 0 && part.indexOf("page=") !== 0;
+    })
+    .join("&");
+  const pagerExtra = pagerKeep ? "&" + pagerKeep : "";
+  const pagerBase = String(basePath || "");
+%>
+<div class="table-pager">
+  <p class="table-pager-meta">
+    <% if (pagerShown) { %>
+      Menampilkan <b><%= pagerStart %></b>–<b><%= pagerEnd %></b> dari <b><%= pagerTotal %></b>
+    <% } else { %>
+      Menampilkan <b>0</b> dari <b><%= pagerTotal %></b>
+    <% } %>
+  </p>
+  <div class="table-pager-controls">
+    <label class="table-pager-limit">
+      <span>Per halaman</span>
+      <select class="js-table-limit" data-base="<%= pagerBase %>" data-extra="<%= pagerExtra %>" aria-label="Jumlah baris per halaman">
+        <% pagerLimits.forEach(function (n) { %>
+          <option value="<%= n %>" <%= pagerLimit === Number(n) ? "selected" : "" %>><%= n %></option>
+        <% }) %>
+      </select>
+    </label>
+    <nav class="table-pager-nav" aria-label="Halaman">
+      <% if (pagerPage > 1) { %>
+        <a class="table-pager-btn" href="<%= pagerBase %>?page=<%= pagerPage - 1 %>&limit=<%= pagerLimit %><%= pagerExtra %>" aria-label="Halaman sebelumnya">‹</a>
+      <% } else { %>
+        <span class="table-pager-btn is-disabled" aria-hidden="true">‹</span>
+      <% } %>
+      <span class="table-pager-page"><%= pagerPage %> / <%= pagerPages %></span>
+      <% if (pagerPage < pagerPages) { %>
+        <a class="table-pager-btn" href="<%= pagerBase %>?page=<%= pagerPage + 1 %>&limit=<%= pagerLimit %><%= pagerExtra %>" aria-label="Halaman berikutnya">›</a>
+      <% } else { %>
+        <span class="table-pager-btn is-disabled" aria-hidden="true">›</span>
+      <% } %>
+    </nav>
+  </div>
+</div>

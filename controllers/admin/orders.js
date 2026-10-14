@@ -12,6 +12,7 @@ const {
 } = require("../../helper-function/settlement-status");
 const { resolveDateRange, datePresets, rangeLabel } = require("../../helper-function/date-range");
 const { buildQuery, presetLinks } = require("../../helper-function/list-query");
+const { computeCruiseSplit } = require("../../helper-function/partnership");
 
 exports.list = async (req, res, next) => {
   try {
@@ -19,6 +20,7 @@ exports.list = async (req, res, next) => {
     const merchant_id = toInt(req.query.merchant_id, 0) || null;
     const machine_id = toInt(req.query.machine_id, 0) || null;
     const settlement_ref = clean(req.query.settlement_ref);
+    const q = clean(req.query.q).slice(0, 64);
     const { date_from, date_to } = resolveDateRange(req.query);
 
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 20)));
@@ -28,6 +30,7 @@ exports.list = async (req, res, next) => {
       merchant_id,
       machine_id,
       settlement_ref: settlement_ref || null,
+      q: q || null,
       date_from,
       date_to,
     };
@@ -67,6 +70,7 @@ exports.list = async (req, res, next) => {
       merchant_id: merchant_id ? String(merchant_id) : "",
       machine_id: machine_id ? String(machine_id) : "",
       settlement_ref: settlement_ref || "",
+      q: q || "",
       date_from: date_from || "",
       date_to: date_to || "",
     };
@@ -185,6 +189,30 @@ exports.detail = async (req, res, next) => {
     }));
 
     const settlement_status_label = settlementStatusLabel(order);
+    let cruise = null;
+    if (String(order.split_model) === "cruise") {
+      const feeConfig = await settlementModel.getFeeConfig().catch(() => ({ midtrans_fee_percent: 0.5 }));
+      const settled = Number(order.is_settled) === 1;
+      const preview = computeCruiseSplit({
+        gross: order.total,
+        owner_share_percent: order.owner_share_percent,
+        menu_share_percent: order.menu_share_percent,
+        location_share_percent: order.location_merchant_id ? order.location_share_percent : 0,
+        midtrans_fee_percent: feeConfig.midtrans_fee_percent,
+      });
+      cruise = {
+        settled,
+        owner_name: order.merchant_name,
+        menu_name: order.menu_merchant_name || "—",
+        location_name: order.location_merchant_id ? (order.location_merchant_name || "—") : "Tanpa bagi hasil",
+        owner_fmt: fmtMoney(settled ? order.owner_share_amount : preview.owner_share_amount),
+        menu_fmt: fmtMoney(settled ? order.menu_share_amount : preview.menu_share_amount),
+        location_fmt: fmtMoney(settled ? order.location_share_amount : preview.location_share_amount),
+        platform_fmt: fmtMoney(settled ? order.platform_share_amount : preview.platform_share_amount),
+        fee_fmt: fmtMoney(settled ? order.platform_midtrans_fee_amount : preview.midtrans_fee_total),
+        shortfall: Number(settled ? order.platform_fee_shortfall : preview.platform_fee_shortfall) > 0,
+      };
+    }
 
     return res.render("admin/orders/detail", {
       title: "Order Detail",
@@ -203,6 +231,7 @@ exports.detail = async (req, res, next) => {
         net_amount_fmt: fmtMoney(order.net_amount),
         settlement_status_label,
         settlement_badge_class: settlementStatusBadgeClass(settlement_status_label),
+        cruise,
       },
       items: mappedItems,
     });

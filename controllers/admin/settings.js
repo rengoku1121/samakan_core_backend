@@ -3,10 +3,11 @@ const systemSettings = require("../../models/system-settings");
 const payoutModel = require("../../models/payout");
 
 async function renderSettings(req, res, { error = null, success = null, status = 200 } = {}) {
-  const [feeConfig, kioskUi, payoutConfig] = await Promise.all([
+  const [feeConfig, kioskUi, payoutConfig, loginOtpEnabled] = await Promise.all([
     settlementModel.getFeeConfig(),
     systemSettings.getKioskUiConfig(),
     payoutModel.getConfig(),
+    systemSettings.getLoginOtpEnabled(),
   ]);
   return res.status(status).render("admin/settings/index", {
     title: "Settings",
@@ -14,6 +15,7 @@ async function renderSettings(req, res, { error = null, success = null, status =
     feeConfig,
     kioskUi,
     payoutConfig,
+    loginOtpEnabled,
     error,
     success,
   });
@@ -32,14 +34,10 @@ exports.render = async (req, res, next) => {
 exports.updateFees = async (req, res, next) => {
   try {
     const midtrans = parseFloat(req.body.midtrans_fee_percent);
-    const owner = parseFloat(req.body.owner_fee_percent);
     if (!Number.isFinite(midtrans) || midtrans < 0) {
       return await renderSettings(req, res, { error: "Fee Midtrans tidak valid.", status: 400 });
     }
-    if (!Number.isFinite(owner) || owner < 0) {
-      return await renderSettings(req, res, { error: "Fee Owner tidak valid.", status: 400 });
-    }
-    await settlementModel.updateFeeConfig({ midtrans_fee_percent: midtrans, owner_fee_percent: owner });
+    await settlementModel.updateFeeConfig({ midtrans_fee_percent: midtrans });
     return res.redirect("/admin/settings?ok=1");
   } catch (err) {
     return next(err);
@@ -57,6 +55,19 @@ exports.updateKioskUi = async (req, res, next) => {
       return await renderSettings(req, res, { error: "Mode katalog harus product atau slot.", status: 400 });
     }
     await systemSettings.updateKioskUiConfig({ catalog_columns: cols, catalog_mode: mode });
+    return res.redirect("/admin/settings?ok=1");
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateLoginOtp = async (req, res, next) => {
+  try {
+    const raw = String(req.body.login_otp_enabled || "").trim();
+    if (raw !== "0" && raw !== "1") {
+      return await renderSettings(req, res, { error: "Status OTP harus aktif atau nonaktif.", status: 400 });
+    }
+    await systemSettings.setLoginOtpEnabled(raw === "1");
     return res.redirect("/admin/settings?ok=1");
   } catch (err) {
     return next(err);

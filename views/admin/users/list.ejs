@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Akun Admin</h1>
+        <div class="meta">Hanya akun admin dan staff. Superadmin tidak dibuat dari halaman ini.</div>
+      </div>
+      <a class="btn btn-primary" href="/admin/users/new">+ Akun baru</a>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <div class="card flush">
+      <% if (!rows.length) { %>
+        <div class="empty">Belum ada akun admin atau staff.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Akun</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Masuk terakhir</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (row) { %>
+              <tr>
+                <td>
+                  <b><%= row.username %></b>
+                  <div class="meta"><%= row.email %></div>
+                </td>
+                <td><%= row.role === "admin" ? "Admin" : "Staff" %></td>
+                <td>
+                  <% if (Number(row.is_active)) { %><span class="badge on">Aktif</span>
+                  <% } else { %><span class="badge off">Nonaktif</span><% } %>
+                </td>
+                <td><%= row.last_login_at %></td>
+                <td>
+                  <div class="row account-actions">
+                    <a class="btn btn-ghost btn-sm" href="/admin/users/<%= row.id %>/edit">Ubah</a>
+                    <% if (Number(row.is_active)) { %>
+                      <form method="POST" action="/admin/users/<%= row.id %>/deactivate">
+                        <button class="btn btn-ghost btn-sm" type="submit">Nonaktifkan</button>
+                      </form>
+                    <% } else { %>
+                      <form method="POST" action="/admin/users/<%= row.id %>/restore">
+                        <button class="btn btn-ghost btn-sm" type="submit">Aktifkan</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <%- include('../../partials/table-pager', { basePath: '/admin/users', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows.length, keepQs: '' }) %>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

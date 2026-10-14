@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %> • Samakan Core</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "DM Sans", system-ui, sans-serif;
+      color: #2a1a16;
+      background: #fff7f3;
+    }
+    .card {
+      max-width: 420px;
+      margin: 48px auto;
+      padding: 28px 24px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 16px 40px rgba(42, 26, 22, 0.08);
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p { margin: 0 0 18px; color: #6b534c; }
+    .alert {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #fff1ee;
+      color: #9d241c;
+    }
+    label { display: block; font-weight: 700; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #ecd9d2;
+      border-radius: 12px;
+      font-size: 20px;
+      letter-spacing: 0.2em;
+    }
+    button, .link {
+      margin-top: 14px;
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .go { background: #d91f26; color: #fff; }
+    .link { display: block; text-align: center; background: transparent; color: #9d241c; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Kode email</h1>
+    <p>Masukkan 6 digit yang dikirim<% if (email) { %> ke <%= email %><% } %>.</p>
+    <% if (error) { %><div class="alert" role="alert"><%= error %></div><% } %>
+    <form method="POST" action="/auth/otp">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label for="otp">Kode</label>
+      <input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required />
+      <button class="go" type="submit">Lanjut</button>
+    </form>
+    <form method="POST" action="/auth/otp/resend">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="link" type="submit">Kirim ulang</button>
+    </form>
+  </main>
+</body>
+</html>

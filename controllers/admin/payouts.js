@@ -7,6 +7,7 @@
 const payoutModel = require("../../models/payout");
 const payoutService = require("../../services/payout-service");
 const { clean, toPositiveInt } = require("../../helper-function/http");
+const { pickLimit } = require("../../helper-function/table-page");
 const { payoutStatusLabel, payoutBadgeClass, STATUS } = require("../../helper-function/payout-status");
 
 const fmtIdr = (n) =>
@@ -47,7 +48,7 @@ exports.list = async (req, res, next) => {
     const statusFilter = clean(req.query.status).toUpperCase();
     const status = STATUS_FILTERS.has(statusFilter) ? statusFilter : "";
     const page = Math.max(1, toPositiveInt(req.query.page, 1));
-    const limit = 25;
+    const limit = pickLimit(req.query.limit, [10, 25, 50], 25);
     const offset = (page - 1) * limit;
 
     const [rows, total, awaiting] = await Promise.all([
@@ -65,6 +66,7 @@ exports.list = async (req, res, next) => {
       statuses: [...STATUS_FILTERS],
       awaiting,
       page,
+      limit,
       total,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       flash: FLASH[flashKey] || null,

@@ -5,16 +5,17 @@
 const http = require("http");
 const express = require("express");
 const { createRateLimit, skipHealthAndSse } = require("../helper-function/rate-limit");
+const { parseTrustProxy } = require("../helper-function/app-http");
 
 function assert(name, cond) {
   if (!cond) throw new Error(`FAIL ${name}`);
 }
 
-function request(server, path) {
+function request(server, path, headers) {
   return new Promise((resolve, reject) => {
     const { port } = server.address();
     const req = http.request(
-      { host: "127.0.0.1", port, path, method: "GET" },
+      { host: "127.0.0.1", port, path, method: "GET", headers },
       (res) => {
         const chunks = [];
         res.on("data", (c) => chunks.push(c));
@@ -37,6 +38,34 @@ async function main() {
   assert("skip sse", skipHealthAndSse({ originalUrl: "/admin/notifications/stream" }) === true);
   assert("no skip login", skipHealthAndSse({ originalUrl: "/auth/login" }) === false);
   assert("no skip api", skipHealthAndSse({ originalUrl: "/api/v1/catalog" }) === false);
+  assert("trust 0", parseTrustProxy("0") === false);
+  assert("trust 1", parseTrustProxy("1") === 1);
+  assert("trust loopback", parseTrustProxy("loopback") === "loopback");
+  const prevTrust = process.env.TRUST_PROXY;
+  delete process.env.TRUST_PROXY;
+  assert("default loopback", parseTrustProxy() === "loopback");
+  if (prevTrust === undefined) delete process.env.TRUST_PROXY;
+  else process.env.TRUST_PROXY = prevTrust;
+
+  const who = express();
+  who.set("trust proxy", "loopback");
+  who.get("/who", (req, res) => res.status(200).send(req.ip));
+  const whoServer = await new Promise((resolve) => {
+    const s = who.listen(0, "127.0.0.1", () => resolve(s));
+  });
+  const forwarded = await request(whoServer, "/who", { "X-Forwarded-For": "203.0.113.9" });
+  assert("loopback percaya XFF dari nginx lokal", forwarded.body === "203.0.113.9");
+  await new Promise((resolve) => whoServer.close(resolve));
+
+  const direct = express();
+  direct.set("trust proxy", false);
+  direct.get("/who", (req, res) => res.status(200).send(req.ip));
+  const directServer = await new Promise((resolve) => {
+    const s = direct.listen(0, "127.0.0.1", () => resolve(s));
+  });
+  const ignored = await request(directServer, "/who", { "X-Forwarded-For": "203.0.113.9" });
+  assert("tanpa trust XFF diabaikan", ignored.body.includes("127.0.0.1"));
+  await new Promise((resolve) => directServer.close(resolve));
 
   let threw = false;
   try {

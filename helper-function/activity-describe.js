@@ -32,7 +32,10 @@ const ALLOWED = new Set([
   "catalog_mode",
   "catalog_columns",
   "payout_enabled",
+  "login_otp_enabled",
   "partnership_type",
+  "merchant_role",
+  "commercial_model",
   "amount",
   "qty",
   "bank_code",
@@ -44,6 +47,7 @@ const ALLOWED = new Set([
   "direction",
   "version_code",
   "version_name",
+  "role",
 ]);
 
 /** Paling spesifik dulu. */
@@ -76,6 +80,11 @@ const RULES = [
   ["POST", /^\/admin\/settings\/fees$/, "settings", "Ubah pengaturan fee"],
   ["POST", /^\/admin\/settings\/kiosk-ui$/, "settings", "Ubah tampilan kiosk"],
   ["POST", /^\/admin\/settings\/payout$/, "settings", "Ubah pengaturan payout"],
+  ["POST", /^\/admin\/settings\/login-otp$/, "settings", "Ubah OTP email login"],
+  ["POST", /^\/admin\/users\/?$/, "create", "Tambah akun admin"],
+  ["POST", /^\/admin\/users\/[^/]+\/deactivate$/, "archive", "Nonaktifkan akun admin"],
+  ["POST", /^\/admin\/users\/[^/]+\/restore$/, "restore", "Pulihkan akun admin"],
+  ["POST", /^\/admin\/users\/[^/]+$/, "update", "Ubah akun admin"],
   ["POST", /^\/admin\/kiosk-ota\/?$/, "ota", "Unggah APK kiosk"],
   ["POST", /^\/admin\/kiosk-ota\/[^/]+\/release$/, "ota", "Rilis APK kiosk"],
   ["POST", /^\/admin\/kiosk-ota\/[^/]+\/retire$/, "ota", "Tarik rilis APK kiosk"],
@@ -139,6 +148,13 @@ function okStatus(status) {
   return status >= 200 && status < 400;
 }
 
+/** Daftar ulang browser yang sama tidak masuk riwayat. Nyala pertama dan matikan tetap dicatat. */
+function shouldRecordActivity(described, flags) {
+  if (!described) return false;
+  if (described.path === "/admin/notifications/subscribe" && !(flags && flags.notificationTurnedOn)) return false;
+  return true;
+}
+
 /**
  * @returns {{ action: string, summary: string } | null}
  */
@@ -165,6 +181,7 @@ function describeActivity(method, url, status, body) {
 module.exports = {
   describeActivity,
   detailFromBody,
+  shouldRecordActivity,
   ACTION_LABELS,
   pathOnly,
 };

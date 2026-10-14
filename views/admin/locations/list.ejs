@@ -149,7 +149,7 @@
           <a class="btn btn-ghost" href="/admin/locations?archived=1">Arsip</a>
         <% } %>
         <a class="btn btn-primary" href="/admin/locations/new">+ Lokasi master</a>
-        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
         <form method="POST" action="/auth/logout">
           <button type="submit" class="btn btn-link">Logout</button>
         </form>
@@ -158,10 +158,6 @@
 
     <div class="card">
       <div class="toolbar">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <span class="pill">Showing <small><%= rows ? rows.length : 0 %></small> items</span>
-          <span class="pill">Limit <small><%= limit %></small></span>
-        </div>
         <div class="muted">
           <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
             Lokasi diarsipkan tidak muncul di pilihan mesin.
@@ -215,36 +211,7 @@
         </table>
       <% } %>
 
-      <div class="footer">
-        <div class="muted">
-          <% const start = (page - 1) * limit + 1; %>
-          <% const end = (page - 1) * limit + (rows ? rows.length : 0); %>
-          <% if (rows && rows.length) { %>
-            Showing <b><%= start %></b>–<b><%= end %></b> of <b><%= total %></b>
-          <% } else { %>
-            Showing 0 of <b><%= total %></b>
-          <% } %>
-        </div>
-
-        <div class="pager">
-          <label class="muted">Limit</label>
-          <select class="select" onchange="location.href='/admin/locations?page=1&limit=' + this.value + '<%= archQs %>';">
-            <option value="10" <%= limit === 10 ? 'selected' : '' %>>10</option>
-            <option value="20" <%= limit === 20 ? 'selected' : '' %>>20</option>
-            <option value="50" <%= limit === 50 ? 'selected' : '' %>>50</option>
-          </select>
-
-          <% const prev = page > 1 ? page - 1 : 1; %>
-          <% const next = page < totalPages ? page + 1 : totalPages; %>
-
-          <% if (page > 1) { %>
-            <a class="btn btn-primary" href="/admin/locations?page=<%= prev %>&limit=<%= limit %><%= archQs %>">Prev</a>
-          <% } %>
-          <% if (page < totalPages) { %>
-            <a class="btn btn-primary" href="/admin/locations?page=<%= next %>&limit=<%= limit %><%= archQs %>">Next</a>
-          <% } %>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/admin/locations', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: archQs }) %>
     </div>
   </div>
 

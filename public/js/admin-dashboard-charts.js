@@ -48,10 +48,45 @@
     return fallback[index % fallback.length];
   }
 
+  function readRootData(root) {
+    var el = root.querySelector("[data-dash-charts]");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent || "{}");
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function canvasIn(root, name, legacyId) {
+    return root.querySelector("[data-chart='" + name + "']") || document.getElementById(legacyId);
+  }
+
   function init() {
     if (typeof Chart === "undefined") return;
     var data = readData();
     if (!data) return;
+    drawCharts(document, data, {
+      daily: document.getElementById("chart-daily"),
+      status: document.getElementById("chart-status"),
+      products: document.getElementById("chart-products"),
+    });
+  }
+
+  function initRoot(root) {
+    if (!root || typeof Chart === "undefined") return;
+    if (root.getAttribute("data-chart-ready") === "1") return;
+    var data = readRootData(root);
+    if (!data) return;
+    root.setAttribute("data-chart-ready", "1");
+    drawCharts(root, data, {
+      daily: canvasIn(root, "daily", ""),
+      status: canvasIn(root, "status", ""),
+      products: canvasIn(root, "products", ""),
+    });
+  }
+
+  function drawCharts(root, data, els) {
 
     Chart.defaults.font.family = "DM Sans, system-ui, sans-serif";
     Chart.defaults.color = "#8e7269";
@@ -59,7 +94,7 @@
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
 
     var daily = data.daily || [];
-    var dailyEl = document.getElementById("chart-daily");
+    var dailyEl = els.daily;
     if (dailyEl && daily.length) {
       new Chart(dailyEl, {
         type: "bar",
@@ -138,7 +173,7 @@
     }
 
     var status = data.status || [];
-    var statusEl = document.getElementById("chart-status");
+    var statusEl = els.status;
     if (statusEl && status.length) {
       new Chart(statusEl, {
         type: "doughnut",
@@ -172,7 +207,7 @@
     }
 
     var products = data.topProducts || [];
-    var productsEl = document.getElementById("chart-products");
+    var productsEl = els.products;
     if (productsEl && products.length) {
       new Chart(productsEl, {
         type: "bar",
@@ -222,12 +257,30 @@
     }
   }
 
+  function resizeRoot(root) {
+    if (!root || typeof Chart === "undefined" || typeof Chart.getChart !== "function") return;
+    root.querySelectorAll("canvas").forEach(function (canvas) {
+      var chart = Chart.getChart(canvas);
+      if (chart) chart.resize();
+    });
+  }
+
+  function boot() {
+    var roots = document.querySelectorAll("[data-chart-root]");
+    if (!roots.length) {
+      init();
+      return;
+    }
+    roots.forEach(initRoot);
+  }
+
+  window.SamakanCharts = { initRoot: initRoot, resizeRoot: resizeRoot };
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
-      // Chart.js defer — tunggu tick agar Chart global siap
-      setTimeout(init, 0);
+      setTimeout(boot, 0);
     });
   } else {
-    setTimeout(init, 0);
+    setTimeout(boot, 0);
   }
 })();

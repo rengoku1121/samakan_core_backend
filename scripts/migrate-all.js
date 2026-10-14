@@ -32,6 +32,9 @@ const MIGRATIONS = [
   "migrate-activity-log.js",
   "migrate-screensaver-ads.js",
   "migrate-kiosk-ota.js",
+  "migrate-auth-session.js",
+  "migrate-cruise-parties.js",
+  "migrate-brochure-packages.js",
 ];
 
 let failed = 0;

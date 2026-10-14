@@ -4,7 +4,7 @@ const XLSX = require("xlsx");
 const settlementModel = require("../../models/settlement");
 const merchantModel = require("../../models/merchant");
 const midtransReport = require("../../helper-function/midtrans-report");
-const { computeOrderSplit, partnershipLabel, termsSummary } = require("../../helper-function/partnership");
+const { settlementLines, partnershipLabel, termsSummary } = require("../../helper-function/partnership");
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 exports.upload = upload;
@@ -227,12 +227,14 @@ exports.previewUpload = async (req, res, next) => {
         });
       }
 
-      // Bagi hasil ikut syarat kerja sama merchant, bukan persentase global.
-      const split = computeOrderSplit({
-        gross: dbTotal,
-        terms: order,
-        midtrans_fee_percent: feeConfig.midtrans_fee_percent,
-      });
+      const money = settlementLines(order, feeConfig.midtrans_fee_percent);
+      if (!money.ok) {
+        notDispensed.push({ id: oid, status: "CRUISE_INCOMPLETE" });
+        continue;
+      }
+      const cruise = money.model === "cruise";
+      const ownerRun = money.model === "owner";
+      const partnerNet = money.lines.reduce((sum, line) => sum + Number(line.net || 0), 0);
 
       matched.push({
         id: order.id,
@@ -240,10 +242,18 @@ exports.previewUpload = async (req, res, next) => {
         merchant_id: order.merchant_id,
         total: dbTotal,
         partnership_type: order.partnership_type,
-        partnership_label: partnershipLabel(order.partnership_type),
-        midtrans_fee: split.midtrans_fee_amount,
-        owner_fee: split.owner_fee_amount,
-        net: split.net_amount,
+        partnership_label: cruise
+          ? "Cruise"
+          : ownerRun
+            ? "Pemilik menjalankan"
+            : partnershipLabel(order.partnership_type),
+        midtrans_fee: cruise
+          ? money.cruise.midtrans_fee_total
+          : ownerRun
+            ? money.ownerRun.midtrans_fee_total
+            : money.split.midtrans_fee_amount,
+        owner_fee: cruise ? money.cruise.platform_share_amount : ownerRun ? 0 : money.split.owner_fee_amount,
+        net: cruise ? partnerNet : ownerRun ? money.ownerRun.owner_net_amount : money.split.net_amount,
       });
     }
 
@@ -344,18 +354,23 @@ exports.renderForceSettle = async (req, res, next) => {
 
     const merchantMap = {};
     for (const o of eligible) {
-      if (!merchantMap[o.merchant_id]) {
-        merchantMap[o.merchant_id] = { orders: [], total: 0, net: 0, terms: o };
+      const money = settlementLines(o, feeConfig.midtrans_fee_percent);
+      if (!money.ok) continue;
+      for (const line of money.lines) {
+        if (!merchantMap[line.merchant_id]) {
+          merchantMap[line.merchant_id] = {
+            orders: [],
+            total: 0,
+            net: 0,
+            terms: o,
+            cruise: money.model === "cruise",
+          };
+        }
+        const group = merchantMap[line.merchant_id];
+        group.orders.push(o);
+        group.total += Number(o.total || 0);
+        group.net += Number(line.net || 0);
       }
-      const group = merchantMap[o.merchant_id];
-      const split = computeOrderSplit({
-        gross: Number(o.total),
-        terms: o,
-        midtrans_fee_percent: feeConfig.midtrans_fee_percent,
-      });
-      group.orders.push(o);
-      group.total += split.gross_amount;
-      group.net += split.net_amount;
     }
 
     const groups = Object.entries(merchantMap).map(([mid, data]) => {
@@ -370,7 +385,7 @@ exports.renderForceSettle = async (req, res, next) => {
         // Yang benar-benar masuk saldo merchant setelah bagi hasil & fee.
         net: data.net,
         net_fmt: fmtMoney(data.net),
-        terms_summary: termsSummary(data.terms),
+        terms_summary: data.cruise ? "Cruise" : termsSummary(data.terms),
         orders: data.orders,
       };
     });
@@ -435,9 +450,9 @@ exports.updateFees = async (req, res, next) => {
     const midtrans = parseFloat(req.body.midtrans_fee_percent);
     const owner = parseFloat(req.body.owner_fee_percent);
     if (!Number.isFinite(midtrans) || midtrans < 0) return res.redirect("/admin/settlement");
-    if (!Number.isFinite(owner) || owner < 0) return res.redirect("/admin/settlement");
-
-    await settlementModel.updateFeeConfig({ midtrans_fee_percent: midtrans, owner_fee_percent: owner });
+    const payload = { midtrans_fee_percent: midtrans };
+    if (Number.isFinite(owner) && owner >= 0) payload.owner_fee_percent = owner;
+    await settlementModel.updateFeeConfig(payload);
     return res.redirect("/admin/settlement");
   } catch (err) {
     return next(err);

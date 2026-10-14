@@ -1,5 +1,7 @@
 // middleware/auth.js
 const userModel = require("../models/user");
+const sessions = require("../models/auth-session");
+const attempts = require("../helper-function/login-attempts");
 const { verifyAccessToken } = require("../helper-function/jwt");
 const { clearAccessTokenCookieOptions } = require("../helper-function/cookie");
 const { canEditMoneySettings, roleAllowed } = require("../helper-function/rbac");
@@ -17,7 +19,7 @@ const extractToken = (req) => {
 
 const deny = (req, res) => {
   // clear token to force relogin
-  res.clearCookie("access_token", clearAccessTokenCookieOptions());
+  res.clearCookie("access_token", clearAccessTokenCookieOptions(req));
 
   const accept = String(req.headers.accept || "");
   if (!accept.includes("application/json")) {
@@ -28,6 +30,12 @@ const deny = (req, res) => {
   });
 };
 
+function sameClient(session, req) {
+  const ip = attempts.clientIp(req);
+  const ua = String((req.headers && req.headers["user-agent"]) || "").slice(0, 180);
+  return attempts.keyOfIp(session.ip) === ip && String(session.user_agent || "") === ua;
+}
+
 exports.requireAuth = async (req, res, next) => {
   try {
     const token = extractToken(req);
@@ -35,6 +43,7 @@ exports.requireAuth = async (req, res, next) => {
 
     // 1) verify JWT signature + expiry
     const decoded = verifyAccessToken(token);
+    if (decoded.purpose === "otp" || !decoded.sid) return deny(req, res);
 
     const userId = decoded.sub;
     const tokenRole = decoded.role;
@@ -53,6 +62,20 @@ exports.requireAuth = async (req, res, next) => {
 
     // optional but strongly recommended: role must match token
     if (dbUser.role !== tokenRole) return deny(req, res);
+
+    const tokenVersion = Number(decoded.av);
+    const dbVersion = Number(dbUser.auth_version) || 0;
+    if (!Number.isInteger(tokenVersion) || tokenVersion !== dbVersion) {
+      await sessions.revoke(decoded.sid);
+      return deny(req, res);
+    }
+
+    const session = await sessions.getOpen(decoded.sid);
+    if (!session || String(session.user_id) !== String(dbUser.id)) return deny(req, res);
+    if (!sameClient(session, req)) {
+      await sessions.revoke(decoded.sid);
+      return deny(req, res);
+    }
 
     // if merchant, merchant_id in token must match DB (normalize: JWT number vs MySQL string)
     const dbMerchantId = dbUser.merchant_id ?? null;

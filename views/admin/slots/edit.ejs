@@ -93,6 +93,7 @@
                 </option>
               <% }) %>
             </select>
+            <div class="hint"><%= typeof productHint !== "undefined" && productHint ? productHint : "Menu yang tampil mengikuti paket mesin." %></div>
           </div>
 
           <div>
@@ -146,7 +147,7 @@
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>
           <a class="btn btn-secondary" href="/admin/slots/list?machine_id=<%= encodeURIComponent(value?.machine_id || '') %>">Back</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>

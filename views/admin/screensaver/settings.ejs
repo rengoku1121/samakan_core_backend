@@ -11,7 +11,7 @@
     <div class="header">
       <div>
         <h1>Pengaturan Screensaver</h1>
-        <div class="meta">Waktu diam, durasi foto default, dan lama tayang tiap slide bawaan di semua mesin.</div>
+        <div class="meta">Waktu diam beranda, waktu diam saat memesan, durasi foto, dan lama tayang tiap slide bawaan.</div>
       </div>
       <div class="row">
         <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke iklan</a>
@@ -26,9 +26,14 @@
         <h2>Waktu pemutar</h2>
         <div class="grid2">
           <div>
-            <label for="idle_seconds">Diam sebelum screensaver (detik)</label>
-            <input type="number" id="idle_seconds" name="idle_seconds" min="10" max="180" required value="<%= config.idle_seconds %>" />
-            <div class="hint">Default 30 detik. Berlaku di beranda dan katalog (katalog kembali ke home dulu).</div>
+            <label for="idle_seconds">Diam di beranda (detik)</label>
+            <input type="number" id="idle_seconds" name="idle_seconds" min="30" max="180" required value="<%= config.idle_seconds %>" />
+            <div class="hint">Minimal 30 detik. Hanya halaman awal, sebelum pelanggan mulai memesan.</div>
+          </div>
+          <div>
+            <label for="flow_idle_seconds">Diam saat memesan (detik)</label>
+            <input type="number" id="flow_idle_seconds" name="flow_idle_seconds" min="30" max="600" required value="<%= config.flow_idle_seconds %>" />
+            <div class="hint">Default 180 detik (3 menit). Katalog, pilihan dipanaskan atau tidak, dan layar QRIS.</div>
           </div>
           <div>
             <label for="default_image_seconds">Durasi foto default (detik)</label>

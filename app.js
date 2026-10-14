@@ -70,6 +70,10 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
   const vendor = require("./routes/vendor");
   const apiRoutes = require("./routes/api");
 
+  const { requireAuth, requireRole } = require("./middleware/auth");
+  const adminHome = require("./controllers/admin");
+  app.get("/dashboard", requireAuth, requireRole("admin", "staff"), adminHome.renderHome);
+  app.get("/dashboard/summary", requireAuth, requireRole("admin", "staff"), adminHome.summaryAll);
   app.get("/", (req, res) => res.redirect("/auth/login"));
   app.get("/health", (req, res) =>
     res.status(200).json({

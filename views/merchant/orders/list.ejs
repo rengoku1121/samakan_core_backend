@@ -92,14 +92,7 @@
             </select>
           </div>
 
-          <div>
-            <label for="f-limit">Per halaman</label>
-            <select id="f-limit" name="limit">
-              <% [10,20,30,50].forEach(function(n){ %>
-                <option value="<%= n %>" <%= String(limit) === String(n) ? "selected" : "" %>><%= n %></option>
-              <% }) %>
-            </select>
-          </div>
+          <input type="hidden" name="limit" value="<%= limit %>" />
 
           <button class="btn btn-primary" type="submit">Terapkan</button>
           <a class="btn btn-ghost" href="/orders">Reset</a>
@@ -113,9 +106,9 @@
             <th>Machine</th>
             <th>Status</th>
             <th>Total</th>
+            <th>Bagian Anda</th>
             <th>Dibuat</th>
             <th>Dibayar</th>
-            <th>Settlement</th>
           </tr>
         </thead>
         <tbody>
@@ -125,17 +118,9 @@
               <td><b><%= r.machine_code %></b><div class="muted"><%= r.machine_name || "-" %></div></td>
               <td><span class="badge <%= statusClass(r.status) %>"><%= r.status %></span></td>
               <td class="mono nowrap">Rp <b><%= r.total_fmt %></b></td>
+              <td class="mono nowrap"><%= r.share_fmt == null ? "—" : ("Rp " + r.share_fmt) %></td>
               <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
-              <td class="mono">
-                <span class="badge <%= r.settlement_badge_class %>"><%= r.settlement_status_label %></span>
-                <% if (r.settlement_status_label === 'FLAG_ORPHAN') { %>
-                  <div class="muted" style="font-size:11px;margin-top:4px;">Belum masuk saldo</div>
-                <% } %>
-                <% if (r.settlement_ref) { %>
-                  <div class="muted settlement-ref" title="<%= r.settlement_ref %>"><%= r.settlement_ref %></div>
-                <% } %>
-              </td>
             </tr>
           <% }) %>
           <% if (!rows || rows.length === 0) { %>
@@ -144,13 +129,7 @@
         </tbody>
       </table>
 
-      <div class="pager">
-        <div class="muted">Halaman <b><%= page %></b> dari <b><%= totalPages %></b></div>
-        <div class="actions">
-          <a class="btn btn-ghost btn-sm<%= page <= 1 ? ' is-disabled' : '' %>" href="/orders?<%= qsPrefix %>page=<%= prevPage %>"<%- page <= 1 ? ' aria-disabled="true" tabindex="-1"' : '' %>>‹ Sebelumnya</a>
-          <a class="btn btn-ghost btn-sm<%= page >= totalPages ? ' is-disabled' : '' %>" href="/orders?<%= qsPrefix %>page=<%= nextPage %>"<%- page >= totalPages ? ' aria-disabled="true" tabindex="-1"' : '' %>>Berikutnya ›</a>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/orders', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: qsBase, limits: [10, 20, 30, 50] }) %>
     </div>
   </div>
 </body>

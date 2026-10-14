@@ -2,6 +2,14 @@ const { pool } = require("../utils/db");
 
 const toJson = (v) => JSON.stringify(v || {});
 
+exports.findByEndpoint = async (endpoint) => {
+  const [rows] = await pool.query(
+    `SELECT id, is_active FROM push_subscriptions WHERE endpoint = ? LIMIT 1`,
+    [endpoint]
+  );
+  return rows[0] || null;
+};
+
 exports.upsert = async ({ user_id, endpoint, p256dh, auth, subscription }) => {
   const sql = `
     INSERT INTO push_subscriptions (

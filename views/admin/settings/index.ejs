@@ -31,29 +31,22 @@
   <div class="topbar">Samakan Admin • Settings</div>
   <div class="wrap">
     <h1>Settings</h1>
-    <div class="muted"><%= payoutUiEnabled ? "Fee settlement, payout merchant, dan tampilan kiosk." : "Fee settlement dan tampilan kiosk." %></div>
+    <div class="muted"><%= payoutUiEnabled ? "Biaya pembayaran, payout merchant, dan tampilan kiosk." : "Biaya pembayaran dan tampilan kiosk." %></div>
 
     <% if (typeof success !== 'undefined' && success) { %><div class="ok" style="margin-top:14px;"><%= success %></div><% } %>
     <% if (error) { %><div class="alert" style="margin-top:14px;"><%= error %></div><% } %>
 
     <div class="card">
-      <h2>Fee Settlement</h2>
-      <div class="muted" style="margin-bottom:12px;">Patokan tunggal untuk Force Settlement dan Upload Excel. Kolom fee di file Midtrans tidak dipakai.</div>
+      <h2>Biaya pembayaran</h2>
+      <div class="muted" style="margin-bottom:12px;">Persen ini dipakai untuk menghitung biaya pembayaran dari harga jual.</div>
       <form method="POST" action="/admin/settings/fees">
-        <div class="row">
-          <div>
-            <label>Fee Midtrans (%)</label>
-            <input name="midtrans_fee_percent" type="number" step="0.01" min="0" value="<%= feeConfig.midtrans_fee_percent %>" required />
-          </div>
-          <div>
-            <label>Default Bagi Hasil Merchant Baru (%)</label>
-            <input name="owner_fee_percent" type="number" step="0.01" min="0" max="99.99" value="<%= feeConfig.owner_fee_percent %>" required />
-          </div>
+        <div>
+          <label>Fee Midtrans (%)</label>
+          <input name="midtrans_fee_percent" type="number" step="0.01" min="0" value="<%= feeConfig.midtrans_fee_percent %>" required style="max-width:280px" />
         </div>
         <p class="hint">
-          Bagi hasil yang berlaku diambil dari <b>tiap merchant</b> (Merchants &rsaquo; Edit), bukan dari sini.
-          Angka di atas hanya mengisi otomatis form merchant baru. Merchant bertipe
-          <b>Subscription</b> tidak dipotong bagi hasil sama sekali.
+          Di Cruise, biaya ini mengurangi bagian Samakan setelah pemilik, mitra menu, dan mitra lokasi.
+          Di Plus dan Basic, biaya dipotong dulu, lalu sisanya masuk ke pemilik.
         </p>
         <div class="actions">
           <button class="btn btn-primary" type="submit">Update Fee</button>
@@ -109,6 +102,28 @@
     </div>
     <% } %>
 
+    <% if (user && user.role === "superadmin") { %>
+    <div class="card">
+      <h2>Login OTP email</h2>
+      <div class="muted" style="margin-bottom:12px;">Hanya superadmin yang melihat saklar ini. Nonaktif berarti password benar langsung masuk.</div>
+      <form method="POST" action="/admin/settings/login-otp">
+        <div class="row">
+          <div>
+            <label>Status OTP</label>
+            <select name="login_otp_enabled" required>
+              <option value="0" <%= loginOtpEnabled ? "" : "selected" %>>Nonaktif</option>
+              <option value="1" <%= loginOtpEnabled ? "selected" : "" %>>Aktif</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Saat aktif, kode 6 digit dikirim ke email akun. Butuh SMTP. Kalau SMTP belum diisi, login berhenti dan sesi tidak dibuat.</p>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Simpan OTP</button>
+        </div>
+      </form>
+    </div>
+    <% } %>
+
     <div class="card">
       <h2>Kiosk UI</h2>
       <div class="muted" style="margin-bottom:12px;">Layout grid + cara menampilkan katalog di layar kiosk.</div>
@@ -136,7 +151,7 @@
         </div>
         <div class="actions">
           <button class="btn btn-primary" type="submit">Update Kiosk UI</button>
-          <a class="btn btn-ghost" href="/admin">Dashboard</a>
+          <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>

@@ -1,12 +1,13 @@
 // models/merchant.js
 const { pool } = require("../utils/db");
-const { normalizeTerms } = require("../helper-function/partnership");
+const { normalizeTerms, normalizeMerchantRole } = require("../helper-function/partnership");
 
 const activeClause = "deleted_at IS NULL";
 const deletedClause = "deleted_at IS NOT NULL";
 
 /** Kolom syarat kerja sama; dipakai bersama supaya select tidak pernah beda. */
 const TERM_COLUMNS = `
+  merchant_role,
   partnership_type,
   revenue_share_percent,
   subscription_amount,
@@ -14,14 +15,45 @@ const TERM_COLUMNS = `
   payout_fee_bearer
 `;
 
-exports.countAll = async ({ archivedOnly = false } = {}) => {
-  const where = archivedOnly ? `WHERE ${deletedClause}` : `WHERE ${activeClause}`;
+const ROLE_FILTERS = new Set(["legacy", "owner", "menu", "location"]);
+
+function listFilter({ archivedOnly = false, q = "", role = "", machineId = 0 } = {}) {
+  const where = [archivedOnly ? deletedClause : activeClause];
+  const params = [];
+  const text = String(q || "").trim().slice(0, 80).replace(/[\\%_]/g, "");
+  if (text) {
+    const like = `%${text}%`;
+    where.push("(name LIKE ? OR merchant_code LIKE ?)");
+    params.push(like, like);
+  }
+  if (ROLE_FILTERS.has(role)) {
+    where.push("merchant_role = ?");
+    params.push(role);
+  }
+  const machine = Number(machineId);
+  if (Number.isInteger(machine) && machine > 0) {
+    where.push(`EXISTS (
+      SELECT 1 FROM machines mac
+      WHERE mac.id = ?
+        AND (
+          mac.merchant_id = merchants.id
+          OR mac.menu_merchant_id = merchants.id
+          OR mac.location_merchant_id = merchants.id
+        )
+    )`);
+    params.push(machine);
+  }
+  return { whereSql: `WHERE ${where.join(" AND ")}`, params };
+}
+
+exports.countAll = async ({ archivedOnly = false, q = "", role = "", machineId = 0 } = {}) => {
+  const filter = listFilter({ archivedOnly, q, role, machineId });
   const sql = `
     SELECT COUNT(1) AS total
     FROM merchants
-    ${where}
+    ${filter.whereSql}
   `;
-  const [rows] = await pool.query(sql);
+  const [rows] = await pool.query(sql, filter.params);
   return Number(rows[0]?.total || 0);
 };
 
@@ -30,7 +62,8 @@ exports.listAllForSelect = async () => {
     SELECT
       id,
       merchant_code,
-      name
+      name,
+      merchant_role
     FROM merchants
     WHERE ${activeClause}
     ORDER BY name ASC
@@ -40,8 +73,8 @@ exports.listAllForSelect = async () => {
   return rows;
 };
 
-exports.listPaginated = async ({ limit, offset, archivedOnly = false }) => {
-  const where = archivedOnly ? `WHERE ${deletedClause}` : `WHERE ${activeClause}`;
+exports.listPaginated = async ({ limit, offset, archivedOnly = false, q = "", role = "", machineId = 0 }) => {
+  const filter = listFilter({ archivedOnly, q, role, machineId });
   const sql = `
     SELECT
       id,
@@ -53,11 +86,11 @@ exports.listPaginated = async ({ limit, offset, archivedOnly = false }) => {
       created_at,
       updated_at
     FROM merchants
-    ${where}
+    ${filter.whereSql}
     ORDER BY id DESC
     LIMIT ? OFFSET ?
   `;
-  const [rows] = await pool.query(sql, [limit, offset]);
+  const [rows] = await pool.query(sql, [...filter.params, limit, offset]);
   return rows;
 };
 
@@ -145,7 +178,7 @@ exports.findTermsByIds = async (ids, conn, { forUpdate = false } = {}) => {
 };
 
 exports.createWithAutoCode = async (
-  { name, is_active, partnership_type, revenue_share_percent, subscription_amount, midtrans_fee_bearer, payout_fee_bearer },
+  { name, is_active, merchant_role, partnership_type, revenue_share_percent, subscription_amount, midtrans_fee_bearer, payout_fee_bearer },
   conn
 ) => {
   const terms = normalizeTerms({
@@ -155,6 +188,7 @@ exports.createWithAutoCode = async (
     midtrans_fee_bearer,
     payout_fee_bearer,
   });
+  const role = normalizeMerchantRole(merchant_role);
   const ownConn = !conn;
   const executor = conn || (await pool.getConnection());
   try {
@@ -183,17 +217,19 @@ exports.createWithAutoCode = async (
       INSERT INTO merchants (
         merchant_code,
         name,
+        merchant_role,
         partnership_type,
         revenue_share_percent,
         subscription_amount,
         midtrans_fee_bearer,
         payout_fee_bearer,
         is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         merchant_code,
         name,
+        role,
         terms.partnership_type,
         terms.revenue_share_percent,
         terms.subscription_amount,
@@ -216,6 +252,7 @@ exports.updateById = async ({
   id,
   name,
   is_active,
+  merchant_role,
   partnership_type,
   revenue_share_percent,
   subscription_amount,
@@ -229,10 +266,12 @@ exports.updateById = async ({
     midtrans_fee_bearer,
     payout_fee_bearer,
   });
+  const role = normalizeMerchantRole(merchant_role);
   const sql = `
     UPDATE merchants
     SET
       name = ?,
+      merchant_role = ?,
       partnership_type = ?,
       revenue_share_percent = ?,
       subscription_amount = ?,
@@ -245,6 +284,7 @@ exports.updateById = async ({
   `;
   const [result] = await pool.query(sql, [
     name,
+    role,
     terms.partnership_type,
     terms.revenue_share_percent,
     terms.subscription_amount,

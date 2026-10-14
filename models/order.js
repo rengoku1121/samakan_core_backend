@@ -3,12 +3,26 @@ const crypto = require("crypto");
 const { pool } = require("../utils/db");
 const { pushDateRangeWhere } = require("../helper-function/date-range");
 
-function adminOrdersWhere({ status, merchant_id, machine_id, settlement_ref, date_from, date_to }) {
+function adminOrdersWhere({ status, merchant_id, machine_id, settlement_ref, date_from, date_to, q }) {
   const where = [];
   const params = [];
 
+  const code = String(q || "").trim().slice(0, 64);
+  if (code) {
+    const like = `%${code.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+    if (/^\d+$/.test(code)) {
+      where.push("(o.order_code LIKE ? OR o.id = ?)");
+      params.push(like, Number(code));
+    } else {
+      where.push("o.order_code LIKE ?");
+      params.push(like);
+    }
+  }
   if (status) { where.push("o.status = ?"); params.push(status); }
-  if (merchant_id) { where.push("o.merchant_id = ?"); params.push(merchant_id); }
+  if (merchant_id) {
+    where.push("(o.merchant_id = ? OR o.menu_merchant_id = ? OR o.location_merchant_id = ?)");
+    params.push(merchant_id, merchant_id, merchant_id);
+  }
   if (machine_id) { where.push("o.machine_id = ?"); params.push(machine_id); }
   if (settlement_ref) { where.push("o.settlement_ref LIKE ?"); params.push(`%${settlement_ref}%`); }
   pushDateRangeWhere(where, params, "o.created_at", { date_from, date_to });
@@ -17,8 +31,8 @@ function adminOrdersWhere({ status, merchant_id, machine_id, settlement_ref, dat
 }
 
 function merchantOrdersWhere({ merchant_id, status, date_from, date_to }) {
-  const where = ["o.merchant_id = ?"];
-  const params = [merchant_id];
+  const where = ["(o.merchant_id = ? OR o.menu_merchant_id = ? OR o.location_merchant_id = ?)"];
+  const params = [merchant_id, merchant_id, merchant_id];
 
   if (status) { where.push("o.status = ?"); params.push(status); }
   pushDateRangeWhere(where, params, "o.created_at", { date_from, date_to });
@@ -144,9 +158,9 @@ exports.merchantDashboardStats = async (merchant_id) => {
         END
       ) AS qris_recorded_count
     FROM orders o
-    WHERE o.merchant_id = ?
+    WHERE o.merchant_id = ? OR o.menu_merchant_id = ? OR o.location_merchant_id = ?
   `;
-  const [rows] = await pool.query(sql, [merchant_id]);
+  const [rows] = await pool.query(sql, [merchant_id, merchant_id, merchant_id]);
   const r = rows[0] || {};
   return {
     total_orders: Number(r.total_orders || 0),
@@ -156,6 +170,39 @@ exports.merchantDashboardStats = async (merchant_id) => {
     dispensed_count: Number(r.dispensed_count || 0),
     qris_recorded_count: Number(r.qris_recorded_count || 0),
   };
+};
+
+/** Order terbayar di rentang dashboard, untuk menjumlah bagian merchant. */
+exports.listPaidInDashboardRange = async ({ merchantId, dateFrom, dateTo }) => {
+  const PAID_LIKE_SQL = "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
+  const params = dashboardStoredWindow(dateFrom, dateTo);
+  params.push(merchantId, merchantId, merchantId);
+  const sql = `
+    SELECT
+      o.total,
+      o.split_model,
+      o.is_settled,
+      o.merchant_id,
+      o.menu_merchant_id,
+      o.location_merchant_id,
+      o.owner_share_percent,
+      o.menu_share_percent,
+      o.location_share_percent,
+      o.owner_share_amount,
+      o.menu_share_amount,
+      o.location_share_amount,
+      o.net_amount
+    FROM orders o
+    WHERE o.created_at >= ?
+      AND o.created_at < ?
+      AND (o.merchant_id = ? OR o.menu_merchant_id = ? OR o.location_merchant_id = ?)
+      AND o.status IN ${PAID_LIKE_SQL}
+    ORDER BY o.id DESC
+    LIMIT ?
+  `;
+  params.push(5000);
+  const [rows] = await pool.query(sql, params);
+  return rows || [];
 };
 
 exports.listMerchant = async ({ limit, offset, ...filter }) => {
@@ -173,6 +220,16 @@ exports.listMerchant = async ({ limit, offset, ...filter }) => {
       o.is_settled,
       o.settled_at,
       o.settlement_ref,
+      o.split_model,
+      o.merchant_id,
+      o.menu_merchant_id,
+      o.location_merchant_id,
+      o.owner_share_percent,
+      o.menu_share_percent,
+      o.location_share_percent,
+      o.owner_share_amount,
+      o.menu_share_amount,
+      o.location_share_amount,
       EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item,
       mc.id AS machine_id,
       mc.code AS machine_code,
@@ -212,17 +269,35 @@ exports.findByIdAdmin = async (id) => {
       o.settled_at,
       o.settlement_ref,
       o.midtrans_fee_amount,
+      o.platform_midtrans_fee_amount,
       o.owner_fee_amount,
       o.net_amount,
+      o.split_model,
+      o.menu_merchant_id,
+      o.location_merchant_id,
+      o.owner_share_percent,
+      o.menu_share_percent,
+      o.location_share_percent,
+      o.owner_share_amount,
+      o.menu_share_amount,
+      o.location_share_amount,
+      o.platform_share_amount,
+      o.platform_fee_shortfall,
       EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item,
       m.id AS merchant_id,
       m.merchant_code AS merchant_code,
       m.name AS merchant_name,
+      menuMer.name AS menu_merchant_name,
+      menuMer.merchant_code AS menu_merchant_code,
+      locMer.name AS location_merchant_name,
+      locMer.merchant_code AS location_merchant_code,
       mc.id AS machine_id,
       mc.code AS machine_code,
       mc.name AS machine_name
     FROM orders o
     INNER JOIN merchants m ON m.id = o.merchant_id
+    LEFT JOIN merchants menuMer ON menuMer.id = o.menu_merchant_id
+    LEFT JOIN merchants locMer ON locMer.id = o.location_merchant_id
     INNER JOIN machines mc ON mc.id = o.machine_id
     WHERE o.id = ?
     LIMIT ?
@@ -279,6 +354,12 @@ exports.findMachineActiveById = async (id) => {
       name,
       location_id,
       merchant_id,
+      commercial_model,
+      menu_merchant_id,
+      location_merchant_id,
+      owner_share_percent,
+      menu_share_percent,
+      location_share_percent,
       is_active
     FROM machines
     WHERE id = ?
@@ -369,12 +450,24 @@ exports.create = async ({
   expires_at,
   heat_requested = null,
   stock_reserved = 0,
+  split_model = "legacy",
+  menu_merchant_id = null,
+  location_merchant_id = null,
+  owner_share_percent = 0,
+  menu_share_percent = 0,
+  location_share_percent = 0,
 }, conn) => {
   const executor = conn || pool;
   const sql = `
     INSERT INTO orders (
       order_code,
       merchant_id,
+      split_model,
+      menu_merchant_id,
+      location_merchant_id,
+      owner_share_percent,
+      menu_share_percent,
+      location_share_percent,
       machine_id,
       location_id,
       status,
@@ -387,7 +480,7 @@ exports.create = async ({
       expires_at,
       heat_requested,
       stock_reserved
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const heatVal =
@@ -400,6 +493,12 @@ exports.create = async ({
   const [result] = await executor.query(sql, [
     order_code,
     merchant_id,
+    split_model === "cruise" ? "cruise" : split_model === "owner" ? "owner" : "legacy",
+    menu_merchant_id || null,
+    location_merchant_id || null,
+    Number(owner_share_percent || 0),
+    Number(menu_share_percent || 0),
+    Number(location_share_percent || 0),
     machine_id,
     location_id,
     status,
@@ -611,25 +710,43 @@ exports.updatePaymentWebhookStatus = async ({
 
 function merchantScope(merchantId, params) {
   if (merchantId == null || merchantId === "") return "";
-  params.push(merchantId);
-  return " AND o.merchant_id = ?";
+  params.push(merchantId, merchantId, merchantId);
+  return " AND (o.merchant_id = ? OR o.menu_merchant_id = ? OR o.location_merchant_id = ?)";
 }
 
-exports.getAdminDashboardSummary = async ({ dateFrom, dateTo, merchantId = null }) => {
+/**
+ * created_at diisi CURRENT_TIMESTAMP di jam server (Jakarta), bukan UTC.
+ * Batasnya 00:00 tanggal awal sampai 00:00 hari setelah tanggal akhir.
+ */
+function dashboardStoredWindow(dateFrom, dateTo) {
+  const [y, m, d] = String(dateTo).split("-").map(Number);
+  const end = new Date(Date.UTC(y, m - 1, d + 1));
+  const pad = (n) => String(n).padStart(2, "0");
+  const endDay = `${end.getUTCFullYear()}-${pad(end.getUTCMonth() + 1)}-${pad(end.getUTCDate())}`;
+  return [`${dateFrom} 00:00:00.000`, `${endDay} 00:00:00.000`];
+}
+
+const JAKARTA_DAY = "DATE_FORMAT(o.created_at, '%Y-%m-%d')";
+
+exports.getAdminDashboardSummary = async ({ dateFrom, dateTo, merchantId = null, allTime = false }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
-  const params = [dateFrom, dateTo];
+  const params = [];
+  const dateSql = allTime ? "1=1" : "o.created_at >= ? AND o.created_at < ?";
+  if (!allTime) params.push(...dashboardStoredWindow(dateFrom, dateTo));
   const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN o.total ELSE 0 END), 0) AS turnover,
-      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN COALESCE(o.owner_fee_amount, 0) ELSE 0 END), 0) AS profit,
+      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN
+        CASE WHEN o.split_model = 'cruise' THEN COALESCE(o.platform_share_amount, 0)
+             ELSE COALESCE(o.owner_fee_amount, 0) END
+      ELSE 0 END), 0) AS profit,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions,
       COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN o.total ELSE 0 END), 0) AS pending_amount,
       COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
     FROM orders o
-    WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
+    WHERE ${dateSql}${merchantSql}
   `;
 
   const [rows] = await pool.query(sql, params);
@@ -643,29 +760,31 @@ exports.getAdminDashboardSummary = async ({ dateFrom, dateTo, merchantId = null 
 };
 
 /** Omzet & transaksi per hari (untuk line/bar chart). */
-exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo, merchantId = null }) => {
+exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo, merchantId = null, allTime = false }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
-  const params = [dateFrom, dateTo];
+  const params = [];
+  const dateSql = allTime ? "1=1" : "o.created_at >= ? AND o.created_at < ?";
+  if (!allTime) params.push(...dashboardStoredWindow(dateFrom, dateTo));
   const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
-      DATE(o.created_at) AS day,
+      ${JAKARTA_DAY} AS day,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN o.total ELSE 0 END), 0) AS turnover,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions
     FROM orders o
-    WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
-    GROUP BY DATE(o.created_at)
-    ORDER BY day ASC
+    WHERE ${dateSql}${merchantSql}
+    GROUP BY ${JAKARTA_DAY}
+    ORDER BY day ${allTime ? "DESC" : "ASC"}
+    ${allTime ? "LIMIT 800" : ""}
   `;
   const [rows] = await pool.query(sql, params);
-  return (rows || []).map((r) => {
+  const mapped = (rows || []).map((r) => {
     let day = "";
     if (r.day instanceof Date && !Number.isNaN(r.day.getTime())) {
-      const y = r.day.getFullYear();
-      const m = String(r.day.getMonth() + 1).padStart(2, "0");
-      const d = String(r.day.getDate()).padStart(2, "0");
+      const y = r.day.getUTCFullYear();
+      const m = String(r.day.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(r.day.getUTCDate()).padStart(2, "0");
       day = `${y}-${m}-${d}`;
     } else {
       day = String(r.day || "").slice(0, 10);
@@ -676,19 +795,21 @@ exports.getAdminDashboardDailySeries = async ({ dateFrom, dateTo, merchantId = n
       transactions: Number(r.transactions || 0),
     };
   });
+  return allTime ? mapped.reverse() : mapped;
 };
 
 /** Breakdown status order di rentang tanggal. */
-exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo, merchantId = null }) => {
-  const params = [dateFrom, dateTo];
+exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo, merchantId = null, allTime = false }) => {
+  const params = [];
+  const dateSql = allTime ? "1=1" : "o.created_at >= ? AND o.created_at < ?";
+  if (!allTime) params.push(...dashboardStoredWindow(dateFrom, dateTo));
   const merchantSql = merchantScope(merchantId, params);
   const sql = `
     SELECT
       o.status,
       COUNT(1) AS count
     FROM orders o
-    WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
+    WHERE ${dateSql}${merchantSql}
     GROUP BY o.status
     ORDER BY count DESC
   `;
@@ -700,10 +821,12 @@ exports.getAdminDashboardStatusBreakdown = async ({ dateFrom, dateTo, merchantId
 };
 
 /** Top produk terjual (order paid-like) di rentang tanggal. */
-exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, merchantId = null, limit = 8 }) => {
+exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, merchantId = null, limit = 8, allTime = false }) => {
   const PAID_LIKE =
     "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
-  const params = [dateFrom, dateTo];
+  const params = [];
+  const dateSql = allTime ? "1=1" : "o.created_at >= ? AND o.created_at < ?";
+  if (!allTime) params.push(...dashboardStoredWindow(dateFrom, dateTo));
   const merchantSql = merchantScope(merchantId, params);
   params.push(Number(limit) || 8);
   const sql = `
@@ -713,8 +836,7 @@ exports.getAdminDashboardTopProducts = async ({ dateFrom, dateTo, merchantId = n
       COALESCE(SUM(oi.line_total), 0) AS revenue
     FROM order_items oi
     INNER JOIN orders o ON o.id = oi.order_id
-    WHERE o.created_at >= ?
-      AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)${merchantSql}
+    WHERE ${dateSql}${merchantSql}
       AND o.status IN ${PAID_LIKE}
     GROUP BY COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk')
     ORDER BY qty DESC, revenue DESC
@@ -1161,35 +1283,35 @@ exports.markRefunded = async ({ id, refund_reference, refund_notes, refunded_by_
     }
 
     const [items] = await conn.query(
-      `SELECT id, net_amount, settlement_ref FROM merchant_settlement_items
-       WHERE order_id = ? LIMIT 1 FOR UPDATE`,
+      `SELECT id, merchant_id, net_amount, settlement_ref, party_role
+       FROM merchant_settlement_items
+       WHERE order_id = ? FOR UPDATE`,
       [order.id]
     );
-    const item = items[0] || null;
     let reversed = false;
+    let reversedNet = 0;
 
-    if (item) {
+    for (const item of items) {
       const net = Math.round(Number(item.net_amount || 0) * 100) / 100;
-      if (net !== 0) {
-        try {
-          await conn.query(
-            `INSERT INTO merchant_balance_ledger
-              (merchant_id, settlement_ref, entry_type, payout_id, order_id, tx_count,
-               gross_amount, midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
-             VALUES (?, ?, 'ORDER_REFUND_REVERSAL', NULL, ?, 0, 0, 0, 0, ?, 'refund', ?)`,
-            [
-              order.merchant_id,
-              item.settlement_ref || `REFUND-${order.id}`,
-              order.id,
-              -net,
-              `Reversal refund order #${order.id}`,
-            ]
-          );
-          reversed = true;
-        } catch (err) {
-          if (!err || err.code !== "ER_DUP_ENTRY") throw err;
-          reversed = false;
-        }
+      if (net === 0) continue;
+      try {
+        await conn.query(
+          `INSERT INTO merchant_balance_ledger
+            (merchant_id, settlement_ref, entry_type, payout_id, order_id, tx_count,
+             gross_amount, midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
+           VALUES (?, ?, 'ORDER_REFUND_REVERSAL', NULL, ?, 0, 0, 0, 0, ?, 'refund', ?)`,
+          [
+            item.merchant_id || order.merchant_id,
+            item.settlement_ref || `REFUND-${order.id}`,
+            order.id,
+            -net,
+            `Reversal refund order #${order.id}`,
+          ]
+        );
+        reversed = true;
+        reversedNet = Math.round((reversedNet + net) * 100) / 100;
+      } catch (err) {
+        if (!err || err.code !== "ER_DUP_ENTRY") throw err;
       }
     }
 
@@ -1211,7 +1333,7 @@ exports.markRefunded = async ({ id, refund_reference, refund_notes, refunded_by_
     }
 
     await conn.commit();
-    return { ok: true, already: false, reversed, net_reversed: reversed ? -Number(item.net_amount) : 0 };
+    return { ok: true, already: false, reversed, net_reversed: reversed ? -reversedNet : 0 };
   } catch (err) {
     try {
       await conn.rollback();

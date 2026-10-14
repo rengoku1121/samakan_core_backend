@@ -1,0 +1,37 @@
+<style>
+  .wrap{max-width:980px;margin:0 auto}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:22px;color:#2a1a16}
+  .meta{color:#8e7269;font-size:13px;margin-top:6px}
+  .card{background:#fff;border:1px solid #f4e2d9;border-radius:14px;box-shadow:0 2px 6px rgba(0,0,0,.03);margin-bottom:14px}
+  .card.flush{overflow:hidden}
+  .card form,.pad{padding:16px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px;border:0;cursor:pointer;text-decoration:none;background:#fff;color:#2a1a16}
+  .btn-primary{background:#d91f26;color:#fff}
+  .btn-ghost{border:1px solid #f4e2d9;color:#7c2d12}
+  .btn-sm{padding:7px 10px;font-size:12px}
+  .alert{padding:12px;border-radius:10px;margin-bottom:12px;font-size:13px}
+  .alert-ok{background:#ecfdf5;color:#065f46}
+  .alert-error{background:#fff1ee;color:#9d241c}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:12px;border-bottom:1px solid #f4e2d9;font-size:14px;vertical-align:middle}
+  th{font-size:12px;color:#8e7269;text-transform:uppercase;letter-spacing:.04em}
+  .badge{display:inline-flex;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:700}
+  .on{background:#ecfdf5;color:#065f46}
+  .off{background:#f3f4f6;color:#4b5563}
+  label{display:block;margin:12px 0 6px;font-size:13px;font-weight:700;color:#2a1a16}
+  input,select{width:100%;padding:10px 12px;border:1px solid #f4e2d9;border-radius:10px;font:inherit;background:#fff;color:#2a1a16}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .empty{padding:24px;color:#8e7269;text-align:center}
+  @media(max-width:900px){
+    .header{flex-direction:column;align-items:stretch}
+    .header > .btn{width:100%;box-sizing:border-box}
+    .account-actions{flex-direction:column;align-items:stretch;align-self:stretch;width:100%}
+    .account-actions > .btn,
+    .account-actions > form,
+    .account-actions .btn{width:100%;box-sizing:border-box}
+    .account-actions form{display:block}
+  }
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+</style>

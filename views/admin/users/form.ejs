@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1><%= mode === "edit" ? "Ubah akun" : "Tambah akun" %></h1>
+        <div class="meta">Role yang bisa dipilih hanya admin dan staff. Password minimal 8 karakter.</div>
+      </div>
+      <a class="btn btn-ghost" href="/admin/users">Kembali</a>
+    </div>
+
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+    <div class="card">
+      <form method="POST" action="<%= mode === 'edit' ? '/admin/users/' + accountId : '/admin/users' %>">
+        <div class="pad">
+          <div class="grid2">
+            <div>
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" required maxlength="64" value="<%= value.username %>" autocomplete="off" />
+            </div>
+            <div>
+              <label for="email">Email</label>
+              <input id="email" name="email" type="email" required maxlength="190" value="<%= value.email %>" autocomplete="off" />
+            </div>
+          </div>
+          <div class="grid2">
+            <div>
+              <label for="role">Role</label>
+              <select id="role" name="role">
+                <option value="staff" <%= value.role === "staff" ? "selected" : "" %>>Staff</option>
+                <option value="admin" <%= value.role === "admin" ? "selected" : "" %>>Admin</option>
+              </select>
+            </div>
+            <div>
+              <label for="is_active">Status</label>
+              <select id="is_active" name="is_active">
+                <option value="1" <%= Number(value.is_active) ? "selected" : "" %>>Aktif</option>
+                <option value="0" <%= Number(value.is_active) ? "" : "selected" %>>Nonaktif</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid2">
+            <div>
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" <%= mode === "new" ? "required minlength=\"8\"" : "" %> autocomplete="new-password" />
+              <% if (mode === "edit") { %><div class="meta">Kosongkan bila password tidak diganti.</div><% } %>
+            </div>
+            <div>
+              <label for="password_confirm">Konfirmasi password</label>
+              <input id="password_confirm" name="password_confirm" type="password" <%= mode === "new" ? "required minlength=\"8\"" : "" %> autocomplete="new-password" />
+            </div>
+          </div>
+          <div class="row" style="margin-top:16px">
+            <button class="btn btn-primary" type="submit"><%= mode === "edit" ? "Simpan" : "Buat akun" %></button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

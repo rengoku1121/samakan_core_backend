@@ -12,12 +12,13 @@ function isProduction() {
   return process.env.NODE_ENV === "production";
 }
 
-/** 1 = di belakang nginx/cloudflare. 0 = akses langsung (jangan percaya X-Forwarded-For). */
+/** 1 = di belakang tepat satu proxy. loopback = hanya nginx di mesin yang sama. 0 = jangan percaya X-Forwarded-For. */
 function parseTrustProxy(raw) {
-  const v = String(raw ?? process.env.TRUST_PROXY ?? "1").trim();
+  const v = String(raw ?? process.env.TRUST_PROXY ?? "loopback").trim();
   if (v === "0" || v === "false") return false;
+  if (v === "loopback" || v === "linklocal" || v === "uniquelocal") return v;
   if (/^\d+$/.test(v)) return Number(v);
-  return 1;
+  return "loopback";
 }
 
 /**
@@ -55,7 +56,7 @@ function helmetOptions() {
         "img-src": ["'self'", "data:", "https:"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
-        "script-src": ["'self'", "https://cdn.jsdelivr.net"],
+        "script-src": ["'self'"],
         "worker-src": ["'self'", "blob:"],
         ...(harden ? {} : { "upgrade-insecure-requests": null }),
       },

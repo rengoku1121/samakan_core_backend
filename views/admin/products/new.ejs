@@ -55,6 +55,15 @@
         <label for="name">Product Name</label>
         <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Coca-Cola 330ml" required />
 
+        <label for="merchant_id">Pemilik menu</label>
+        <select id="merchant_id" name="merchant_id" required>
+          <option value="">-- pilih pemilik atau mitra menu --</option>
+          <% (menuMerchants || []).forEach(function (m) { %>
+            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+          <% }) %>
+        </select>
+        <div class="hint">Menu baru wajib punya pemilik. Mesin Cruise memakai menu mitra menu. Plus dan Basic memakai menu pemilik mesin. Katalog lama tanpa pemilik tetap untuk mesin lama.</div>
+
         <label for="price">Price (IDR)</label>
         <input id="price" name="price" value="<%= value?.price || '' %>" placeholder="contoh: 15000" required />
         <div class="hint">Boleh input 15.000 / 15000 — sistem akan rapikan.</div>
@@ -90,7 +99,7 @@
         <div class="row">
           <button class="btn btn-primary" type="submit">Create Product</button>
           <a class="btn btn-secondary" href="/admin/products">Cancel</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>

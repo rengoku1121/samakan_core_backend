@@ -1,5 +1,5 @@
 const { verifyAccessToken } = require("../helper-function/jwt");
-const { describeActivity } = require("../helper-function/activity-describe");
+const { describeActivity, shouldRecordActivity } = require("../helper-function/activity-describe");
 const activityModel = require("../models/activity-log");
 const userModel = require("../models/user");
 
@@ -42,7 +42,7 @@ async function actorOf(req, described) {
 
 async function recordFromRequest(req, res) {
   const described = describeActivity(req.method, req.originalUrl || req.url, res.statusCode, req.body);
-  if (!described) return;
+  if (!shouldRecordActivity(described, { notificationTurnedOn: req._activityNotifyOn === true })) return;
   const actor = await actorOf(req, described);
   await activityModel.insert({
     ...actor,

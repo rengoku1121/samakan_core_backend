@@ -11,6 +11,7 @@
       var box = id ? document.getElementById(id) : null;
       btn.classList.remove("is-open");
       btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-label", "Tampilkan saldo");
       if (box) {
         box.classList.remove("is-open");
         box.hidden = true;
@@ -33,11 +34,13 @@
           box.classList.add("is-open");
           btn.classList.add("is-open");
           btn.setAttribute("aria-expanded", "true");
+          btn.setAttribute("aria-label", "Sembunyikan saldo");
         } else {
           box.hidden = true;
           box.classList.remove("is-open");
           btn.classList.remove("is-open");
           btn.setAttribute("aria-expanded", "false");
+          btn.setAttribute("aria-label", "Tampilkan saldo");
         }
         return;
       }

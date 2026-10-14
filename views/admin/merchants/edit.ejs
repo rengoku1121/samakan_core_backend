@@ -119,8 +119,7 @@
         <hr class="sep" />
         <%- include('_terms', { value, payoutFeeBearerGlobal }) %>
         <div class="hint" style="margin-top:10px;">
-          Perubahan syarat hanya berlaku untuk settlement berikutnya. Saldo yang sudah tercatat
-          di ledger tidak dihitung ulang.
+          Perubahan syarat berlaku untuk penjualan berikutnya. Order yang sudah tercatat tidak dihitung ulang.
         </div>
         <hr class="sep" />
 
@@ -134,7 +133,7 @@
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>
           <a class="btn btn-secondary" href="/admin/merchants">Back</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>
@@ -167,7 +166,7 @@
     </div>
   </div>
   <script src="/public/js/admin-merchant-soft-delete.js" defer></script>
-  <script src="/public/js/admin-merchant-terms.js" defer></script>
+  <script src="/public/js/admin-merchant-terms.js?v=20261012e" defer></script>
   <% } %>
 </body>
 </html>

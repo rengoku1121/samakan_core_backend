@@ -16,42 +16,13 @@
     .wrap{max-width:760px;margin:0 auto;padding:22px;}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;}
     h1{margin:0 0 10px;font-size:22px}
+    h2{margin:22px 0 0;font-size:16px}
     .muted{color:var(--muted);font-size:13px}
     label{display:block;margin:14px 0 6px;font-weight:900;font-size:13px;color:#374151}
     input,select{
       width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:12px;
       font-size:14px;outline:none;background:#fff;
     }
-    .date-wrap{position:relative}
-    .date-wrap input[type="date"]{
-      padding-right:46px;
-      -webkit-appearance:none;
-      appearance:none;
-    }
-    .date-wrap input[type="date"]::-webkit-calendar-picker-indicator{
-      opacity:0;
-      position:absolute;
-      right:0;
-      top:0;
-      width:40px;
-      height:100%;
-      cursor:pointer;
-    }
-    .date-btn{
-      position:absolute;right:10px;top:50%;transform:translateY(-50%);
-      width:28px;height:28px;border-radius:8px;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;
-      display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;
-      z-index:2;
-    }
-    .date-btn:hover{background:#ffedd5}
-    .date-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(255,138,0,.2)}
-    .segment{display:flex;gap:8px;flex-wrap:wrap}
-    .segment .opt{
-      display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;
-      border:1px solid var(--border);background:#fff;font-size:12px;font-weight:800;color:#374151;cursor:pointer;
-    }
-    .segment .opt input{width:auto;padding:0;margin:0}
-    .readonly{background:#f8fafc !important;color:#4b5563}
     input:focus,select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
     .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;align-items:center;}
     .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;border-radius:12px;font-weight:900;font-size:13px;border:1px solid transparent;cursor:pointer;text-decoration:none}
@@ -61,15 +32,43 @@
     .alert{background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:12px 12px;border-radius:12px;margin-bottom:12px;font-size:13px}
     .hint{margin-top:6px;color:var(--muted);font-size:12.5px}
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .choice{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .choice label{display:inline-flex;align-items:center;gap:6px;margin:0;padding:8px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;cursor:pointer}
+    .choice input{width:auto;padding:0;margin:0}
+    .preview{margin-top:12px;padding:12px 14px;border-radius:12px;background:#fff7ed;border:1px solid #fed7aa;font-size:13.5px;line-height:1.45}
+    .section{margin-top:8px;padding-top:4px;border-top:1px dashed #f1caa2}
     @media (max-width:640px){.grid2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="topbar">Samakan Admin • New Machine</div>
+  <%
+    const moneyLocked = !['admin', 'superadmin'].includes(String(user && user.role).toLowerCase());
+    let model = String(value?.commercial_model || (moneyLocked ? 'plus' : 'cruise'));
+    if (moneyLocked && model === 'cruise') model = 'plus';
+    if (model !== 'cruise' && model !== 'plus' && model !== 'basic') model = moneyLocked ? 'plus' : 'cruise';
+    const cruiseOn = model === 'cruise';
+    const ownerOn = model === 'cruise' || model === 'plus' || model === 'basic';
+    const plusAmount = typeof plusFee === "undefined" ? 3000000 : Number(plusFee);
+    const basicAmount = typeof basicFee === "undefined" ? 1250000 : Number(basicFee);
+    const rupiahFee = (n) => new Intl.NumberFormat("id-ID").format(Number.isFinite(Number(n)) ? Number(n) : 0);
+    const placeMode = value?.place_mode === 'new' ? 'new' : 'existing';
+    const ownerMode = value?.owner_mode === 'new' ? 'new' : 'existing';
+    const menuMode = value?.menu_mode === 'new' ? 'new' : 'existing';
+    const locationMode = value?.location_party_mode === 'new' || value?.location_party_mode === 'existing'
+      ? value.location_party_mode
+      : 'none';
+    const feeRaw = typeof feePercent === "undefined" ? 0.5 : feePercent;
+    const feeNum = Number(feeRaw);
+    const feeValue = Number.isFinite(feeNum) ? feeNum : 0.5;
+    const owners = (merchants || []).filter(function (m) { return m.merchant_role === 'owner'; });
+    const menus = (merchants || []).filter(function (m) { return m.merchant_role === 'menu'; });
+    const placePartners = (merchants || []).filter(function (m) { return m.merchant_role === 'location'; });
+  %>
+  <div class="topbar">Samakan Admin • Pasang mesin</div>
 
   <div class="wrap">
-    <h1>Tambah Machine</h1>
-    <div class="muted">Machine harus punya code unik dan lokasi.</div>
+    <h1>Pasang mesin</h1>
+    <div class="muted">Isi kode, tempat, orang, dan bagi hasil dalam satu halaman. Isi rak dilakukan setelah mesin tersimpan.</div>
 
     <div style="height:14px;"></div>
 
@@ -77,106 +76,242 @@
       <% if (error) { %>
         <div class="alert"><b>Gagal:</b> <%= error %></div>
       <% } %>
+      <% if (moneyLocked) { %>
+        <div class="hint">Syarat Cruise hanya bisa diisi admin. Staf bisa memasang Plus atau Basic.</div>
+      <% } %>
 
-      <form method="POST" action="/admin/machines">
-        <label for="code">Machine Code (unique)</label>
-        <input id="code" name="code" value="<%= value?.code || '' %>" placeholder="contoh: XY-SEA-0001 / SN-123456" required />
-        <div class="hint">Disarankan pakai serial number atau asset code internal.</div>
+      <form method="POST" action="/admin/machines" data-install-form data-fee="<%= feeValue %>">
+        <label for="code">Kode mesin</label>
+        <input id="code" name="code" value="<%= value?.code || '' %>" placeholder="contoh: nomor seri panel" required />
+        <div class="hint">Kode ini yang dikenali panel. Harus unik.</div>
 
-        <label for="name">Machine Name (optional)</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Samakan Soetta T3 #1" />
-        <div class="hint">Nama untuk memudahkan tim operasional.</div>
+        <label for="name">Nama mesin</label>
+        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Kantin Gedung A 1" />
+        <div class="hint">Boleh kosong. Dipakai supaya tim mudah mengenali mesin.</div>
 
-        <label for="category">Kategori</label>
-        <input id="category" name="category" value="<%= value?.category || '' %>" placeholder="contoh: Dispenser / Oven / Kulkas" maxlength="128" />
-
-        <label for="purchase_date">Tanggal pembelian</label>
-        <div class="date-wrap">
-          <input id="purchase_date" type="date" name="purchase_date" value="<%= value?.purchase_date || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="purchase_date" aria-label="Kalender tanggal pembelian" title="Pilih tanggal">📅</button>
-        </div>
-
-        <label for="manufactured_at">Tanggal dibuat pabrik</label>
-        <div class="date-wrap">
-          <input id="manufactured_at" type="date" name="manufactured_at" value="<%= value?.manufactured_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="manufactured_at" aria-label="Buka kalender tanggal dibuat pabrik" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Kolom <b>Umur (pabrik)</b> di daftar dihitung otomatis dari tanggal ini.</div>
-
-        <label for="installed_at">Tanggal dipasang</label>
-        <div class="date-wrap">
-          <input id="installed_at" type="date" name="installed_at" value="<%= value?.installed_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="installed_at" aria-label="Buka kalender tanggal dipasang" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Kolom <b>Umur (pasang)</b> di daftar dihitung otomatis dari tanggal ini.</div>
-
-        <label for="last_maintenance_at">Last MT (maintenance terakhir)</label>
-        <div class="date-wrap">
-          <input id="last_maintenance_at" type="date" name="last_maintenance_at" value="<%= value?.last_maintenance_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="last_maintenance_at" aria-label="Kalender last MT" title="Pilih tanggal">📅</button>
-        </div>
-
-        <label for="maintenance_at">Next MT (jadwal maintenance berikutnya)</label>
-        <div class="segment">
-          <label class="opt">
-            <input type="radio" name="maintenance_mode" value="auto" <%= (value?.maintenance_mode || 'auto') === 'auto' ? 'checked' : '' %> />
-            Auto (+3 bulan dari tanggal pabrik)
-          </label>
-          <label class="opt">
-            <input type="radio" name="maintenance_mode" value="manual" <%= (value?.maintenance_mode || 'auto') === 'manual' ? 'checked' : '' %> />
-            Manual
-          </label>
-        </div>
-        <div class="date-wrap" style="margin-top:8px;">
-          <input id="maintenance_at" type="date" name="maintenance_at" value="<%= value?.maintenance_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="maintenance_at" aria-label="Kalender next MT" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Mode auto mengisi next MT = 3 bulan setelah tanggal pabrik.</div>
-
-        <div class="grid2">
-          <div>
-            <label for="total_runtime_hours">Total runtime (jam)</label>
-            <input id="total_runtime_hours" name="total_runtime_hours" inputmode="decimal" value="<%= value?.total_runtime_hours || '' %>" placeholder="0" />
-          </div>
-          <div>
-            <label for="total_downtime_hours">Total downtime (jam)</label>
-            <input id="total_downtime_hours" name="total_downtime_hours" inputmode="decimal" value="<%= value?.total_downtime_hours || '' %>" placeholder="0" />
+        <div class="section">
+          <h2>Model kerja sama</h2>
+          <div class="choice">
+            <label>
+              <input type="radio" name="commercial_model" value="cruise" data-commercial-model <%= cruiseOn ? 'checked' : '' %> <%= moneyLocked ? 'disabled' : '' %> />
+              Cruise
+            </label>
+            <label>
+              <input type="radio" name="commercial_model" value="plus" data-commercial-model <%= model === 'plus' ? 'checked' : '' %> />
+              Plus
+            </label>
+            <label>
+              <input type="radio" name="commercial_model" value="basic" data-commercial-model <%= model === 'basic' ? 'checked' : '' %> />
+              Basic
+            </label>
           </div>
         </div>
-        <div class="hint">Bisa diisi manual; nanti bisa disambung ke data mesin / IoT.</div>
 
-        <label for="location_id">Location</label>
-        <select id="location_id" name="location_id" required>
-          <option value="">-- pilih lokasi --</option>
-          <% (locations || []).forEach(function(l){ %>
-            <option value="<%= l.id %>" <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>><%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Lokasi wajib, karena mesin harus “ditaruh di mana”.</div>
+        <div class="section">
+          <h2>Tempat</h2>
+          <label for="place_mode">Cara mengisi tempat</label>
+          <select id="place_mode" name="place_mode" data-install-switch="place_mode">
+            <option value="existing" <%= placeMode === 'existing' ? 'selected' : '' %>>Pilih tempat yang ada</option>
+            <option value="new" <%= placeMode === 'new' ? 'selected' : '' %>>Buat tempat baru</option>
+          </select>
+          <div data-install-for="place_mode" data-install-when="existing" <%= placeMode === 'existing' ? '' : 'hidden' %>>
+            <label for="location_id">Tempat</label>
+            <select id="location_id" name="location_id">
+              <option value="">-- pilih tempat --</option>
+              <% (locations || []).forEach(function (l) { %>
+                <option value="<%= l.id %>" data-owner="<%= l.owner_merchant_id || '' %>" <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>><%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %></option>
+              <% }) %>
+            </select>
+            <div class="hint">Ini alamat fisik mesin. Sub-tempat yang sudah ada tetap bisa dipilih.</div>
+          </div>
+          <div data-install-for="place_mode" data-install-when="new" <%= placeMode === 'new' ? '' : 'hidden' %>>
+            <label for="new_location_name">Nama tempat</label>
+            <input id="new_location_name" name="new_location_name" value="<%= value?.new_location_name || '' %>" placeholder="contoh: Kantin Gedung A" />
+            <label for="new_location_address">Alamat</label>
+            <input id="new_location_address" name="new_location_address" value="<%= value?.new_location_address || '' %>" placeholder="boleh kosong" />
+            <div class="hint">Tempat baru ini berdiri sendiri, tanpa induk. Sub-tempat tetap dibuat di halaman Locations.</div>
+          </div>
+        </div>
 
-        <label for="merchant_id">Merchant</label>
-        <select id="merchant_id" name="merchant_id" required>
-          <option value="">-- pilih merchant --</option>
-          <% (merchants || []).forEach(function(m){ %>
-            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Wajib. Satu mesin harus ditautkan ke satu merchant (portal, QRIS, settlement).</div>
+        <div data-owner-block <%= ownerOn ? '' : 'hidden' %>>
+          <div class="section">
+            <h2>Pemilik mesin</h2>
+            <label for="owner_mode">Cara mengisi pemilik</label>
+            <select id="owner_mode" name="owner_mode" data-install-switch="owner_mode">
+              <option value="existing" <%= ownerMode === 'existing' ? 'selected' : '' %>>Pilih pemilik yang ada</option>
+              <option value="new" <%= ownerMode === 'new' ? 'selected' : '' %>>Buat pemilik baru</option>
+            </select>
+            <div data-install-for="owner_mode" data-install-when="existing" <%= ownerMode === 'existing' ? '' : 'hidden' %>>
+              <label for="merchant_id">Pemilik</label>
+              <select id="merchant_id" name="merchant_id">
+                <option value="">-- pilih pemilik --</option>
+                <% owners.forEach(function (m) { %>
+                  <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div data-install-for="owner_mode" data-install-when="new" <%= ownerMode === 'new' ? '' : 'hidden' %>>
+              <label for="new_owner_name">Nama pemilik</label>
+              <input id="new_owner_name" name="new_owner_name" value="<%= value?.new_owner_name || '' %>" data-party-name="owner" />
+              <div class="grid2">
+                <div>
+                  <label for="new_owner_username">Username</label>
+                  <input id="new_owner_username" name="new_owner_username" value="<%= value?.new_owner_username || '' %>" autocomplete="off" />
+                </div>
+                <div>
+                  <label for="new_owner_email">Email</label>
+                  <input id="new_owner_email" name="new_owner_email" type="email" value="<%= value?.new_owner_email || '' %>" autocomplete="off" />
+                </div>
+              </div>
+              <div class="grid2">
+                <div>
+                  <label for="new_owner_password">Kata sandi</label>
+                  <input id="new_owner_password" name="new_owner_password" type="password" autocomplete="new-password" />
+                </div>
+                <div>
+                  <label for="new_owner_password_confirm">Konfirmasi kata sandi</label>
+                  <input id="new_owner_password_confirm" name="new_owner_password_confirm" type="password" autocomplete="new-password" />
+                </div>
+              </div>
+              <div class="hint">Perannya pemilik mesin. Kode merchant diisi otomatis. Akun ini bisa masuk portal.</div>
+            </div>
+          </div>
+        </div>
+
+        <div data-cruise-block <%= cruiseOn ? '' : 'hidden' %>>
+          <div class="section">
+            <h2>Mitra menu</h2>
+            <label for="menu_mode">Cara mengisi mitra menu</label>
+            <select id="menu_mode" name="menu_mode" data-install-switch="menu_mode">
+              <option value="existing" <%= menuMode === 'existing' ? 'selected' : '' %>>Pilih mitra menu yang ada</option>
+              <option value="new" <%= menuMode === 'new' ? 'selected' : '' %>>Buat mitra menu baru</option>
+            </select>
+            <div data-install-for="menu_mode" data-install-when="existing" <%= menuMode === 'existing' ? '' : 'hidden' %>>
+              <label for="menu_merchant_id">Mitra menu</label>
+              <select id="menu_merchant_id" name="menu_merchant_id">
+                <option value="">-- pilih mitra menu --</option>
+                <% menus.forEach(function (m) { %>
+                  <option value="<%= m.id %>" <%= String(value?.menu_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                <% }) %>
+              </select>
+              <div class="hint">Wajib. Tanpa mitra menu, mesin Cruise tidak bisa menerima pesanan.</div>
+            </div>
+            <div data-install-for="menu_mode" data-install-when="new" <%= menuMode === 'new' ? '' : 'hidden' %>>
+              <label for="new_menu_name">Nama mitra menu</label>
+              <input id="new_menu_name" name="new_menu_name" value="<%= value?.new_menu_name || '' %>" data-party-name="menu" />
+              <div class="grid2">
+                <div>
+                  <label for="new_menu_username">Username</label>
+                  <input id="new_menu_username" name="new_menu_username" value="<%= value?.new_menu_username || '' %>" autocomplete="off" />
+                </div>
+                <div>
+                  <label for="new_menu_email">Email</label>
+                  <input id="new_menu_email" name="new_menu_email" type="email" value="<%= value?.new_menu_email || '' %>" autocomplete="off" />
+                </div>
+              </div>
+              <div class="grid2">
+                <div>
+                  <label for="new_menu_password">Kata sandi</label>
+                  <input id="new_menu_password" name="new_menu_password" type="password" autocomplete="new-password" />
+                </div>
+                <div>
+                  <label for="new_menu_password_confirm">Konfirmasi kata sandi</label>
+                  <input id="new_menu_password_confirm" name="new_menu_password_confirm" type="password" autocomplete="new-password" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Mitra lokasi</h2>
+            <label for="location_party_mode">Cara mengisi mitra lokasi</label>
+            <select id="location_party_mode" name="location_party_mode" data-install-switch="location_party_mode">
+              <option value="none" <%= locationMode === 'none' ? 'selected' : '' %>>Lewati, tanpa bagi hasil lokasi</option>
+              <option value="existing" <%= locationMode === 'existing' ? 'selected' : '' %>>Pilih mitra lokasi yang ada</option>
+              <option value="new" <%= locationMode === 'new' ? 'selected' : '' %>>Buat mitra lokasi baru</option>
+            </select>
+            <div class="hint">Tempat fisik tetap wajib. Mitra lokasi adalah orang yang dibayar karena menyediakan tempat. Kalau tempat yang dipilih belum punya pemilik, menyimpan mesin akan mencatat tempat itu miliknya.</div>
+            <div data-install-for="location_party_mode" data-install-when="existing" <%= locationMode === 'existing' ? '' : 'hidden' %>>
+              <label for="location_merchant_id">Mitra lokasi</label>
+              <select id="location_merchant_id" name="location_merchant_id">
+                <option value="">-- pilih mitra lokasi --</option>
+                <% placePartners.forEach(function (m) { %>
+                  <option value="<%= m.id %>" <%= String(value?.location_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                <% }) %>
+              </select>
+            </div>
+            <div data-install-for="location_party_mode" data-install-when="new" <%= locationMode === 'new' ? '' : 'hidden' %>>
+              <label for="new_location_party_name">Nama mitra lokasi</label>
+              <input id="new_location_party_name" name="new_location_party_name" value="<%= value?.new_location_party_name || '' %>" data-party-name="location" />
+              <div class="grid2">
+                <div>
+                  <label for="new_location_party_username">Username</label>
+                  <input id="new_location_party_username" name="new_location_party_username" value="<%= value?.new_location_party_username || '' %>" autocomplete="off" />
+                </div>
+                <div>
+                  <label for="new_location_party_email">Email</label>
+                  <input id="new_location_party_email" name="new_location_party_email" type="email" value="<%= value?.new_location_party_email || '' %>" autocomplete="off" />
+                </div>
+              </div>
+              <div class="grid2">
+                <div>
+                  <label for="new_location_party_password">Kata sandi</label>
+                  <input id="new_location_party_password" name="new_location_party_password" type="password" autocomplete="new-password" />
+                </div>
+                <div>
+                  <label for="new_location_party_password_confirm">Konfirmasi kata sandi</label>
+                  <input id="new_location_party_password_confirm" name="new_location_party_password_confirm" type="password" autocomplete="new-password" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Bagi hasil</h2>
+            <div class="grid2">
+              <div>
+                <label for="owner_share_percent">Bagian pemilik (%)</label>
+                <input id="owner_share_percent" name="owner_share_percent" type="number" min="0.01" max="99.99" step="0.01" value="<%= value?.owner_share_percent ?? 20 %>" />
+                <div class="hint">Dari harga jual. Di atas 0 dan di bawah 100.</div>
+              </div>
+              <div>
+                <label for="menu_share_percent">Bagian mitra menu dari sisa (%)</label>
+                <input id="menu_share_percent" name="menu_share_percent" type="number" min="0" max="100" step="0.01" value="<%= value?.menu_share_percent ?? 0 %>" />
+              </div>
+              <div data-location-percent <%= locationMode === 'none' ? 'hidden' : '' %>>
+                <label for="location_share_percent">Bagian lokasi dari sisa Samakan (%)</label>
+                <input id="location_share_percent" name="location_share_percent" type="number" min="0" max="100" step="0.01" value="<%= value?.location_share_percent ?? 0 %>" />
+              </div>
+            </div>
+            <div class="preview" data-install-preview></div>
+          </div>
+        </div>
+
+        <div data-package-note <%= model === 'plus' || model === 'basic' ? '' : 'hidden' %>>
+          <div class="section">
+            <h2>Biaya layanan</h2>
+            <div class="preview" data-plus-note <%= model === 'plus' ? '' : 'hidden' %>>
+              Plus: Rp <%= rupiahFee(plusAmount) %> per bulan. Pemilik menjalankan dan mengisi sendiri. Samakan merawat. Biaya ini catatan paket, tidak dipotong dari saldo. Penjualan masuk ke pemilik setelah biaya pembayaran.
+            </div>
+            <div class="preview" data-basic-note <%= model === 'basic' ? '' : 'hidden' %>>
+              Basic: Rp <%= rupiahFee(basicAmount) %> per bulan. Pemilik menjalankan sendiri dengan dukungan software. Biaya ini catatan paket, tidak dipotong dari saldo. Penjualan masuk ke pemilik setelah biaya pembayaran.
+            </div>
+          </div>
+        </div>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
+          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Nonaktif</option>
         </select>
 
         <div class="row">
-          <button class="btn btn-primary" type="submit">Create Machine</button>
-          <a class="btn btn-secondary" href="/admin/machines">Cancel</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <button class="btn btn-primary" type="submit">Simpan mesin</button>
+          <a class="btn btn-secondary" href="/admin/machines">Batal</a>
         </div>
       </form>
     </div>
   </div>
-  <script src="/public/js/machine-date-picker.js" defer></script>
+  <script src="/public/js/admin-machine-install.js?v=20261013j" defer></script>
 </body>
 </html>

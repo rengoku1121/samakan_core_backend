@@ -114,10 +114,10 @@ async function auditInvariants({ tag, merchantIds = [] } = {}) {
   if (dupPayout.length) issues.push(`duplikat payout ledger=${dupPayout.length}`);
 
   const [dupOrder] = await pool.query(
-    `SELECT order_id, entry_type, COUNT(1) AS c
+    `SELECT order_id, merchant_id, entry_type, COUNT(1) AS c
      FROM merchant_balance_ledger
      WHERE order_id IS NOT NULL
-     GROUP BY order_id, entry_type
+     GROUP BY order_id, merchant_id, entry_type
      HAVING c > 1`
   );
   if (dupOrder.length) issues.push(`duplikat order ledger=${dupOrder.length}`);

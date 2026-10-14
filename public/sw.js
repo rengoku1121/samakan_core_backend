@@ -17,7 +17,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "Ada update baru.",
     tag: data.tag || "samakan-notif",
-    data: { url: data.url || "/admin" },
+    data: { url: data.url || "/dashboard" },
     renotify: true,
   };
   event.waitUntil(self.registration.showNotification(title, options));
@@ -25,7 +25,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification?.data?.url || "/admin";
+  const targetUrl = event.notification?.data?.url || "/dashboard";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {

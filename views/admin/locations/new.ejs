@@ -82,6 +82,15 @@
         <label for="notes">Catatan (opsional)</label>
         <textarea id="notes" name="notes" placeholder="Akses, izin security, dll."><%= value?.notes || '' %></textarea>
 
+        <label for="owner_merchant_id">Pemilik tempat</label>
+        <select id="owner_merchant_id" name="owner_merchant_id">
+          <option value="">Milik Samakan</option>
+          <% (placePartners || []).forEach(function (m) { %>
+            <option value="<%= m.id %>" <%= String(value?.owner_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+          <% }) %>
+        </select>
+        <div class="hint">Kosong berarti tempat Samakan. Mitra lokasi hanya muncul kalau perannya mitra lokasi. Cruise yang memakai mitra lokasi hanya bisa dipasang di tempat miliknya.</div>
+
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
           <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
@@ -92,7 +101,7 @@
           <button class="btn btn-primary" type="submit">Simpan</button>
           <% const cancelHref = (typeof isSubFlow !== 'undefined' && isSubFlow && value?.parent_id) ? ('/admin/locations/' + value.parent_id) : '/admin/locations'; %>
           <a class="btn btn-secondary" href="<%= cancelHref %>">Batal</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>

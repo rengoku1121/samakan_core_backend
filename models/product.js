@@ -14,17 +14,21 @@ exports.countAll = async () => {
 exports.listPaginated = async ({ limit, offset }) => {
   const sql = `
     SELECT
-      id,
-      sku,
-      name,
-      image_url,
-      price,
-      shelf_life_days,
-      requires_heating,
-      is_active,
-      updated_at
-    FROM products
-    ORDER BY id DESC
+      p.id,
+      p.sku,
+      p.name,
+      p.image_url,
+      p.price,
+      p.shelf_life_days,
+      p.requires_heating,
+      p.merchant_id,
+      mer.name AS merchant_name,
+      mer.merchant_code AS merchant_code,
+      p.is_active,
+      p.updated_at
+    FROM products p
+    LEFT JOIN merchants mer ON mer.id = p.merchant_id AND mer.deleted_at IS NULL
+    ORDER BY p.id DESC
     LIMIT ? OFFSET ?
   `;
   const [rows] = await pool.query(sql, [limit, offset]);
@@ -41,6 +45,7 @@ exports.findById = async (id) => {
       price,
       shelf_life_days,
       requires_heating,
+      merchant_id,
       is_active,
       created_at,
       updated_at
@@ -66,7 +71,7 @@ exports.findBySku = async (sku) => {
   return rows[0] || null;
 };
 
-exports.create = async ({ sku, name, image_url, price, shelf_life_days, requires_heating, is_active }) => {
+exports.create = async ({ sku, name, image_url, price, shelf_life_days, requires_heating, merchant_id, is_active }) => {
   const sql = `
     INSERT INTO products (
       sku,
@@ -75,8 +80,9 @@ exports.create = async ({ sku, name, image_url, price, shelf_life_days, requires
       price,
       shelf_life_days,
       requires_heating,
+      merchant_id,
       is_active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
   const [result] = await pool.query(sql, [
     sku,
@@ -85,12 +91,13 @@ exports.create = async ({ sku, name, image_url, price, shelf_life_days, requires
     price,
     shelf_life_days ?? null,
     requires_heating ? 1 : 0,
+    merchant_id || null,
     is_active,
   ]);
   return result.insertId;
 };
 
-exports.updateById = async ({ id, sku, name, image_url, price, shelf_life_days, requires_heating, is_active }) => {
+exports.updateById = async ({ id, sku, name, image_url, price, shelf_life_days, requires_heating, merchant_id, is_active }) => {
   const sql = `
     UPDATE products
     SET
@@ -100,6 +107,7 @@ exports.updateById = async ({ id, sku, name, image_url, price, shelf_life_days, 
       price = ?,
       shelf_life_days = ?,
       requires_heating = ?,
+      merchant_id = ?,
       is_active = ?
     WHERE id = ?
     LIMIT ?
@@ -111,6 +119,7 @@ exports.updateById = async ({ id, sku, name, image_url, price, shelf_life_days, 
     price,
     shelf_life_days ?? null,
     requires_heating ? 1 : 0,
+    merchant_id || null,
     is_active,
     id,
     1,
@@ -126,7 +135,8 @@ exports.listActiveForSelect = async () => {
       name,
       price,
       shelf_life_days,
-      requires_heating
+      requires_heating,
+      merchant_id
     FROM products
     WHERE is_active = ?
     ORDER BY name ASC
@@ -145,6 +155,7 @@ exports.listAllForSelect = async () => {
       price,
       shelf_life_days,
       requires_heating,
+      merchant_id,
       is_active
     FROM products
     ORDER BY name ASC

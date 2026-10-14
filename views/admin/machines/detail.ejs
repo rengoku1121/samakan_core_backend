@@ -58,7 +58,19 @@
         <dd><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(lokasi arsip)</span><% } %></dd>
 
         <dt>Merchant</dt>
-        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %></dd>
+        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %> · <%= m.package_label || 'Model lama' %></dd>
+        <% if (m.commercial_model === 'plus' || m.commercial_model === 'basic') { %>
+          <dt>Biaya layanan</dt>
+          <dd>Rp <%= m.service_fee_fmt %> per bulan, dicatat dan tidak dipotong saldo</dd>
+        <% } %>
+        <% if (m.commercial_model === 'cruise') { %>
+          <dt>Mitra menu</dt>
+          <dd><%= m.menu_merchant_code ? (m.menu_merchant_code + ' — ' + (m.menu_merchant_name || '')) : '—' %> · <%= m.menu_share_percent %>%</dd>
+          <dt>Mitra lokasi</dt>
+          <dd><%= m.location_merchant_code ? (m.location_merchant_code + ' — ' + (m.location_merchant_name || '')) : 'Tanpa bagi hasil' %> · <%= m.location_share_percent %>%</dd>
+          <dt>Bagian pemilik</dt>
+          <dd><%= m.owner_share_percent %>% dari harga jual</dd>
+        <% } %>
 
         <dt>Tanggal dibuat pabrik</dt>
         <dd class="mono"><%= m.manufactured_at_fmt %></dd>
@@ -116,7 +128,7 @@
       <div class="row">
         <a class="btn btn-primary" href="/admin/machines/<%= m.id %>/edit">Edit</a>
         <a class="btn btn-secondary" href="/admin/machines">Kembali ke daftar</a>
-        <a class="btn btn-secondary" href="/admin">Dashboard</a>
+        <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
       </div>
     </div>
   </div>

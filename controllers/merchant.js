@@ -4,7 +4,8 @@ const payoutModel = require("../models/payout");
 const merchantModel = require("../models/merchant");
 const { issueCsrf } = require("../helper-function/csrf");
 const { payoutStatusLabel, payoutBadgeClass } = require("../helper-function/payout-status");
-const { normalizeTerms, partnershipLabel, termsSummary } = require("../helper-function/partnership");
+const { normalizeTerms, partnershipLabel, termsSummary, cruisePartyAmount, ownerOperatedAmount } = require("../helper-function/partnership");
+const { resolveDashboardRange, chartDailySeries } = require("../helper-function/date-range");
 
 const fmtIdr = (n) =>
   new Intl.NumberFormat("id-ID", {
@@ -23,38 +24,6 @@ const entryTypeLabel = (entryType) => {
   return "Settlement";
 };
 
-/** Isi hari kosong agar grafik harian tidak putus. */
-function ymdLocal(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function isoDateOr(value, fallback) {
-  const s = String(value || "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : fallback;
-}
-
-function fillDailySeries(raw, dateFrom, dateTo) {
-  const map = new Map((raw || []).map((r) => [r.day, r]));
-  const out = [];
-  const start = new Date(`${dateFrom}T00:00:00`);
-  const end = new Date(`${dateTo}T00:00:00`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return raw || [];
-
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = ymdLocal(d);
-    const row = map.get(key);
-    out.push({
-      day: key,
-      turnover: row ? row.turnover : 0,
-      transactions: row ? row.transactions : 0,
-    });
-  }
-  return out;
-}
-
 exports.renderHome = async (req, res, next) => {
   try {
     const merchant_id = req.user.merchant_id;
@@ -62,53 +31,77 @@ exports.renderHome = async (req, res, next) => {
       return res.status(403).render("errors/403", { title: "Forbidden" });
     }
 
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    let dateFrom = isoDateOr(req.query.date_from, `${yyyy}-${mm}-01`);
-    let dateTo = isoDateOr(req.query.date_to, `${yyyy}-${mm}-${dd}`);
-    if (dateFrom > dateTo) {
-      const swap = dateFrom;
-      dateFrom = dateTo;
-      dateTo = swap;
-    }
-
-    const range = { dateFrom, dateTo, merchantId: merchant_id };
-    const [stats, balance, summary, dailyRaw, statusBreakdown, topProducts] = await Promise.all([
-      orderModel.merchantDashboardStats(merchant_id),
-      settlementModel.getMerchantBalance(merchant_id),
-      orderModel.getAdminDashboardSummary(range),
-      orderModel.getAdminDashboardDailySeries(range),
-      orderModel.getAdminDashboardStatusBreakdown(range),
-      orderModel.getAdminDashboardTopProducts({ ...range, limit: 8 }),
+    const range = resolveDashboardRange(req.query);
+    const { dateFrom, dateTo } = range;
+    const idr = new Intl.NumberFormat("id-ID");
+    const query = { dateFrom, dateTo, merchantId: merchant_id };
+    const [summary, dailyRaw, statusBreakdown, topProducts, paidRows, feeConfig] = await Promise.all([
+      orderModel.getAdminDashboardSummary(query),
+      orderModel.getAdminDashboardDailySeries(query),
+      orderModel.getAdminDashboardStatusBreakdown(query),
+      orderModel.getAdminDashboardTopProducts({ ...query, limit: 8 }),
+      orderModel.listPaidInDashboardRange({ merchantId: merchant_id, dateFrom, dateTo }),
+      settlementModel.getFeeConfig().catch(() => ({ midtrans_fee_percent: 0.5 })),
     ]);
 
-    const idr = new Intl.NumberFormat("id-ID");
+    const feePercent = Number(feeConfig && feeConfig.midtrans_fee_percent);
+    const myShare = (paidRows || []).reduce((sum, row) => {
+      const share = cruisePartyAmount(row, merchant_id, feePercent)
+        ?? ownerOperatedAmount(row, merchant_id, feePercent);
+      return sum + (share == null ? 0 : Number(share));
+    }, 0);
 
     return res.render("merchant/dashboard", {
       title: "Merchant Dashboard",
       user: req.user,
       dateFrom,
       dateTo,
-      stats,
-      statsFmt: {
-        pending_amount: fmtIdr(stats.pending_amount),
-      },
+      rangeError: range.error,
       summary: {
         turnoverFmt: idr.format(summary.turnover),
+        shareFmt: idr.format(myShare),
         transactions: summary.transactions,
         pendingFmt: idr.format(summary.pending_amount),
         pendingCount: summary.pending_count,
       },
-      balance: {
-        ...balance,
-        balance_fmt: fmtIdr(balance.balance),
-        total_gross_fmt: fmtIdr(balance.total_gross),
-        total_midtrans_fee_fmt: fmtIdr(balance.total_midtrans_fee),
+      charts: {
+        daily: chartDailySeries(dailyRaw, dateFrom, dateTo),
+        status: statusBreakdown,
+        topProducts,
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.summaryAll = async (req, res, next) => {
+  try {
+    const merchant_id = req.user.merchant_id;
+    if (merchant_id == null) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const query = { merchantId: merchant_id, allTime: true };
+    const [stats, dailyRaw, statusBreakdown, topProducts] = await Promise.all([
+      orderModel.merchantDashboardStats(merchant_id),
+      orderModel.getAdminDashboardDailySeries(query),
+      orderModel.getAdminDashboardStatusBreakdown(query),
+      orderModel.getAdminDashboardTopProducts({ ...query, limit: 8 }),
+    ]);
+
+    res.set("Cache-Control", "no-store");
+    return res.json({
+      stats: {
+        total_orders: stats.total_orders,
+        paid_flow_count: stats.paid_flow_count,
+        dispensed_count: stats.dispensed_count,
+        pending_count: stats.pending_count,
+        pending_amount: stats.pending_amount,
+        qris_recorded_count: stats.qris_recorded_count,
       },
       charts: {
-        daily: fillDailySeries(dailyRaw, dateFrom, dateTo),
+        daily: dailyRaw,
         status: statusBreakdown,
         topProducts,
       },

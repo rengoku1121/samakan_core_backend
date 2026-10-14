@@ -66,24 +66,14 @@
       </div>
     </div>
 
-    <div class="card settle-bar">
-      <div class="muted">Belum settle: <b><%= unsettled.count %></b> order · Rp <b><%= unsettled.amount_fmt %></b></div>
-      <div class="actions">
-        <a class="btn btn-primary" href="/admin/settlement/upload">Upload Settlement</a>
-        <a class="btn btn-ghost" href="/admin/settlement/force">Force Settlement</a>
-      </div>
-    </div>
-
-    <% if (orphan && orphan.count > 0) { %>
-      <div class="alert alert-warn">
-        Ada <b><%= orphan.count %></b> order dengan flag settle palsu (FLAG_ORPHAN, saldo belum naik) · Rp <b><%= orphan.amount_fmt %></b>.
-        Reset / settle resmi di <a href="/admin/settlement">Saldo Merchant</a>.
-      </div>
-    <% } %>
-
     <div class="card">
       <div class="toolbar">
-        <form method="GET" action="/admin/orders">
+        <form class="orders-filter" method="GET" action="/admin/orders">
+          <div class="filter-q">
+            <label for="f-q">Kode transaksi</label>
+            <input id="f-q" type="text" name="q" value="<%= filters.q %>" placeholder="KIOSK-20261013-…" autocomplete="off" enterkeyhint="search" />
+          </div>
+
           <div class="date-presets" aria-label="Pilih rentang cepat">
             <% presets.forEach(function(p){ %>
               <a class="chip<%= p.active ? ' is-active' : '' %>" href="/admin/orders?<%= p.qs %>"><%= p.label %></a>
@@ -122,7 +112,7 @@
             </select>
           </div>
 
-          <div>
+          <div class="filter-machine">
             <label for="f-machine">Machine</label>
             <select id="f-machine" name="machine_id">
               <option value="" <%= filters.machine_id ? "" : "selected" %>>Semua mesin</option>
@@ -134,19 +124,7 @@
             </select>
           </div>
 
-          <div>
-            <label for="f-ref">Settlement ref</label>
-            <input id="f-ref" type="text" name="settlement_ref" value="<%= filters.settlement_ref || '' %>" placeholder="mis. STL-20260508" />
-          </div>
-
-          <div>
-            <label for="f-limit">Per halaman</label>
-            <select id="f-limit" name="limit">
-              <% [10,20,30,50].forEach(function(n){ %>
-                <option value="<%= n %>" <%= String(limit) === String(n) ? "selected" : "" %>><%= n %></option>
-              <% }) %>
-            </select>
-          </div>
+          <input type="hidden" name="limit" value="<%= limit %>" />
 
           <button class="btn btn-primary" type="submit">Terapkan</button>
           <a class="btn btn-ghost" href="/admin/orders">Reset</a>
@@ -163,7 +141,6 @@
             <th>Total</th>
             <th>Dibuat</th>
             <th>Dibayar</th>
-            <th>Settlement</th>
             <th>Aksi</th>
           </tr>
         </thead>
@@ -177,31 +154,16 @@
               <td class="mono nowrap">Rp <b><%= r.total_fmt %></b></td>
               <td class="mono"><%= r.created_at_fmt %></td>
               <td class="mono"><%= r.paid_at_fmt %></td>
-              <td class="mono">
-                <span class="badge <%= r.settlement_badge_class %>"><%= r.settlement_status_label %></span>
-                <% if (r.settlement_status_label === 'FLAG_ORPHAN') { %>
-                  <div class="muted" style="font-size:11px;margin-top:4px;">Flag 1 tanpa ledger</div>
-                <% } %>
-                <% if (r.settlement_ref) { %>
-                  <div class="muted mono settlement-ref" title="<%= r.settlement_ref %>"><%= r.settlement_ref %></div>
-                <% } %>
-              </td>
               <td><a class="btn btn-ghost btn-sm" href="/admin/orders/<%= r.id %>">Detail</a></td>
             </tr>
           <% }) %>
           <% if (!rows || rows.length === 0) { %>
-            <tr><td colspan="9" class="muted" style="padding:22px;text-align:center;">Tidak ada order untuk filter ini.</td></tr>
+            <tr><td colspan="8" class="muted" style="padding:22px;text-align:center;">Tidak ada order untuk filter ini.</td></tr>
           <% } %>
         </tbody>
       </table>
 
-      <div class="pager">
-        <div class="muted">Halaman <b><%= page %></b> dari <b><%= totalPages %></b></div>
-        <div class="actions">
-          <a class="btn btn-ghost btn-sm<%= page <= 1 ? ' is-disabled' : '' %>" href="/admin/orders?<%= qsPrefix %>page=<%= prevPage %>"<%- page <= 1 ? ' aria-disabled="true" tabindex="-1"' : '' %>>‹ Sebelumnya</a>
-          <a class="btn btn-ghost btn-sm<%= page >= totalPages ? ' is-disabled' : '' %>" href="/admin/orders?<%= qsPrefix %>page=<%= nextPage %>"<%- page >= totalPages ? ' aria-disabled="true" tabindex="-1"' : '' %>>Berikutnya ›</a>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/admin/orders', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: qsBase, limits: [10, 20, 30, 50] }) %>
     </div>
   </div>
 </body>

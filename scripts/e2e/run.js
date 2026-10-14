@@ -22,6 +22,7 @@ const SUITES = [
   ["08-onboard-two-partnerships", require("./08-onboard-two-partnerships")],
   ["09-screensaver-ads", require("./09-screensaver-ads")],
   ["10-kiosk-ota", require("./10-kiosk-ota")],
+  ["11-cruise-parties", require("./11-cruise-parties")],
 ];
 
 async function main() {

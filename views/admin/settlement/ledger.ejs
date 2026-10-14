@@ -139,14 +139,7 @@
         <label>Sampai</label>
         <input type="date" name="date_to" value="<%= filters.date_to %>" />
       </div>
-      <div class="field">
-        <label>Limit</label>
-        <select name="limit">
-          <% [10,25,50,100,500].forEach(function(n){ %>
-            <option value="<%= n %>" <%= limit === n ? 'selected' : '' %>><%= n %></option>
-          <% }) %>
-        </select>
-      </div>
+      <input type="hidden" name="limit" value="<%= limit %>" />
       <button class="btn-filter" type="submit">Filter</button>
       <a class="btn-reset" href="/admin/settlement/ledger<%= merchant_id ? '?merchant_id=' + merchant_id : '' %>">Reset</a>
     </form>
@@ -184,25 +177,10 @@
     </table>
 
     <%
-      const midQ = merchant_id ? `&merchant_id=${merchant_id}` : '';
-      const qsBase = `date_from=${encodeURIComponent(filters.date_from||'')}&date_to=${encodeURIComponent(filters.date_to||'')}&limit=${limit}${midQ}`;
-      const pageStart = Math.max(1, page - 2);
-      const pageEnd = Math.min(totalPages, page + 2);
+      const midQ = merchant_id ? '&merchant_id=' + merchant_id : '';
+      const keepQs = 'date_from=' + encodeURIComponent(filters.date_from || '') + '&date_to=' + encodeURIComponent(filters.date_to || '') + midQ;
     %>
-    <div class="pager">
-      <span class="pager-meta">Halaman <b><%= page %></b> dari <b><%= totalPages %></b> &middot; <b><%= total %></b> data</span>
-      <% if (totalPages > 1) { %>
-        <div class="pager-links">
-          <a class="pager-btn <%= page <= 1 ? 'disabled' : '' %>" href="/admin/settlement/ledger?<%= qsBase %>&page=1">First</a>
-          <a class="pager-btn <%= page <= 1 ? 'disabled' : '' %>" href="/admin/settlement/ledger?<%= qsBase %>&page=<%= Math.max(1, page - 1) %>">Prev</a>
-          <% for (let p = pageStart; p <= pageEnd; p++) { %>
-            <a class="pager-btn <%= p === page ? 'active' : '' %>" href="/admin/settlement/ledger?<%= qsBase %>&page=<%= p %>"><%= p %></a>
-          <% } %>
-          <a class="pager-btn <%= page >= totalPages ? 'disabled' : '' %>" href="/admin/settlement/ledger?<%= qsBase %>&page=<%= Math.min(totalPages, page + 1) %>">Next</a>
-          <a class="pager-btn <%= page >= totalPages ? 'disabled' : '' %>" href="/admin/settlement/ledger?<%= qsBase %>&page=<%= totalPages %>">Last</a>
-        </div>
-      <% } %>
-    </div>
+    <%- include('../../partials/table-pager', { basePath: '/admin/settlement/ledger', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: keepQs, limits: [10, 25, 50, 100, 500] }) %>
   </div>
 </body>
 </html>

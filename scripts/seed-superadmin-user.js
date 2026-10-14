@@ -24,9 +24,10 @@ async function main() {
   const existing = await userModel.findByIdentifier(username);
   if (existing) {
     await pool.query(
-      `UPDATE users SET email = ?, password_hash = ?, role = 'superadmin', merchant_id = NULL, is_active = 1 WHERE id = ? LIMIT 1`,
+      `UPDATE users SET email = ?, password_hash = ?, role = 'superadmin', merchant_id = NULL, is_active = 1, auth_version = auth_version + 1 WHERE id = ? LIMIT 1`,
       [email, password_hash, existing.id]
     );
+    await require("../models/auth-session").revokeUser(existing.id);
     console.log(`Superadmin diperbarui: id=${existing.id} username=${username}`);
   } else {
     const id = await userModel.insertUser({

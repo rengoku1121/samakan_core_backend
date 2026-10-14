@@ -16,6 +16,13 @@
   var percentInput = root.querySelector("[data-terms-percent]");
   var preview = root.querySelector("[data-terms-preview]");
   var panels = root.querySelectorAll("[data-terms-panel]");
+  var roleSelect = root.querySelector("[data-merchant-role]");
+  var legacyPanel = root.querySelector("[data-role-legacy]");
+
+  function syncRole() {
+    if (!roleSelect || !legacyPanel) return;
+    legacyPanel.hidden = roleSelect.value !== "legacy";
+  }
 
   function syncPanels() {
     var selected = typeSelect ? typeSelect.value : "revenue_share";
@@ -33,9 +40,11 @@
     preview.innerHTML = "Merchant menerima <b>" + merchant + "%</b>.";
   }
 
+  if (roleSelect) roleSelect.addEventListener("change", syncRole);
   if (typeSelect) typeSelect.addEventListener("change", syncPanels);
   if (percentInput) percentInput.addEventListener("input", syncPreview);
 
+  syncRole();
   syncPanels();
   syncPreview();
 })();

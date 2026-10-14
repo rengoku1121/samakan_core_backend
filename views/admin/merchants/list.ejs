@@ -209,56 +209,99 @@
   </style>
 </head>
 <body>
-  <% const archQs = (typeof archivedOnly !== 'undefined' && archivedOnly) ? '&archived=1' : ''; %>
+  <%
+    const keep = [];
+    if (filters && filters.q) keep.push("q=" + encodeURIComponent(filters.q));
+    if (filters && filters.role) keep.push("role=" + encodeURIComponent(filters.role));
+    if (filters && filters.machine_id) keep.push("machine_id=" + encodeURIComponent(filters.machine_id));
+    const keepQs = keep.length ? "&" + keep.join("&") : "";
+    const archQs = ((typeof archivedOnly !== "undefined" && archivedOnly) ? "&archived=1" : "") + keepQs;
+    const activeHref = "/admin/merchants" + (keep.length ? "?" + keep.join("&") : "");
+    const archivedHref = "/admin/merchants?archived=1" + keepQs;
+    const resetHref = (typeof archivedOnly !== "undefined" && archivedOnly) ? "/admin/merchants?archived=1" : "/admin/merchants";
+    const filtering = Boolean(filters && (filters.q || filters.role || filters.machine_id));
+  %>
   <div class="topbar">
     Samakan Admin • Merchants
     <div class="sub">Kelola partner merchant (buat, edit, aktif/nonaktif)</div>
   </div>
 
-  <div class="wrap">
+  <div class="wrap merchant-list">
     <div class="header">
       <div>
         <h1>Merchants</h1>
-        <div class="meta">Total: <b><%= total %></b> • Page <b><%= page %></b> / <b><%= totalPages %></b></div>
+        <div class="meta">Total: <b><%= total %></b> • Halaman <b><%= page %></b> / <b><%= totalPages %></b></div>
       </div>
       <div class="actions">
         <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
-          <a class="btn btn-ghost" href="/admin/merchants">Merchant aktif</a>
+          <a class="btn btn-ghost" href="<%= activeHref %>">Merchant aktif</a>
         <% } else { %>
-          <a class="btn btn-ghost" href="/admin/merchants?archived=1">Arsip (soft delete)</a>
+          <a class="btn btn-ghost" href="<%= archivedHref %>">Arsip (soft delete)</a>
         <% } %>
         <a class="btn btn-primary" href="/admin/merchants/new">+ New Merchant</a>
-        <a class="btn btn-ghost" href="/admin">Dashboard</a>
-        <form method="POST" action="/auth/logout">
-          <button type="submit" class="btn btn-link">Logout</button>
-        </form>
       </div>
     </div>
 
     <div class="card">
       <div class="toolbar">
-        <div class="left">
-          <span class="pill">Showing <small><%= rows ? rows.length : 0 %></small> items</span>
-          <span class="pill">Limit <small><%= limit %></small></span>
-        </div>
-        <div class="right muted">
+        <form method="GET" action="/admin/merchants">
           <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
-            Merchant di sini tidak tampil di dropdown / operasional; order lama tetap ada di DB.
-          <% } else { %>
-            Soft delete: nonaktifkan akun merchant terkait + sembunyikan dari operasional.
+            <input type="hidden" name="archived" value="1" />
           <% } %>
-        </div>
+          <input type="hidden" name="limit" value="<%= limit %>" />
+          <div class="merchant-filter-q">
+            <label for="m-q">Cari</label>
+            <input id="m-q" name="q" value="<%= filters.q || '' %>" placeholder="Nama atau kode merchant" />
+          </div>
+          <div class="merchant-filter-role">
+            <label for="m-role">Tipe</label>
+            <select id="m-role" name="role">
+              <option value="" <%= filters.role ? "" : "selected" %>>Semua tipe</option>
+              <% (roleOptions || []).forEach(function (opt) { %>
+                <option value="<%= opt.id %>" <%= filters.role === opt.id ? "selected" : "" %>><%= opt.label %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="merchant-filter-machine">
+            <div class="merchant-label-row">
+              <label for="m-machine">Mesin</label>
+              <button type="button" class="info-tip" aria-label="Penjelasan filter mesin">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 7.1V11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="5" r="0.8" fill="currentColor"/></svg>
+                <span class="info-tip-pop" role="tooltip">Filter mesin menampilkan pemilik, mitra menu, atau mitra lokasi mesin itu.</span>
+              </button>
+            </div>
+            <select id="m-machine" name="machine_id">
+              <option value="" <%= filters.machine_id ? "" : "selected" %>>Semua mesin</option>
+              <% (machines || []).forEach(function (mac) { %>
+                <option value="<%= mac.id %>" <%= String(filters.machine_id) === String(mac.id) ? "selected" : "" %>><%= mac.code %><%= mac.name ? " · " + mac.name : "" %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="merchant-filter-actions">
+            <button class="btn btn-primary" type="submit">Terapkan</button>
+            <% if (filtering) { %>
+              <a class="btn btn-ghost" href="<%= resetHref %>">Reset</a>
+            <% } %>
+          </div>
+        </form>
       </div>
 
       <% if (!rows || rows.length === 0) { %>
-        <div class="empty">Belum ada merchant. Klik <b>New Merchant</b> untuk menambahkan.</div>
+        <div class="empty">
+          <% if (filtering) { %>
+            Tidak ada merchant yang cocok dengan pencarian atau filter ini.
+          <% } else { %>
+            Belum ada merchant. Klik <b>New Merchant</b> untuk menambahkan.
+          <% } %>
+        </div>
       <% } else { %>
         <table>
           <thead>
             <tr>
-              <th style="width:90px;">ID</th>
+              <th class="merchant-id-col" style="width:90px;">ID</th>
               <th style="width:130px;">Kode</th>
               <th>Name</th>
+              <th class="merchant-saldo-col">Saldo</th>
               <th style="width:230px;">Kerja Sama</th>
               <% if (typeof archivedOnly !== 'undefined' && archivedOnly) { %>
                 <th style="width:160px;">Diarsipkan</th>
@@ -272,12 +315,20 @@
           <tbody>
             <% rows.forEach(function(m){ %>
               <tr>
-                <td class="mono"><%= m.id %></td>
-                <td class="mono"><b><%= m.merchant_code || "—" %></b></td>
-                <td><b><%= m.name %></b></td>
+                <td class="mono merchant-id"><%= m.id %></td>
+                <td class="mono merchant-code"><b><%= m.merchant_code || "—" %></b></td>
+                <td class="merchant-name"><b><%= m.name %></b></td>
+                <td class="merchant-saldo-cell">
+                  <div class="card-saldo">
+                    <span class="card-saldo-k">Saldo</span>
+                    <b>Rp <%= new Intl.NumberFormat("id-ID").format(m.balance || 0) %></b>
+                  </div>
+                </td>
                 <td>
                   <b><%= m.partnership_label %></b>
+                  <% if (m.terms_summary && m.terms_summary !== m.partnership_label) { %>
                   <div class="muted" style="font-size:12px;"><%= m.terms_summary %></div>
+                  <% } %>
                   <% if (payoutUiEnabled) { %>
                   <div class="muted" style="font-size:12px;">Fee payout: <%= m.payout_fee_bearer_label %></div>
                   <% } %>
@@ -293,7 +344,7 @@
                     <% } %>
                   </td>
                 <% } %>
-                <td class="mono"><%= m.updated_at %></td>
+                <td class="mono merchant-updated"><%= m.updated_at %></td>
                 <td class="action-cell">
                   <div class="action-row">
                     <a class="btn btn-ghost" style="padding:8px 10px;" href="/admin/merchants/<%= m.id %>/edit"><%= (typeof archivedOnly !== 'undefined' && archivedOnly) ? 'Detail / Pulihkan' : 'Edit' %></a>
@@ -307,13 +358,16 @@
                     <button
                       type="button"
                       class="btn btn-ghost btn-saldo js-toggle-saldo"
-                      style="padding:8px 10px;"
                       data-saldo-target="saldo-box-<%= m.id %>"
                       aria-expanded="false"
-                    >Show Saldo</button>
-                  </div>
-                  <div id="saldo-box-<%= m.id %>" class="saldo-box mono" hidden>
-                    <div><span class="saldo-k">Saldo Merchant:</span> Rp <b><%= new Intl.NumberFormat("id-ID").format(m.balance || 0) %></b></div>
+                      aria-label="Tampilkan saldo"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                    <div id="saldo-box-<%= m.id %>" class="saldo-box mono" hidden>
+                      <span class="saldo-k">Saldo</span>
+                      <b>Rp <%= new Intl.NumberFormat("id-ID").format(m.balance || 0) %></b>
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -322,37 +376,7 @@
         </table>
       <% } %>
 
-      <div class="footer">
-        <div class="muted">
-          <% const start = (page - 1) * limit + 1; %>
-          <% const end = (page - 1) * limit + (rows ? rows.length : 0); %>
-          <% if (rows && rows.length) { %>
-            Showing <b><%= start %></b>–<b><%= end %></b> of <b><%= total %></b>
-          <% } else { %>
-            Showing 0 of <b><%= total %></b>
-          <% } %>
-        </div>
-
-        <div class="pager">
-          <label class="muted">Limit</label>
-          <select class="select" onchange="location.href='/admin/merchants?page=1&limit=' + this.value + '<%= archQs %>';">
-            <option value="10" <%= limit === 10 ? 'selected' : '' %>>10</option>
-            <option value="20" <%= limit === 20 ? 'selected' : '' %>>20</option>
-            <option value="50" <%= limit === 50 ? 'selected' : '' %>>50</option>
-          </select>
-
-          <% const prev = page > 1 ? page - 1 : 1; %>
-          <% const next = page < totalPages ? page + 1 : totalPages; %>
-
-          <% if (page > 1) { %>
-            <a class="btn btn-primary" style="padding:10px 12px;" href="/admin/merchants?page=<%= prev %>&limit=<%= limit %><%= archQs %>">Prev</a>
-          <% } %>
-
-          <% if (page < totalPages) { %>
-            <a class="btn btn-primary" style="padding:10px 12px;" href="/admin/merchants?page=<%= next %>&limit=<%= limit %><%= archQs %>">Next</a>
-          <% } %>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/admin/merchants', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: archQs }) %>
     </div>
   </div>
 
@@ -369,6 +393,6 @@
     </div>
   </div>
   <script src="/public/js/admin-merchant-soft-delete.js" defer></script>
-  <script src="/public/js/admin-merchant-saldo-toggle.js" defer></script>
+  <script src="/public/js/admin-merchant-saldo-toggle.js?v=20261013g" defer></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const merchantModel = require("../../models/merchant");
 const machineModel = require("../../models/machine");
 const { formatDateId } = require("../../helper-function/format-date");
 const { toPositiveInt } = require("../../helper-function/http");
+const { slicePage } = require("../../helper-function/table-page");
 const { jakartaToday } = require("../../helper-function/screensaver-playlist");
 const systemSettings = require("../../models/system-settings");
 const { parsePlayerForm } = require("../../helper-function/screensaver-settings");
@@ -126,7 +127,7 @@ async function renderForm(req, res, { status = 200, campaign = null, value, erro
 exports.list = async (req, res, next) => {
   try {
     const today = jakartaToday();
-    const rows = (await screensaverModel.listCampaigns()).map((c) => ({
+    const mapped = (await screensaverModel.listCampaigns()).map((c) => ({
       ...c,
       price_fmt: rupiah(c.price_amount),
       paid_at_fmt: c.paid_at ? formatDateId(c.paid_at) : null,
@@ -135,10 +136,16 @@ exports.list = async (req, res, next) => {
       preview: (c.media || []).find((m) => m.status === "active") || null,
       active_media: (c.media || []).filter((m) => m.status === "active").length,
     }));
+    const paged = slicePage(mapped, req.query, { fallback: 10 });
+    res.set("Cache-Control", "private, no-store");
     return res.render("admin/screensaver/list", {
       title: "Iklan Screensaver",
       user: req.user,
-      rows,
+      rows: paged.rows,
+      page: paged.page,
+      limit: paged.limit,
+      total: paged.total,
+      totalPages: paged.totalPages,
       today,
       notice: NOTICES[String(req.query.ok || "")] || null,
       errorNotice: req.query.err ? String(req.query.err).slice(0, 200) : null,

@@ -1,7 +1,7 @@
 {
   "name": "Samakan Core",
   "short_name": "Samakan",
-  "start_url": "/admin",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#fff7f3",
   "theme_color": "#d91f26",

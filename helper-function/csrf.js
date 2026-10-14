@@ -7,18 +7,18 @@ const { isCookieSecure } = require("./cookie");
 
 const COOKIE = "csrf_token";
 
-function csrfCookieOptions() {
+function csrfCookieOptions(req) {
   return {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    secure: isCookieSecure(),
+    secure: isCookieSecure(req),
   };
 }
 
 function issueCsrf(res) {
   const token = crypto.randomBytes(32).toString("hex");
-  res.cookie(COOKIE, token, csrfCookieOptions());
+  res.cookie(COOKIE, token, csrfCookieOptions(res.req));
   return token;
 }
 

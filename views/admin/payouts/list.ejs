@@ -51,9 +51,9 @@
     <% } %>
 
     <div class="filters">
-      <a class="chip <%= status ? '' : 'active' %>" href="/admin/payouts">Semua</a>
+      <a class="chip <%= status ? '' : 'active' %>" href="/admin/payouts?limit=<%= limit %>">Semua</a>
       <% statuses.forEach(function(s){ %>
-        <a class="chip <%= status === s ? 'active' : '' %>" href="/admin/payouts?status=<%= s %>"><%= s %></a>
+        <a class="chip <%= status === s ? 'active' : '' %>" href="/admin/payouts?status=<%= s %>&limit=<%= limit %>"><%= s %></a>
       <% }) %>
     </div>
 
@@ -92,15 +92,8 @@
           <% } %>
         </tbody>
       </table>
+      <%- include('../../partials/table-pager', { basePath: '/admin/payouts', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: status ? 'status=' + status : '', limits: [10, 25, 50] }) %>
     </div>
-
-    <% if (totalPages > 1) { %>
-    <div class="pager">
-      <span class="muted">Halaman <b><%= page %></b> dari <b><%= totalPages %></b> · <%= total %> data</span>
-      <% if (page > 1) { %><a href="/admin/payouts?status=<%= status %>&page=<%= page - 1 %>">Prev</a><% } %>
-      <% if (page < totalPages) { %><a href="/admin/payouts?status=<%= status %>&page=<%= page + 1 %>">Next</a><% } %>
-    </div>
-    <% } %>
   </div>
 </body>
 </html>

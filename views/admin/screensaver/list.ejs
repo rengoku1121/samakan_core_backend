@@ -29,80 +29,104 @@
       <% if (!rows.length) { %>
         <div class="empty">Belum ada campaign. Klik <b>Campaign baru</b> untuk memasang iklan.</div>
       <% } else { %>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:110px;">Preview</th>
-              <th>Campaign</th>
-              <th style="width:220px;">Target</th>
-              <th style="width:170px;">Periode &amp; playlist</th>
-              <th style="width:170px;">Biaya</th>
-              <th style="width:190px;">Status</th>
-              <th style="width:110px;"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% rows.forEach(function (c) { %>
-              <tr data-campaign-id="<%= c.id %>">
-                <td>
-                  <% if (c.preview && c.preview.media_type === 'video') { %>
-                    <video class="thumb" src="<%= c.preview.file_path %>" muted preload="metadata"></video>
-                  <% } else if (c.preview) { %>
-                    <img class="thumb" src="<%= c.preview.file_path %>" alt="" loading="lazy" />
-                  <% } else { %>
-                    <span class="muted">Tanpa media</span>
+        <div class="ad-list">
+          <% rows.forEach(function (c) { %>
+            <% var slides = c.media || []; %>
+            <article class="ad-row" data-campaign-id="<%= c.id %>">
+              <div class="ad-preview">
+                <% if (!slides.length) { %>
+                  <span class="muted">Tanpa media</span>
+                <% } else { %>
+                  <div class="ad-slides" data-ad-slides>
+                    <div class="ad-track" data-ad-track>
+                      <% slides.forEach(function (m, i) { %>
+                        <div class="ad-slide<%= m.status === 'active' ? '' : ' is-off' %>" data-ad-slide <%= i === 0 ? '' : 'aria-hidden="true"' %>>
+                          <% if (m.media_type === 'video') { %>
+                            <video src="<%= m.file_path %>" muted playsinline preload="metadata"></video>
+                            <span class="ad-kind">Video</span>
+                          <% } else { %>
+                            <img src="<%= m.file_path %>" alt="" />
+                          <% } %>
+                          <% if (m.status !== 'active') { %><span class="ad-kind">Nonaktif</span><% } %>
+                        </div>
+                      <% }) %>
+                    </div>
+                    <% if (slides.length > 1) { %>
+                      <button type="button" class="ad-nav ad-prev" data-ad-prev aria-label="Slide sebelumnya">‹</button>
+                      <button type="button" class="ad-nav ad-next" data-ad-next aria-label="Slide berikutnya">›</button>
+                      <span class="ad-count" data-ad-count>1 / <%= slides.length %></span>
+                      <div class="ad-dots">
+                        <% slides.forEach(function (_, i) { %>
+                          <button type="button" class="ad-dot<%= i === 0 ? ' is-on' : '' %>" data-ad-dot aria-label="Slide <%= i + 1 %>"></button>
+                        <% }) %>
+                      </div>
+                    <% } %>
+                  </div>
+                <% } %>
+              </div>
+
+              <div class="ad-main">
+                <h2 class="ad-name"><%= c.name %></h2>
+                <div class="ad-facts">
+                  <% if (c.advertiser_name) { %>
+                    <p class="ad-fact"><span class="ad-k">Pemasang</span><span class="ad-val"><%= c.advertiser_name %></span></p>
                   <% } %>
-                </td>
-                <td class="stack">
-                  <div><b><%= c.name %></b></div>
-                  <% if (c.advertiser_name) { %><div class="muted">Pemasang: <%= c.advertiser_name %></div><% } %>
-                  <div class="muted"><%= c.active_media %> media aktif dari <%= c.media.length %> · urutan <%= c.priority %></div>
-                </td>
-                <td class="stack">
-                  <% if (!c.target_list.length) { %><span class="badge bad">Belum ada target</span><% } %>
-                  <% c.target_list.forEach(function (t) { %>
-                    <div class="<%= t.stale ? 'badge bad' : '' %>"><%= t.text %></div>
-                  <% }) %>
-                </td>
-                <td class="stack">
-                  <div><%= c.start_date || 'Tanpa batas awal' %> — <%= c.end_date || 'tanpa batas akhir' %></div>
-                  <div class="muted"><%= playlistLabels[c.playlist_mode] %></div>
-                </td>
-                <td class="stack">
-                  <div><b>Rp <%= c.price_fmt %></b></div>
+                  <p class="ad-fact">
+                    <span class="ad-k">Target</span>
+                    <% if (!c.target_list.length) { %><span class="badge bad">Belum ada target</span><% } %>
+                    <% c.target_list.forEach(function (t) { %>
+                      <span class="ad-val <%= t.stale ? 'badge bad' : '' %>"><%= t.text %></span>
+                    <% }) %>
+                  </p>
+                  <p class="ad-fact ad-fact-wide">
+                    <span class="ad-k">Periode</span>
+                    <span class="ad-val"><%= c.start_date || 'Tanpa batas awal' %> – <%= c.end_date || 'tanpa batas akhir' %></span>
+                  </p>
+                  <p class="ad-fact ad-fact-wide">
+                    <span class="ad-k">Putar</span>
+                    <span class="ad-val"><%= playlistLabels[c.playlist_mode] %></span>
+                  </p>
+                </div>
+                <p class="ad-note"><%= c.active_media %> media aktif dari <%= c.media.length %> · urutan <%= c.priority %></p>
+              </div>
+
+              <div class="ad-side">
+                <p class="ad-price">Rp <%= c.price_fmt %></p>
+                <div class="ad-badges">
                   <span class="badge <%= c.payment_status === 'paid' ? 'on' : c.payment_status === 'refunded' ? 'bad' : 'warn' %>"><%= paymentLabels[c.payment_status] %></span>
-                  <% if (c.paid_at_fmt) { %><div class="muted">Lunas <%= c.paid_at_fmt %></div><% } %>
-                  <form class="inline-form" method="POST" action="/admin/screensaver/<%= c.id %>/payment">
-                    <% if (c.payment_status !== 'paid') { %>
-                      <input type="hidden" name="payment_status" value="paid" />
-                      <button class="btn btn-ghost btn-sm" type="submit">Tandai lunas</button>
-                    <% } else { %>
-                      <input type="hidden" name="payment_status" value="unpaid" />
-                      <button class="btn btn-ghost btn-sm" type="submit" data-confirm="Kembalikan status ke belum bayar? Iklan akan berhenti tayang.">Batalkan lunas</button>
-                    <% } %>
-                  </form>
-                </td>
-                <td class="stack">
                   <span class="badge <%= c.live.live ? 'on' : 'off' %>"><%= c.live.text %></span>
-                  <div class="muted">Status: <%= statusLabels[c.status] %></div>
-                  <form class="inline-form" method="POST" action="/admin/screensaver/<%= c.id %>/status">
-                    <% if (c.status === 'active') { %>
-                      <input type="hidden" name="status" value="paused" />
-                      <button class="btn btn-ghost btn-sm" type="submit">Jeda</button>
-                    <% } else { %>
-                      <input type="hidden" name="status" value="active" />
-                      <button class="btn btn-ghost btn-sm" type="submit">Aktifkan</button>
-                    <% } %>
-                  </form>
-                </td>
-                <td><a class="btn btn-ghost btn-sm" href="/admin/screensaver/<%= c.id %>/edit">Edit</a></td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
+                </div>
+                <p class="ad-note ad-statusline">Status <%= statusLabels[c.status] %><% if (c.paid_at_fmt) { %> · Lunas <%= c.paid_at_fmt %><% } %></p>
+              </div>
+
+              <div class="ad-actions">
+                <form method="POST" action="/admin/screensaver/<%= c.id %>/payment">
+                  <% if (c.payment_status !== 'paid') { %>
+                    <input type="hidden" name="payment_status" value="paid" />
+                    <button class="btn btn-ghost" type="submit">Tandai lunas</button>
+                  <% } else { %>
+                    <input type="hidden" name="payment_status" value="unpaid" />
+                    <button class="btn btn-ghost" type="submit" data-confirm="Kembalikan status ke belum bayar? Iklan akan berhenti tayang.">Batalkan lunas</button>
+                  <% } %>
+                </form>
+                <form method="POST" action="/admin/screensaver/<%= c.id %>/status">
+                  <% if (c.status === 'active') { %>
+                    <input type="hidden" name="status" value="paused" />
+                    <button class="btn btn-ghost" type="submit">Jeda</button>
+                  <% } else { %>
+                    <input type="hidden" name="status" value="active" />
+                    <button class="btn btn-ghost" type="submit">Aktifkan</button>
+                  <% } %>
+                </form>
+                <a class="btn btn-ghost" href="/admin/screensaver/<%= c.id %>/edit">Edit</a>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+        <%- include('../../partials/table-pager', { basePath: '/admin/screensaver', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows.length, keepQs: '' }) %>
       <% } %>
     </div>
   </div>
-  <script src="/public/js/admin-screensaver.js" defer></script>
+  <script src="/public/js/admin-screensaver.js?v=20261014h" defer></script>
 </body>
 </html>

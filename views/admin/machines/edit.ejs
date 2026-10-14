@@ -160,14 +160,7 @@
         </select>
         <div class="hint">Kamu masih bisa pilih lokasi inactive (untuk data historis), tapi idealnya aktif.</div>
 
-        <label for="merchant_id">Merchant</label>
-        <select id="merchant_id" name="merchant_id" required>
-          <option value="">-- pilih merchant --</option>
-          <% (merchants || []).forEach(function(m){ %>
-            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Wajib. Satu mesin harus ditautkan ke satu merchant (portal, QRIS, settlement).</div>
+        <%- include('_parties') %>
 
         <label for="is_active">Status</label>
         <select id="is_active" name="is_active">
@@ -179,11 +172,12 @@
           <button class="btn btn-primary" type="submit">Save Changes</button>
           <a class="btn btn-secondary" href="/admin/machines/<%= machine.id %>/detail">Detail</a>
           <a class="btn btn-secondary" href="/admin/machines">Back</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>
   </div>
   <script src="/public/js/machine-date-picker.js" defer></script>
+  <script src="/public/js/admin-machine-parties.js?v=20261013i" defer></script>
 </body>
 </html>

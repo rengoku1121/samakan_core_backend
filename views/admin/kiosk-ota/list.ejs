@@ -55,6 +55,7 @@
             <% }) %>
           </tbody>
         </table>
+        <%- include('../../partials/table-pager', { basePath: '/admin/kiosk-ota', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows.length, keepQs: '' }) %>
       <% } %>
     </div>
   </div>

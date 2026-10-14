@@ -5,24 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title><%= title %></title>
   <style>
-    .merchant-dash { width: 100%; }
-    .dash-head { display:flex; justify-content:space-between; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:14px; }
-    .dash-head h2 { margin:0; font-size:22px; font-weight:700; }
+    .merchant-dash { width: 100%; max-width: 100%; overflow: hidden; }
+    .dash-title h2 { margin:0 0 12px; font-size:22px; font-weight:700; }
+    .dash-tabs {
+      display:grid; grid-template-columns:1fr 1fr; position:relative;
+      margin:0 0 18px; border-bottom:1px solid #f4e2d9;
+    }
+    .dash-tab {
+      appearance:none; margin:0; border:0; background:transparent; cursor:pointer;
+      padding:12px 8px 14px; font:inherit; font-weight:700; font-size:14px;
+      color:#8e7269; line-height:1.3;
+    }
+    .dash-tab.is-active { color:#d91f26; background:#fff6f6; }
+    .dash-tab-ink {
+      position:absolute; left:0; bottom:0; width:50%; height:2px; background:#d91f26;
+      transform:translateX(0); transition:transform .32s ease;
+    }
+    .dash-tabs.is-all .dash-tab-ink { transform:translateX(100%); }
+    .dash-viewport { overflow:hidden; width:100%; box-sizing:border-box; transition:height .32s ease; }
+    .dash-track { display:flex; align-items:flex-start; width:100%; transition:transform .32s ease; }
+    .dash-track.is-all { transform:translateX(-100%); }
+    .dash-panel { flex:0 0 100%; width:100%; max-width:100%; min-width:0; box-sizing:border-box; padding:2px 8px 12px; }
     .muted { color:#8e7269; font-size:13px; line-height:1.45; }
+    .dash-panel > .muted { margin:0 0 16px; }
+    .shell .merchant-dash .dash-head { margin:0 0 18px; width:100%; }
+    .shell .merchant-dash .dash-head .filter { gap:12px 14px; }
+    .shell .merchant-dash .dash-head .filter > .btn {
+      padding:10px 18px !important; height:auto !important; min-height:42px;
+    }
     .filter { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
     .field { display:grid; gap:5px; }
     .field label { font-size:12px; color:#8e7269; font-weight:500; }
     .field input { min-width:160px; padding:9px 10px; border-radius:10px; border:1px solid #f4e2d9; background:#fff; color:#2a1a16; }
     .btn { border:0; border-radius:10px; padding:10px 14px; color:#fff; font-weight:600; cursor:pointer; background:#d91f26; box-shadow:0 2px 8px rgba(217,31,38,0.18); }
     .btn:hover { background:#bc1a21; }
-    .stats { display:grid; grid-template-columns:repeat(3, minmax(160px, 1fr)); gap:10px; margin-bottom:14px; }
+    .stats { display:grid; grid-template-columns:repeat(3, minmax(160px, 1fr)); gap:12px; margin:0 0 14px; min-width:0; }
     .stats-2 { grid-template-columns:repeat(2, minmax(160px, 1fr)); }
     .stats-4 { grid-template-columns:repeat(4, minmax(140px, 1fr)); }
     .stat { border:1px solid #f4e2d9; border-radius:14px; background:#fff; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.03); }
     .stat b { display:block; font-size:11px; color:#8e7269; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; font-weight:600; }
     .stat h3 { margin:0; font-size:26px; line-height:1.2; color:#2a1a16; font-weight:700; }
     .stat .sub { margin-top:6px; font-size:12px; color:#8e7269; line-height:1.4; }
-    .section-label { margin:18px 0 8px; font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#8e7269; }
     .charts { display:grid; grid-template-columns:1.4fr 1fr; gap:12px; margin-bottom:6px; }
     .chart-card {
       border:1px solid #f4e2d9; border-radius:14px; background:#fff;
@@ -39,138 +62,122 @@
       min-height:220px; background:#fffaf7;
     }
     .merchant-stat-note {
-      margin-top:14px;
-      padding:12px 14px;
-      font-size:12px;
-      line-height:1.5;
-      color:#8e7269;
-      border-radius:12px;
-      border:1px dashed #f4e2d9;
-      background:#fffaf7;
+      margin-top:14px; padding:12px 14px; font-size:12px; line-height:1.5; color:#8e7269;
+      border-radius:12px; border:1px dashed #f4e2d9; background:#fffaf7;
     }
-    .merchant-stat-note a { color:#d91f26; font-weight:700; text-decoration:none; }
-    .merchant-stat-note a:hover { text-decoration:underline; }
+    .dash-placeholder { margin:8px 0 0; }
     @media (max-width: 900px) {
       .stats, .stats-2, .stats-4, .charts { grid-template-columns:1fr; }
       .chart-full { grid-column:auto; }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .dash-track, .dash-viewport, .dash-tab-ink { transition:none; }
+    }
   </style>
 </head>
 <body>
-  <div class="merchant-dash">
-    <section class="dash-head">
-      <div>
-        <h2>Ringkasan penjualan</h2>
-        <div class="muted">Omzet, status order, dan produk terlaris untuk merchant Anda.</div>
+  <div class="merchant-dash" data-dash data-kind="merchant" data-summary="/merchant/summary?scope=all">
+    <div class="dash-title">
+      <h2>Ringkasan</h2>
+    </div>
+    <div class="dash-tabs" role="tablist" aria-label="Jenis ringkasan">
+      <button type="button" class="dash-tab is-active" role="tab" id="tab-range" data-tab="range" aria-selected="true" aria-controls="panel-range">Rentang tanggal</button>
+      <button type="button" class="dash-tab" role="tab" id="tab-all" data-tab="all" aria-selected="false" aria-controls="panel-all">Semua waktu</button>
+      <span class="dash-tab-ink" aria-hidden="true"></span>
+    </div>
+    <div class="dash-viewport">
+      <div class="dash-track">
+        <section class="dash-panel" id="panel-range" role="tabpanel" aria-labelledby="tab-range" data-panel="range">
+          <p class="muted">Bagian Anda dulu, lalu penjualan mesin di rentang tanggal.</p>
+          <div class="dash-head">
+            <form method="GET" action="/merchant" class="filter">
+              <div class="field">
+                <label>Dari tanggal</label>
+                <input type="date" name="date_from" value="<%= dateFrom %>" />
+              </div>
+              <div class="field">
+                <label>Sampai tanggal</label>
+                <input type="date" name="date_to" value="<%= dateTo %>" />
+              </div>
+              <button class="btn" type="submit">Terapkan</button>
+            </form>
+          </div>
+          <% if (rangeError) { %><p class="muted" role="alert"><%= rangeError %></p><% } %>
+
+          <section class="stats stats-2" aria-label="Bagian merchant">
+            <article class="stat">
+              <b>Bagian saya</b>
+              <h3>Rp <%= summary.shareFmt %></h3>
+              <div class="sub">Dari order yang sudah terbayar di rentang ini</div>
+            </article>
+            <article class="stat">
+              <b>Transaksi</b>
+              <h3><%= summary.transactions %></h3>
+              <div class="sub">Order terbayar yang melibatkan Anda</div>
+            </article>
+          </section>
+
+          <section class="stats stats-2" aria-label="Penjualan mesin">
+            <article class="stat">
+              <b>Omzet mesin</b>
+              <h3>Rp <%= summary.turnoverFmt %></h3>
+              <div class="sub">Nilai penjualan, bukan bagian Anda</div>
+            </article>
+            <article class="stat">
+              <b>Menunggu bayar</b>
+              <h3 style="font-size:22px;">Rp <%= summary.pendingFmt %></h3>
+              <div class="sub"><%= summary.pendingCount %> order belum dibayar</div>
+            </article>
+          </section>
+
+          <section class="charts" data-chart-root>
+            <script type="application/json" data-dash-charts><%- JSON.stringify(charts || { daily: [], status: [], topProducts: [] }).replace(/</g, '\\u003c') %></script>
+            <article class="chart-card">
+              <h3>Omzet harian</h3>
+              <p class="chart-sub">Nilai penjualan mesin, bukan bagian Anda</p>
+              <% if (!charts.daily || !charts.daily.length) { %>
+                <div class="chart-empty">Belum ada data di rentang ini</div>
+              <% } else { %>
+                <div class="chart-wrap"><canvas data-chart="daily" aria-label="Omzet harian"></canvas></div>
+              <% } %>
+            </article>
+            <article class="chart-card">
+              <h3>Status order</h3>
+              <p class="chart-sub">Distribusi status di rentang tanggal</p>
+              <% if (!charts.status || !charts.status.length) { %>
+                <div class="chart-empty">Belum ada order</div>
+              <% } else { %>
+                <div class="chart-wrap"><canvas data-chart="status" aria-label="Status order"></canvas></div>
+              <% } %>
+            </article>
+            <article class="chart-card chart-full">
+              <h3>Produk terlaris</h3>
+              <p class="chart-sub">8 produk teratas menurut jumlah terjual</p>
+              <% if (!charts.topProducts || !charts.topProducts.length) { %>
+                <div class="chart-empty">Belum ada penjualan produk di rentang ini</div>
+              <% } else { %>
+                <div class="chart-wrap" style="min-height:280px;"><canvas data-chart="products" aria-label="Produk terlaris"></canvas></div>
+              <% } %>
+            </article>
+          </section>
+
+          <p class="merchant-stat-note">
+            Bagian saya adalah pratinjau order yang sudah terbayar. Pencairan ke mitra masih dilakukan manual oleh Samakan.
+          </p>
+        </section>
+
+        <section class="dash-panel" id="panel-all" role="tabpanel" aria-labelledby="tab-all" data-panel="all" aria-hidden="true">
+          <p class="muted">Hitungan sejak awal, tanpa filter tanggal.</p>
+          <div data-all-body>
+            <p class="muted dash-placeholder">Angka semua waktu dimuat saat tab ini dibuka.</p>
+          </div>
+        </section>
       </div>
-      <form method="GET" action="/merchant" class="filter">
-        <div class="field">
-          <label>Dari tanggal</label>
-          <input type="date" name="date_from" value="<%= dateFrom %>" />
-        </div>
-        <div class="field">
-          <label>Sampai tanggal</label>
-          <input type="date" name="date_to" value="<%= dateTo %>" />
-        </div>
-        <button class="btn" type="submit">Apply</button>
-      </form>
-    </section>
-
-    <section class="stats" aria-label="Ringkasan rentang tanggal">
-      <article class="stat">
-        <b>Omzet</b>
-        <h3>Rp <%= summary.turnoverFmt %></h3>
-        <div class="sub">Order yang sudah terbayar di rentang ini</div>
-      </article>
-      <article class="stat">
-        <b>Transaksi</b>
-        <h3><%= summary.transactions %></h3>
-        <div class="sub">PAID sampai dispensed</div>
-      </article>
-      <article class="stat">
-        <b>Menunggu bayar</b>
-        <h3 style="font-size:22px;">Rp <%= summary.pendingFmt %></h3>
-        <div class="sub"><%= summary.pendingCount %> order PENDING</div>
-      </article>
-    </section>
-
-    <section class="charts">
-      <article class="chart-card">
-        <h3>Omzet harian</h3>
-        <p class="chart-sub">Nilai penjualan (Rp) dan jumlah transaksi</p>
-        <% if (!charts.daily || !charts.daily.length) { %>
-          <div class="chart-empty">Belum ada data di rentang ini</div>
-        <% } else { %>
-          <div class="chart-wrap"><canvas id="chart-daily" aria-label="Omzet harian"></canvas></div>
-        <% } %>
-      </article>
-
-      <article class="chart-card">
-        <h3>Status order</h3>
-        <p class="chart-sub">Distribusi status di rentang tanggal</p>
-        <% if (!charts.status || !charts.status.length) { %>
-          <div class="chart-empty">Belum ada order</div>
-        <% } else { %>
-          <div class="chart-wrap"><canvas id="chart-status" aria-label="Status order"></canvas></div>
-        <% } %>
-      </article>
-
-      <article class="chart-card chart-full">
-        <h3>Produk terlaris</h3>
-        <p class="chart-sub">8 produk teratas menurut jumlah terjual</p>
-        <% if (!charts.topProducts || !charts.topProducts.length) { %>
-          <div class="chart-empty">Belum ada penjualan produk di rentang ini</div>
-        <% } else { %>
-          <div class="chart-wrap" style="min-height:280px;"><canvas id="chart-products" aria-label="Produk terlaris"></canvas></div>
-        <% } %>
-      </article>
-    </section>
-
-    <% if (balance) { %>
-    <div class="section-label">Saldo</div>
-    <section class="stats stats-2" aria-label="Saldo merchant">
-      <article class="stat">
-        <b>Saldo tersedia</b>
-        <h3 style="font-size:22px;"><%= balance.balance_fmt %></h3>
-        <div class="sub">Total bersih setelah fee settlement</div>
-      </article>
-      <article class="stat">
-        <b>Total gross settled</b>
-        <h3 style="font-size:22px;"><%= balance.total_gross_fmt %></h3>
-        <div class="sub">Fee Midtrans: <%= balance.total_midtrans_fee_fmt %></div>
-      </article>
-    </section>
-    <% } %>
-
-    <div class="section-label">Semua waktu</div>
-    <section class="stats stats-4" aria-label="Statistik semua waktu">
-      <article class="stat">
-        <b>Total order</b>
-        <h3><%= stats.total_orders %></h3>
-      </article>
-      <article class="stat">
-        <b>Sukses bayar</b>
-        <h3><%= stats.paid_flow_count %></h3>
-        <div class="sub">Keluar mesin: <%= stats.dispensed_count %></div>
-      </article>
-      <article class="stat">
-        <b>Menunggu bayar</b>
-        <h3 style="font-size:20px;"><%= statsFmt.pending_amount %></h3>
-        <div class="sub"><%= stats.pending_count %> order PENDING</div>
-      </article>
-      <article class="stat">
-        <b>QRIS tercatat</b>
-        <h3><%= stats.qris_recorded_count %></h3>
-      </article>
-    </section>
-
-    <p class="merchant-stat-note">
-      Saldo dihitung dari order yang sudah di-settle oleh admin. Lihat riwayat lengkap di halaman <a href="/merchant/balance">Saldo</a>.
-    </p>
+    </div>
   </div>
 
-  <script type="application/json" id="dash-charts-data"><%- JSON.stringify(charts || { daily: [], status: [], topProducts: [] }).replace(/</g, '\\u003c') %></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js" defer></script>
-  <script src="/public/js/admin-dashboard-charts.js?v=20261006j" defer></script>
+  <script src="/public/vendor/chart.umd.min.js" defer></script>
+  <script src="/public/js/admin-dashboard-charts.js?v=20261014a" defer></script>
+  <script src="/public/js/dashboard-tabs.js?v=20261014a" defer></script>
 </body>
 </html>

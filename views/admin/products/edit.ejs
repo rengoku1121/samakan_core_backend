@@ -59,6 +59,15 @@
         <label for="sku">SKU (unique)</label>
         <input id="sku" name="sku" value="<%= value?.sku || '' %>" required />
 
+        <label for="merchant_id">Pemilik menu</label>
+        <select id="merchant_id" name="merchant_id">
+          <option value="">Katalog bersama (mesin lama)</option>
+          <% (menuMerchants || []).forEach(function (m) { %>
+            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+          <% }) %>
+        </select>
+        <div class="hint">Kosong hanya untuk katalog lama. Menu milik mitra menu masuk rak Cruise. Menu milik pemilik masuk rak Plus dan Basic.</div>
+
         <label for="name">Product Name</label>
         <input id="name" name="name" value="<%= value?.name || '' %>" required />
 
@@ -97,7 +106,7 @@
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>
           <a class="btn btn-secondary" href="/admin/products">Back</a>
-          <a class="btn btn-secondary" href="/admin">Dashboard</a>
+          <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
         </div>
       </form>
     </div>

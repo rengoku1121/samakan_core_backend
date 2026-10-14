@@ -1,12 +1,15 @@
 // controllers/admin/merchants.js
 const { formatDateId } = require("../../helper-function/format-date");
 const merchantModel = require("../../models/merchant");
+const machineModel = require("../../models/machine");
 const userModel = require("../../models/user");
 const settlementModel = require("../../models/settlement");
 const payoutModel = require("../../models/payout");
 const {
   PARTNERSHIP,
   normalizeTerms,
+  normalizeMerchantRole,
+  merchantRoleLabel,
   partnershipLabel,
   termsSummary,
   payoutFeeBearerLabel,
@@ -24,14 +27,16 @@ const normalizeName = normalizeText;
  * jadi memilih Subscription otomatis menolkan persentase bagi hasil dan
  * sebaliknya — form tidak bisa mengirim kombinasi yang bertentangan.
  */
-const buildTerms = (body = {}) =>
-  normalizeTerms({
+const buildTerms = (body = {}) => ({
+  ...normalizeTerms({
     partnership_type: body.partnership_type,
     revenue_share_percent: body.revenue_share_percent,
     subscription_amount: String(body.subscription_amount || "").replace(/[.,\s]/g, ""),
     midtrans_fee_bearer: body.midtrans_fee_bearer,
     payout_fee_bearer: body.payout_fee_bearer,
-  });
+  }),
+  merchant_role: normalizeMerchantRole(body.merchant_role),
+});
 
 const buildNewValue = (body = {}) => ({
   name: normalizeText(body.name),
@@ -44,7 +49,7 @@ const buildNewValue = (body = {}) => ({
 });
 
 const termsForActor = (user, submitted, existing) =>
-  canEditMoneySettings(user) ? normalizeTerms(submitted) : normalizeTerms(existing || {});
+  canEditMoneySettings(user) ? buildTerms(submitted) : buildTerms(existing || {});
 
 /** Label "Ikut Setting" harus menyebut nilai global yang berlaku saat ini. */
 const globalPayoutFeeBearer = async () => {
@@ -70,17 +75,26 @@ exports.list = async (req, res, next) => {
     const archivedOnly = String(req.query.archived || "") === "1";
     const page = Math.max(1, toInt(req.query.page, 1));
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 10)));
-    const offset = (page - 1) * limit;
+    const q = normalizeText(req.query.q).slice(0, 80);
+    const roleRaw = String(req.query.role || "").toLowerCase();
+    const role = ["owner", "menu", "location"].includes(roleRaw) ? roleRaw : "";
+    const machineId = Math.max(0, toInt(req.query.machine_id, 0));
+    const listFilter = { archivedOnly, q, role, machineId };
 
-    const [total, rows, balances, globalBearer] = await Promise.all([
-      merchantModel.countAll({ archivedOnly }),
-      merchantModel.listPaginated({ limit, offset, archivedOnly }),
+    const [total, machines, balances, globalBearer] = await Promise.all([
+      merchantModel.countAll(listFilter),
+      machineModel.listAllForSelect(),
       settlementModel.getAllMerchantBalances().catch(() => []),
       globalPayoutFeeBearer(),
     ]);
-    const balanceMap = new Map((balances || []).map((b) => [Number(b.merchant_id), b]));
-
     const totalPages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, totalPages);
+    const rows = await merchantModel.listPaginated({
+      ...listFilter,
+      limit,
+      offset: (safePage - 1) * limit,
+    });
+    const balanceMap = new Map((balances || []).map((b) => [Number(b.merchant_id), b]));
 
     return res.render("admin/merchants/list", {
       title: archivedOnly ? "Merchants (Arsip)" : "Merchants",
@@ -90,8 +104,14 @@ exports.list = async (req, res, next) => {
         created_at: formatDateId(r.created_at),
         updated_at: formatDateId(r.updated_at),
         deleted_at_fmt: r.deleted_at ? formatDateId(r.deleted_at) : null,
-        partnership_label: partnershipLabel(r.partnership_type),
-        terms_summary: termsSummary(r),
+        partnership_label:
+          normalizeMerchantRole(r.merchant_role) === "legacy"
+            ? partnershipLabel(r.partnership_type)
+            : merchantRoleLabel(r.merchant_role),
+        terms_summary:
+          normalizeMerchantRole(r.merchant_role) === "legacy"
+            ? termsSummary(r)
+            : merchantRoleLabel(r.merchant_role),
         payout_fee_bearer_label: payoutFeeBearerLabel(r.payout_fee_bearer, globalBearer),
         balance: Number(balanceMap.get(Number(r.id))?.balance || 0),
         total_gross: Number(balanceMap.get(Number(r.id))?.total_gross || 0),
@@ -99,11 +119,17 @@ exports.list = async (req, res, next) => {
         total_owner_fee: Number(balanceMap.get(Number(r.id))?.total_owner_fee || 0),
         total_tx: Number(balanceMap.get(Number(r.id))?.total_tx || 0),
       })),
-      page,
+      page: safePage,
       limit,
       total,
       totalPages,
       archivedOnly,
+      machines,
+      roleOptions: ["owner", "menu", "location"].map((id) => ({
+        id,
+        label: merchantRoleLabel(id),
+      })),
+      filters: { q, role, machine_id: machineId || "" },
       q: null,
     });
   } catch (err) {
@@ -112,9 +138,6 @@ exports.list = async (req, res, next) => {
 };
 
 exports.renderNew = async (req, res) => {
-  // Persentase default diambil dari owner_fee_percent global supaya admin tidak
-  // perlu mengetik ulang angka yang biasa dipakai.
-  const feeConfig = await settlementModel.getFeeConfig().catch(() => ({ owner_fee_percent: 0 }));
   return renderNewForm(res, req, {
     value: {
       name: "",
@@ -125,10 +148,11 @@ exports.renderNew = async (req, res) => {
       password_confirm: "",
       ...normalizeTerms({
         partnership_type: PARTNERSHIP.REVENUE_SHARE,
-        revenue_share_percent: feeConfig.owner_fee_percent,
+        revenue_share_percent: 0,
         midtrans_fee_bearer: "merchant",
         payout_fee_bearer: "inherit",
       }),
+      merchant_role: "owner",
     },
   });
 };
@@ -142,7 +166,8 @@ exports.create = async (req, res, next) => {
       return renderNewForm(res, req, { status: 400, error: "Nama merchant wajib diisi.", value });
     }
     const terms = termsForActor(req.user, value, null);
-    const termsError = canEditMoneySettings(req.user) ? validateTerms(terms) : null;
+    const termsError =
+      canEditMoneySettings(req.user) && terms.merchant_role === "legacy" ? validateTerms(terms) : null;
     if (termsError) {
       return renderNewForm(res, req, { status: 400, error: termsError, value });
     }
@@ -236,7 +261,7 @@ exports.renderEdit = async (req, res, next) => {
       value: {
         name: merchant.name,
         is_active: merchant.is_active ? 1 : 0,
-        ...normalizeTerms(merchant),
+        ...buildTerms(merchant),
       },
     });
   } catch (err) {
@@ -271,7 +296,8 @@ exports.update = async (req, res, next) => {
 
     if (!name) return renderError(400, "Nama merchant wajib diisi.");
 
-    const termsError = canEditMoneySettings(req.user) ? validateTerms(terms) : null;
+    const termsError =
+      canEditMoneySettings(req.user) && terms.merchant_role === "legacy" ? validateTerms(terms) : null;
     if (termsError) return renderError(400, termsError);
 
     if (name !== merchant.name) {

@@ -567,13 +567,13 @@ body.shell-app::after {
 }
 
 /* Link biasa (bukan tombol/nav) */
-.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn) {
+.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn):not(.dash-tab) {
   color: var(--s-primary-700) !important;
   text-decoration-color: rgba(140, 23, 26, 0.35);
   transition: color 0.15s ease;
 }
 
-.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn):hover {
+.shell a:not(.shell-nav a):not(.shell-logout):not(.brand):not(.btn):not(.dash-tab):hover {
   color: var(--s-primary) !important;
 }
 
@@ -597,9 +597,16 @@ body.shell-app::after {
   padding: 10px 14px !important;
 }
 
-/* Panah select jangan nabrak teks */
+/* Panah select digeser dari tepi kanan, bukan panah bawaan browser. */
 .shell select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
   padding-right: 36px !important;
+  background-color: var(--s-surface) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 L6 6.5 L11 1.5' fill='none' stroke='%238e7269' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 8px !important;
 }
 
 /* Ikon kalender tetap longgar dari teks dd/mm/yyyy */
@@ -642,6 +649,40 @@ body.shell-app::after {
   color: #bba39a;
 }
 
+/* Ringkasan: Dari dan Sampai selalu sejajar. Tombol tetap di bawah pada layar sempit. */
+.shell .dash-head {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.shell .dash-head .filter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  width: 100%;
+  align-items: end;
+}
+
+.shell .dash-head .filter .field {
+  min-width: 0;
+  max-width: none;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.shell .dash-head .filter .field input {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.shell .dash-head .filter > .btn,
+.shell .dash-head .filter > button {
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* Filter bar: tiap field melebar penuh di HP, berjajar di layar lebar */
 .shell .toolbar form,
 .shell form.filters,
@@ -678,6 +719,42 @@ body.shell-app::after {
 .shell form.filters > .btn,
 .shell form.filters > button {
   flex: 1 1 calc(50% - 6px);
+}
+
+/* Kode transaksi selalu satu baris penuh, di atas filter lain. */
+.shell form.orders-filter > .filter-q {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Orders di HP: tanggal sejajar, status+merchant sejajar, mesin satu baris. */
+@media (max-width: 639px) {
+  .shell form.orders-filter {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: end;
+  }
+
+  .shell form.orders-filter > .date-presets,
+  .shell form.orders-filter > .filter-machine,
+  .shell form.orders-filter > .filter-q {
+    grid-column: 1 / -1;
+  }
+
+  .shell form.orders-filter > input[type="hidden"] {
+    display: none;
+  }
+
+  .shell form.orders-filter > .btn,
+  .shell form.orders-filter > button {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
 }
 
 .shell .toolbar label,
@@ -1046,6 +1123,26 @@ body.shell-app::after {
     width: 100%;
   }
 
+  .shell .header > .btn-primary,
+  .shell table.fx-table-cards .account-actions,
+  .shell table.fx-table-cards .account-actions > .btn,
+  .shell table.fx-table-cards .account-actions > form,
+  .shell table.fx-table-cards .account-actions .btn {
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .shell table.fx-table-cards .account-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    align-self: stretch !important;
+  }
+
+  .shell table.fx-table-cards .account-actions form {
+    display: block !important;
+  }
+
   .shell table.fx-table-cards tbody td.action-cell form {
     display: contents !important;
   }
@@ -1075,6 +1172,356 @@ body.shell-app::after {
   .shell .action-row {
     flex-wrap: wrap !important;
   }
+
+  .shell .merchant-list .header .actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+  }
+
+  .shell .merchant-list .header .actions > .btn,
+  .shell .merchant-list .header .actions > a {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .shell .table-pager-controls {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .shell .merchant-list table.fx-table-cards .action-row {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    width: 100%;
+  }
+
+  .shell .merchant-list table.fx-table-cards .action-row > .btn,
+  .shell .merchant-list table.fx-table-cards .action-row > a,
+  .shell .merchant-list table.fx-table-cards .action-row .btn {
+    width: auto !important;
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-id {
+    display: none !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-code,
+  .shell .merchant-list table.fx-table-cards .merchant-name,
+  .shell .merchant-list table.fx-table-cards .merchant-saldo-cell,
+  .shell .merchant-list table.fx-table-cards .merchant-updated {
+    grid-column: 1 / -1;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-code::before,
+  .shell .merchant-list table.fx-table-cards .merchant-name::before,
+  .shell .merchant-list table.fx-table-cards .merchant-saldo-cell::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-code {
+    font-size: 17px !important;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    padding-bottom: 2px !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-name {
+    font-size: 15px !important;
+    padding-bottom: 10px !important;
+    border-bottom: 1px dashed var(--s-border2) !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .merchant-saldo-cell {
+    display: block !important;
+    padding-top: 10px !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .btn-saldo,
+  .shell .merchant-list table.fx-table-cards .saldo-box {
+    display: none !important;
+  }
+
+  .shell .merchant-list table.fx-table-cards .card-saldo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: var(--s-primary-50);
+    border: 1px solid var(--s-primary-100);
+  }
+
+  .shell .merchant-list table.fx-table-cards .card-saldo-k {
+    margin: 0;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .shell .merchant-list table.fx-table-cards .card-saldo b {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--s-text);
+  }
+}
+
+.shell .merchant-list .toolbar {
+  display: block;
+}
+
+.shell .merchant-list .toolbar form {
+  width: 100%;
+  max-width: 100%;
+  align-items: end;
+}
+
+.shell .merchant-list .toolbar form > div {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .shell .merchant-list .toolbar form > .merchant-filter-role,
+  .shell .merchant-list .toolbar form > .merchant-filter-machine {
+    flex: 1 1 calc(50% - 6px);
+    max-width: calc(50% - 6px);
+  }
+}
+
+.shell .merchant-list .merchant-filter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.shell .merchant-list .merchant-filter-actions > .btn,
+.shell .merchant-list .merchant-filter-actions > a.btn {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.shell .merchant-list .toolbar form label,
+.shell .merchant-list .merchant-label-row {
+  min-height: 16px;
+  line-height: 16px;
+}
+
+.shell .merchant-list .merchant-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.shell .merchant-list .merchant-label-row label {
+  margin: 0 !important;
+  min-height: 0;
+}
+
+.shell .info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--s-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.shell .info-tip svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.shell .info-tip:hover,
+.shell .info-tip:focus {
+  color: var(--s-primary);
+  outline: none;
+}
+
+.shell .info-tip-pop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #2a211f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 8px 20px rgba(42, 33, 31, 0.18);
+}
+
+.shell .info-tip:hover .info-tip-pop,
+.shell .info-tip:focus .info-tip-pop {
+  display: block;
+}
+
+@media (min-width: 901px) {
+  .shell .merchant-list .toolbar form {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr) minmax(0, 1.35fr) auto;
+    gap: 12px 14px;
+    align-items: end;
+  }
+
+  .shell .merchant-list .merchant-filter-actions {
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+  }
+
+  .shell .merchant-list .merchant-filter-actions > .btn,
+  .shell .merchant-list .merchant-filter-actions > a.btn {
+    width: auto;
+    height: 42px;
+    min-height: 42px;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+
+.shell .merchant-list .merchant-saldo-col,
+.shell .merchant-list .merchant-saldo-cell,
+.shell .merchant-list .card-saldo {
+  display: none;
+}
+
+.shell .merchant-list .card-saldo-k {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-muted);
+}
+
+.shell .table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-top: 1px solid var(--s-border);
+  background: var(--s-surface);
+}
+
+.shell .table-pager-meta {
+  margin: 0;
+  color: var(--s-muted);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.shell .table-pager-meta b {
+  color: var(--s-text);
+  font-weight: 800;
+}
+
+.shell .table-pager-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.shell .table-pager-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 !important;
+}
+
+.shell .table-pager-limit span {
+  margin: 0 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: var(--s-muted) !important;
+  white-space: nowrap;
+}
+
+.shell .table-pager-limit select {
+  width: 100px !important;
+  min-width: 100px !important;
+  min-height: 36px;
+  padding: 6px 40px 6px 12px !important;
+  color: var(--s-text) !important;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background-position: right 14px center !important;
+}
+
+.shell .table-pager-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shell .table-pager-page {
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--s-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.shell .table-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--s-border2);
+  background: var(--s-surface);
+  color: var(--s-text) !important;
+  text-decoration: none !important;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.shell .table-pager-btn.is-disabled {
+  opacity: 0.4;
 }
 
 /* ========== Pager ========== */
@@ -1398,6 +1845,49 @@ body.shell-app::after {
   color: var(--s-primary-700) !important;
 }
 
+.shell .merchant-list .btn-saldo {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 !important;
+  flex: 0 0 40px;
+}
+
+.shell .merchant-list .btn-saldo svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.shell .merchant-list .action-row .saldo-box {
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  z-index: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  height: 40px;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.shell .merchant-list .action-row .saldo-box.is-open {
+  display: inline-flex !important;
+}
+
+.shell .merchant-list .saldo-box .saldo-k {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--s-muted);
+}
+
 /* ========== Auth (login) ========== */
 .shell-auth {
   position: relative;
@@ -1451,10 +1941,20 @@ body.shell-app::after {
     flex: 0 0 auto;
   }
 
+  .shell .dash-head {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
   /* Dashboard: tanggal dan Apply satu baris, tombol rata dengan kotak input */
   .shell .dash-head .filter {
+    display: flex;
+    width: auto;
+    flex-direction: row;
     flex-wrap: nowrap;
     align-items: flex-end;
+    gap: 12px 14px;
   }
 
   .shell .dash-head .filter .field {
@@ -1462,7 +1962,11 @@ body.shell-app::after {
     width: 176px;
   }
 
+  .shell .dash-head .filter > .btn,
   .shell .dash-head .filter > button {
+    grid-column: auto;
+    width: auto;
+    max-width: none;
     flex: 0 0 auto;
     align-self: flex-end;
     height: 43px;

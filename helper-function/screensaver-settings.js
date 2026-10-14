@@ -6,8 +6,12 @@ const crypto = require("crypto");
 const { DEFAULT_IMAGE_MS, MIN_IMAGE_MS, MAX_IMAGE_MS } = require("./screensaver-media");
 
 const DEFAULT_IDLE_SECONDS = 30;
-const MIN_IDLE_SECONDS = 10;
+const MIN_IDLE_SECONDS = 30;
 const MAX_IDLE_SECONDS = 180;
+/** Katalog, konfirmasi panas, dan QRIS. */
+const DEFAULT_FLOW_IDLE_SECONDS = 180;
+const MIN_FLOW_IDLE_SECONDS = 30;
+const MAX_FLOW_IDLE_SECONDS = 600;
 
 /** Harus sama dengan id SCREENSAVER_SLIDES di kiosk. */
 const BUILTIN_SLIDES = [
@@ -22,12 +26,15 @@ const BUILTIN_SLIDES = [
 
 const KEYS = {
   idle: "screensaver_idle_seconds",
+  flow: "screensaver_flow_idle_seconds",
   image: "screensaver_default_image_seconds",
   slide: (id) => `screensaver_slide_${id}`,
 };
 
 function clampInt(raw, min, max, fallback) {
-  const n = Number(String(raw ?? "").trim());
+  const text = String(raw ?? "").trim();
+  if (!text) return fallback;
+  const n = Number(text);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
 }
@@ -45,6 +52,7 @@ function parseSeconds(raw, min, max) {
 function defaultPlayerConfig() {
   return {
     idle_seconds: DEFAULT_IDLE_SECONDS,
+    flow_idle_seconds: DEFAULT_FLOW_IDLE_SECONDS,
     default_image_seconds: DEFAULT_IMAGE_MS / 1000,
     slides: BUILTIN_SLIDES.map((s) => ({
       id: s.id,
@@ -62,6 +70,12 @@ function defaultPlayerConfig() {
 function normalizePlayerConfig(stored = {}) {
   const base = defaultPlayerConfig();
   const idle = clampInt(stored[KEYS.idle], MIN_IDLE_SECONDS, MAX_IDLE_SECONDS, base.idle_seconds);
+  const flow = clampInt(
+    stored[KEYS.flow],
+    MIN_FLOW_IDLE_SECONDS,
+    MAX_FLOW_IDLE_SECONDS,
+    base.flow_idle_seconds
+  );
   const image = clampInt(
     stored[KEYS.image],
     MIN_IMAGE_MS / 1000,
@@ -70,6 +84,7 @@ function normalizePlayerConfig(stored = {}) {
   );
   return {
     idle_seconds: idle,
+    flow_idle_seconds: flow,
     default_image_seconds: image,
     slides: BUILTIN_SLIDES.map((s) => {
       const raw = String(stored[KEYS.slide(s.id)] ?? "").trim();
@@ -87,7 +102,19 @@ function normalizePlayerConfig(stored = {}) {
 function parsePlayerForm(body = {}) {
   const idle = parseSeconds(body.idle_seconds, MIN_IDLE_SECONDS, MAX_IDLE_SECONDS);
   if (idle === null) {
-    return { error: `Waktu diam harus ${MIN_IDLE_SECONDS}–${MAX_IDLE_SECONDS} detik.`, config: null, pairs: [] };
+    return { error: `Waktu diam beranda harus ${MIN_IDLE_SECONDS}–${MAX_IDLE_SECONDS} detik.`, config: null, pairs: [] };
+  }
+  const flowRaw = body.flow_idle_seconds;
+  const flow =
+    flowRaw == null || String(flowRaw).trim() === ""
+      ? DEFAULT_FLOW_IDLE_SECONDS
+      : parseSeconds(flowRaw, MIN_FLOW_IDLE_SECONDS, MAX_FLOW_IDLE_SECONDS);
+  if (flow === null) {
+    return {
+      error: `Waktu diam saat memesan harus ${MIN_FLOW_IDLE_SECONDS}–${MAX_FLOW_IDLE_SECONDS} detik.`,
+      config: null,
+      pairs: [],
+    };
   }
   const image = parseSeconds(body.default_image_seconds, MIN_IMAGE_MS / 1000, MAX_IMAGE_MS / 1000);
   if (image === null) {
@@ -113,9 +140,10 @@ function parsePlayerForm(body = {}) {
     return { error: "Minimal satu slide bawaan harus aktif, supaya layar tidak kosong.", config: null, pairs: [] };
   }
 
-  const config = { idle_seconds: idle, default_image_seconds: image, slides };
+  const config = { idle_seconds: idle, flow_idle_seconds: flow, default_image_seconds: image, slides };
   const pairs = [
     [KEYS.idle, String(idle)],
+    [KEYS.flow, String(flow)],
     [KEYS.image, String(image)],
     ...slides.map((s) => [KEYS.slide(s.id), s.enabled ? String(s.seconds) : "off"]),
   ];
@@ -127,6 +155,7 @@ function publicPlayerSettings(config) {
   const c = config || defaultPlayerConfig();
   return {
     idle_ms: c.idle_seconds * 1000,
+    flow_idle_ms: c.flow_idle_seconds * 1000,
     default_image_ms: c.default_image_seconds * 1000,
     builtin: c.slides.map((s) => ({
       id: s.id,
@@ -149,8 +178,11 @@ function withPlayerSettings(playlist, config) {
 
 module.exports = {
   DEFAULT_IDLE_SECONDS,
+  DEFAULT_FLOW_IDLE_SECONDS,
   MIN_IDLE_SECONDS,
   MAX_IDLE_SECONDS,
+  MIN_FLOW_IDLE_SECONDS,
+  MAX_FLOW_IDLE_SECONDS,
   BUILTIN_SLIDES,
   KEYS,
   defaultPlayerConfig,

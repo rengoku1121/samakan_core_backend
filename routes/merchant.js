@@ -5,6 +5,7 @@ const payoutRoutes = require("./merchant/payouts");
 const { requireAuth, requireRole } = require("../middleware/auth");
 
 router.get("/", requireAuth, requireRole("merchant"), merchant.renderHome);
+router.get("/summary", requireAuth, requireRole("merchant"), merchant.summaryAll);
 router.get("/balance", requireAuth, requireRole("merchant"), merchant.renderBalance);
 router.use("/orders", ordersRoutes);
 router.use("/payouts", payoutRoutes);

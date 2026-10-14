@@ -75,6 +75,7 @@ exports.listActiveForSelect = async () => {
       l.id,
       l.name,
       l.parent_id,
+      l.owner_merchant_id,
       l.is_active,
       p.name AS parent_name
     FROM locations l
@@ -95,6 +96,7 @@ exports.listAllForSelect = async () => {
       l.id,
       l.name,
       l.parent_id,
+      l.owner_merchant_id,
       l.is_active,
       p.name AS parent_name
     FROM locations l
@@ -117,6 +119,7 @@ exports.findById = async (id) => {
       l.notes,
       l.is_active,
       l.parent_id,
+      l.owner_merchant_id,
       p.name AS parent_name,
       l.created_at,
       l.updated_at,
@@ -139,6 +142,7 @@ exports.findByIdAny = async (id) => {
       l.notes,
       l.is_active,
       l.parent_id,
+      l.owner_merchant_id,
       p.name AS parent_name,
       l.created_at,
       l.updated_at,
@@ -174,26 +178,41 @@ exports.countActiveChildren = async (parentId) => {
   return Number(rows[0]?.c || 0);
 };
 
-exports.create = async ({ name, address, notes, is_active, parent_id }) => {
+exports.create = async ({ name, address, notes, is_active, parent_id, owner_merchant_id }, conn) => {
+  const executor = conn || pool;
   const sql = `
     INSERT INTO locations (
       parent_id,
+      owner_merchant_id,
       name,
       address,
       notes,
       is_active
-    ) VALUES (?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?)
   `;
-  const params = [parent_id ?? null, name, address ?? null, notes ?? null, is_active];
-  const [result] = await pool.query(sql, params);
+  const params = [parent_id ?? null, owner_merchant_id || null, name, address ?? null, notes ?? null, is_active];
+  const [result] = await executor.query(sql, params);
   return result.insertId;
 };
 
-exports.updateById = async ({ id, name, address, notes, is_active, parent_id }) => {
+exports.claimOwner = async (id, ownerMerchantId, conn) => {
+  const executor = conn || pool;
+  const sql = `
+    UPDATE locations
+    SET owner_merchant_id = ?
+    WHERE id = ? AND deleted_at IS NULL AND owner_merchant_id IS NULL
+    LIMIT ?
+  `;
+  const [result] = await executor.query(sql, [ownerMerchantId, id, 1]);
+  return result.affectedRows === 1;
+};
+
+exports.updateById = async ({ id, name, address, notes, is_active, parent_id, owner_merchant_id }) => {
   const sql = `
     UPDATE locations
     SET
       parent_id = ?,
+      owner_merchant_id = ?,
       name = ?,
       address = ?,
       notes = ?,
@@ -201,7 +220,7 @@ exports.updateById = async ({ id, name, address, notes, is_active, parent_id }) 
     WHERE id = ? AND deleted_at IS NULL
     LIMIT ?
   `;
-  const params = [parent_id ?? null, name, address ?? null, notes ?? null, is_active, id, 1];
+  const params = [parent_id ?? null, owner_merchant_id || null, name, address ?? null, notes ?? null, is_active, id, 1];
   const [result] = await pool.query(sql, params);
   return result.affectedRows === 1;
 };

@@ -11,7 +11,28 @@ module.exports = async function run(ctx) {
   const admin = await login(ctx, `${TAG}-admin`, PASSWORD);
   const orderId = ctx.paidOrder.id;
 
-  eq("GET /admin", (await request(ctx, "GET", "/admin", { jar: admin.jar })).status, 200);
+  const hop = await request(ctx, "GET", "/admin?date_from=2026-10-12&date_to=2026-10-01", {
+    jar: admin.jar,
+  });
+  eq("GET /admin mengalihkan", hop.status, 302);
+  ok(
+    "query tanggal ikut",
+    String(hop.loc).includes("/dashboard?") && String(hop.loc).includes("date_from=2026-10-12")
+  );
+  eq("GET /dashboard", (await request(ctx, "GET", "/dashboard", { jar: admin.jar })).status, 200);
+  const junkDates = await request(ctx, "GET", "/dashboard?date_from=bukan-tanggal&date_to=2026-02-31", {
+    jar: admin.jar,
+  });
+  eq("tanggal sampah tetap 200", junkDates.status, 200);
+  ok("tanggal sampah memakai awal bulan", /name="date_from" value="\d{4}-\d{2}-01"/.test(junkDates.text));
+  const reversed = await request(ctx, "GET", "/dashboard?date_from=2026-10-12&date_to=2026-10-01", {
+    jar: admin.jar,
+  });
+  eq("tanggal terbalik tetap 200", reversed.status, 200);
+  ok(
+    "tanggal terbalik ditukar",
+    reversed.text.includes('value="2026-10-01"') && reversed.text.includes('value="2026-10-12"')
+  );
   eq("GET /admin/orders", (await request(ctx, "GET", "/admin/orders", { jar: admin.jar })).status, 200);
   eq("GET reconciliation", (await request(ctx, "GET", "/admin/orders/reconciliation", { jar: admin.jar })).status, 200);
   eq("GET order detail", (await request(ctx, "GET", `/admin/orders/${orderId}`, { jar: admin.jar })).status, 200);

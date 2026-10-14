@@ -3,7 +3,7 @@ const { escapeHtml } = require("../utils/escape-html");
 const { payoutUiEnabled } = require("./feature-flags");
 
 const SHELL_ASSET_VER = "20261006d";
-const THEME_VER = "20261006j";
+const THEME_VER = "20261014f";
 const THEME_COLOR = "#d91f26";
 
 /** Full URL path (e.g. /auth/login). req.path alone is wrong under mounted routers (/login only). */
@@ -28,6 +28,7 @@ const ICONS = {
   cloud: '<path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
   history: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="3"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   download: '<path d="M12 4v10"/><path d="M8 10l4 4 4-4"/><path d="M5 19h14"/>',
   screen: '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10.5 9.5v5l4-2.5z"/>',
   logout: '<path d="M15 4h4v16h-4"/><path d="M10 8l-4 4 4 4"/><path d="M6 12h10"/>',
@@ -40,15 +41,15 @@ function icon(name) {
 const ADMIN_NAV = [
   {
     group: "Ringkasan",
-    items: [{ href: "/admin", label: "Dashboard", icon: "home", exact: true }],
+    items: [{ href: "/dashboard", label: "Dashboard", icon: "home", exact: true }],
   },
   {
     group: "Operasional",
     items: [
-      { href: "/admin/orders", label: "Orders", icon: "receipt" },
       { href: "/admin/machines", label: "Machines", icon: "machine" },
-      { href: "/admin/slots", label: "Slots", icon: "grid" },
       { href: "/admin/products", label: "Products", icon: "box" },
+      { href: "/admin/slots", label: "Slots", icon: "grid" },
+      { href: "/admin/orders", label: "Orders", icon: "receipt" },
     ],
   },
   {
@@ -70,6 +71,7 @@ const ADMIN_NAV = [
     group: "Sistem",
     items: [
       { href: "/admin/kiosk-ota", label: "Pembaruan APK", icon: "download", roles: ["superadmin"] },
+      { href: "/admin/users", label: "Akun Admin", icon: "users", roles: ["superadmin"] },
       { href: "/admin/activity", label: "Riwayat Aktivitas", icon: "history" },
       { href: "/admin/settings", label: "Settings", icon: "cog" },
     ],
@@ -105,6 +107,7 @@ const PAGE_TITLES = [
   ["/admin/kiosk-ota", "Pembaruan APK"],
   ["/admin/screensaver/settings", "Pengaturan Screensaver"],
   ["/admin/screensaver", "Iklan Screensaver"],
+  ["/admin/users", "Akun Admin"],
   ["/admin/settings", "Settings"],
   ["/orders/qris", "Generate QRIS"],
   ["/orders", "Orders"],
@@ -121,7 +124,7 @@ function matchesPrefix(pathFull, prefix) {
 
 function headerTitleForPath(rawPath) {
   const pathFull = stripTrailingSlash(rawPath);
-  if (pathFull === "/admin") return "Dashboard";
+  if (pathFull === "/dashboard" || pathFull === "/admin") return "Dashboard";
   if (pathFull === "/merchant") return "Dashboard";
   if (!payoutUiEnabled && matchesPrefix(pathFull, "/merchant/balance")) return "Saldo";
   const hit = PAGE_TITLES.find(([prefix]) => matchesPrefix(pathFull, prefix));
@@ -146,13 +149,15 @@ function navForRole(userRole) {
   const groups = (role === "merchant" ? MERCHANT_NAV : ADMIN_NAV)
     .map((g) => ({ ...g, items: g.items.filter((it) => !it.roles || it.roles.includes(role)) }))
     .filter((g) => g.items.length);
-  if (payoutUiEnabled) return groups;
   return groups
     .map((g) => ({
       ...g,
-      items: g.items
-        .filter((it) => it.href !== "/admin/payouts")
-        .map((it) => (it.href === "/merchant/balance" ? { ...it, label: "Saldo" } : it)),
+      items: g.items.filter((it) => {
+        if (it.href === "/merchant/balance") return false;
+        if (it.href === "/admin/settlement/ledger") return false;
+        if (!payoutUiEnabled && it.href === "/admin/payouts") return false;
+        return true;
+      }),
     }))
     .filter((g) => g.items.length);
 }
@@ -187,7 +192,7 @@ function wrapHtmlWithShell(html, req) {
   const userRole = req.user?.role || "";
   const navHtml = navHtmlForRole(userRole, pathFull);
 
-  const brandHref = userRole === "merchant" ? "/merchant" : "/admin";
+  const brandHref = userRole === "merchant" ? "/merchant" : "/dashboard";
   const workspaceBadge =
     userRole === "merchant"
       ? "Merchant"
@@ -247,6 +252,7 @@ function wrapHtmlWithShell(html, req) {
   </div>
   <script src="/public/js/shell-nav.js?v=${SHELL_ASSET_VER}" defer></script>
   <script src="/public/js/table-mobile-cards.js?v=${SHELL_ASSET_VER}" defer></script>
+  <script src="/public/js/table-pager.js?v=${THEME_VER}" defer></script>
   <script src="/public/js/machine-status-alerts.js?v=${SHELL_ASSET_VER}" defer></script>
 </body>`;
 

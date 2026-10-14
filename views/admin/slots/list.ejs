@@ -23,6 +23,28 @@
     .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #f1f5f9;background:#fff;flex-wrap:wrap;}
     select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:900;font-size:13px;color:#374151;outline:none;}
     select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
+    .slot-toolbar{flex-direction:column;align-items:stretch;}
+    .slot-machine-form{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:6px;margin:0;}
+    .slot-machine-form select{
+      width:100%;box-sizing:border-box;appearance:none;-webkit-appearance:none;
+      padding-right:48px;
+      background-color:#fff;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 L6 6.5 L11 1.5' fill='none' stroke='%238e7269' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat:no-repeat;background-position:right 16px center;background-size:12px 8px;
+    }
+    .shell .toolbar.slot-toolbar{flex-direction:column !important;align-items:stretch !important;}
+    .shell .toolbar form.slot-machine-form{
+      width:100% !important;max-width:100% !important;flex:1 1 100% !important;
+      display:flex !important;flex-direction:column !important;align-items:stretch !important;gap:6px !important;margin:0;
+    }
+    .shell .slot-machine-form select{
+      width:100% !important;max-width:100% !important;box-sizing:border-box;
+      appearance:none !important;-webkit-appearance:none !important;
+      padding-right:48px !important;
+      background-color:var(--s-surface) !important;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 L6 6.5 L11 1.5' fill='none' stroke='%238e7269' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+      background-repeat:no-repeat !important;background-position:right 16px center !important;background-size:12px 8px !important;
+    }
     table{width:100%;border-collapse:collapse}
     thead th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#7c2d12;background:#fff2e5;border-bottom:1px solid #f1caa2;padding:12px 14px;}
     tbody td{padding:12px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;vertical-align:middle;}
@@ -50,27 +72,23 @@
       <div class="actions">
         <a class="btn btn-primary" href="/admin/slots/new?machine_id=<%= machine_id %>">+ New Slot</a>
         <a class="btn btn-ghost" href="/admin/slots">Change Machine</a>
-        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
       </div>
     </div>
 
     <div class="card">
-      <div class="toolbar">
+      <div class="toolbar slot-toolbar">
         <div class="muted">Slot price kosong = pakai harga product (default)</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <form method="GET" action="/admin/slots/list" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0;">
-            <span class="muted">Switch Machine</span>
-            <select name="machine_id" style="padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:900;font-size:13px;color:#374151;outline:none;">
-              <% (machines || []).forEach(function(m){ %>
-                <option value="<%= m.id %>" <%= String(m.id) === String(machine_id) ? 'selected' : '' %>>
-                  <%= m.code %><%= m.name ? (' • ' + m.name) : '' %>
-                </option>
-              <% }) %>
-            </select>
-            <button class="btn btn-ghost" type="submit">Switch</button>
-          </form>
-
-        </div>
+        <form class="slot-machine-form" method="GET" action="/admin/slots/list">
+          <span class="muted" id="slot-machine-label">Switch Machine</span>
+          <select name="machine_id" data-machine-switch aria-labelledby="slot-machine-label">
+            <% (machines || []).forEach(function(m){ %>
+              <option value="<%= m.id %>" <%= String(m.id) === String(machine_id) ? 'selected' : '' %>>
+                <%= m.code %><%= m.name ? (' • ' + m.name) : '' %>
+              </option>
+            <% }) %>
+          </select>
+        </form>
       </div>
 
       <table>
@@ -114,34 +132,9 @@
           </tbody>
         </table>
 
-      <div class="footer">
-        <div class="muted">
-          <% const start = (page - 1) * limit + 1; %>
-          <% const end = (page - 1) * limit + (rows ? rows.length : 0); %>
-          <% if (rows && rows.length) { %>
-            Showing <b><%= start %></b>–<b><%= end %></b> of <b><%= total %></b>
-          <% } else { %>
-            Showing 0 of <b><%= total %></b>
-          <% } %>
-        </div>
-        <div class="pager">
-          <label class="muted">Limit</label>
-          <select class="select" onchange="location.href='/admin/slots/list?machine_id=<%= machine_id %>&page=1&limit=' + this.value;">
-            <option value="20" <%= Number(limit) === 20 ? 'selected' : '' %>>20</option>
-            <option value="50" <%= Number(limit) === 50 ? 'selected' : '' %>>50</option>
-            <option value="100" <%= Number(limit) === 100 ? 'selected' : '' %>>100</option>
-          </select>
-          <% const prev = page > 1 ? page - 1 : 1; %>
-          <% const next = page < totalPages ? page + 1 : totalPages; %>
-          <% if (page > 1) { %>
-            <a class="btn btn-primary" href="/admin/slots/list?machine_id=<%= machine_id %>&page=<%= prev %>&limit=<%= limit %>">Prev</a>
-          <% } %>
-          <% if (page < totalPages) { %>
-            <a class="btn btn-primary" href="/admin/slots/list?machine_id=<%= machine_id %>&page=<%= next %>&limit=<%= limit %>">Next</a>
-          <% } %>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/admin/slots/list', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: 'machine_id=' + machine_id, limits: [20, 50, 100] }) %>
     </div>
   </div>
+  <script src="/public/js/slot-machine-switch.js?v=20261014b" defer></script>
 </body>
 </html>

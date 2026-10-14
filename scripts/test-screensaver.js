@@ -230,7 +230,11 @@ assert(
 );
 
 const emptyStored = normalizePlayerConfig({});
-assert("setting default idle 30", emptyStored.idle_seconds === 30 && emptyStored.default_image_seconds === 12);
+assert(
+  "setting default idle 30",
+  emptyStored.idle_seconds === 30 && emptyStored.flow_idle_seconds === 180 && emptyStored.default_image_seconds === 12
+);
+assert("idle kosong tetap 30", normalizePlayerConfig({ [KEYS.idle]: "" }).idle_seconds === 30);
 assert("tujuh slide bawaan", emptyStored.slides.length === 7 && emptyStored.slides.every((s) => s.enabled && s.seconds === 12));
 const off = normalizePlayerConfig({
   [KEYS.idle]: "45",
@@ -242,7 +246,10 @@ assert("idle dijepit dari stored", off.idle_seconds === 45 && off.default_image_
 assert("slide off", off.slides.find((s) => s.id === "02-restoran-tanpa-restoran").enabled === false);
 assert("durasi per slide", off.slides.find((s) => s.id === "01-buka-bisnis").seconds === 5);
 const pub = publicPlayerSettings(off);
-assert("payload kiosk ms", pub.idle_ms === 45000 && pub.builtin[0].duration_ms === 5000 && pub.builtin[1].enabled === false);
+assert(
+  "payload kiosk ms",
+  pub.idle_ms === 45000 && pub.flow_idle_ms === 180000 && pub.builtin[0].duration_ms === 5000 && pub.builtin[1].enabled === false
+);
 const withSet = withPlayerSettings(pl, off);
 assert("version berubah karena setting", withSet.version !== pl.version && withSet.settings.idle_ms === 45000);
 
@@ -252,7 +259,7 @@ const formOk = parsePlayerForm({
   slide_enabled: BUILTIN_SLIDES.map((s) => s.id),
   slide_seconds: Object.fromEntries(BUILTIN_SLIDES.map((s) => [s.id, s.id === "01-buka-bisnis" ? "7" : "10"])),
 });
-assert("form setting valid", !formOk.error && formOk.config.idle_seconds === 40 && formOk.pairs.length === 9, formOk);
+assert("form setting valid", !formOk.error && formOk.config.idle_seconds === 40 && formOk.config.flow_idle_seconds === 180 && formOk.pairs.length === 10, formOk);
 assert("form pairs slide", formOk.pairs.some(([k, v]) => k === KEYS.slide("01-buka-bisnis") && v === "7"));
 assert("idle 5 detik ditolak", parsePlayerForm({ idle_seconds: "5", default_image_seconds: "12", slide_enabled: ["01-buka-bisnis"], slide_seconds: { "01-buka-bisnis": "12" } }).error);
 assert(

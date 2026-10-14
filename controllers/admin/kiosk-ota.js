@@ -2,6 +2,7 @@
 const machineModel = require("../../models/machine");
 const otaModel = require("../../models/kiosk-ota");
 const { toPositiveInt } = require("../../helper-function/http");
+const { slicePage } = require("../../helper-function/table-page");
 const { finalizeUpload, discardUpload, removeStoredFile, storedFilePath } = require("../../helper-function/kiosk-apk");
 const { parseReleaseForm, MIN_OTA_VERSION } = require("../../helper-function/kiosk-ota");
 const fs = require("fs");
@@ -43,10 +44,15 @@ exports.list = async (req, res, next) => {
         size_mb: (Number(row.file_size) / 1024 / 1024).toFixed(1),
       });
     }
+    const paged = slicePage(withCount, req.query, { fallback: 10 });
     return res.render("admin/kiosk-ota/list", {
       title: "Pembaruan APK",
       user: req.user,
-      rows: withCount,
+      rows: paged.rows,
+      page: paged.page,
+      limit: paged.limit,
+      total: paged.total,
+      totalPages: paged.totalPages,
       notice: NOTICES[String(req.query.ok || "")] || null,
       errorNotice: req.query.err ? String(req.query.err).slice(0, 200) : null,
       minVersion: MIN_OTA_VERSION,

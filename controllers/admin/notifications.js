@@ -67,6 +67,7 @@ exports.subscribe = async (req, res, next) => {
       return res.status(400).json({ error: "invalid_subscription" });
     }
 
+    const existing = await pushSubscriptionModel.findByEndpoint(endpoint);
     await pushSubscriptionModel.upsert({
       user_id: req.user?.id || null,
       endpoint,
@@ -74,6 +75,7 @@ exports.subscribe = async (req, res, next) => {
       auth,
       subscription,
     });
+    if (!existing || Number(existing.is_active) !== 1) req._activityNotifyOn = true;
     return res.json({ ok: true });
   } catch (err) {
     return next(err);

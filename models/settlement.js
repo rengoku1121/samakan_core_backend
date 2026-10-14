@@ -1,7 +1,12 @@
 // models/settlement.js
 const { pool } = require("../utils/db");
 const merchantModel = require("./merchant");
-const { computeOrderSplit } = require("../helper-function/partnership");
+const { settlementLines } = require("../helper-function/partnership");
+
+const ORDER_SPLIT_COLUMNS = `
+  o.split_model, o.menu_merchant_id, o.location_merchant_id,
+  o.owner_share_percent, o.menu_share_percent, o.location_share_percent
+`;
 
 /** Get fee config from system_settings */
 exports.getFeeConfig = async (conn) => {
@@ -17,12 +22,17 @@ exports.getFeeConfig = async (conn) => {
   };
 };
 
-/** Update fee config */
+/** Simpan tarif Midtrans. Bagi hasil global hanya ditulis bila pemanggil masih mengirimnya. */
 exports.updateFeeConfig = async ({ midtrans_fee_percent, owner_fee_percent }) => {
+  const rows = [["midtrans_fee_percent", String(midtrans_fee_percent)]];
+  if (owner_fee_percent != null && Number.isFinite(Number(owner_fee_percent))) {
+    rows.push(["owner_fee_percent", String(owner_fee_percent)]);
+  }
+  const placeholders = rows.map(() => "(?, ?)").join(", ");
   await pool.query(
-    `INSERT INTO system_settings (setting_key, setting_value) VALUES ('midtrans_fee_percent', ?), ('owner_fee_percent', ?)
+    `INSERT INTO system_settings (setting_key, setting_value) VALUES ${placeholders}
      ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-    [String(midtrans_fee_percent), String(owner_fee_percent)]
+    rows.flat()
   );
 };
 
@@ -39,6 +49,7 @@ exports.findEligibleOrders = async ({ merchant_id } = {}) => {
   }
   const sql = `
     SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at,
+           ${ORDER_SPLIT_COLUMNS},
            m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer
     FROM orders o
     LEFT JOIN merchants m ON m.id = o.merchant_id
@@ -55,6 +66,7 @@ exports.findEligibleByOrderIds = async (orderIds) => {
   const placeholders = orderIds.map(() => "?").join(",");
   const sql = `
     SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at, o.is_settled,
+           ${ORDER_SPLIT_COLUMNS},
            m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer,
            EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item
     FROM orders o
@@ -105,7 +117,8 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     // Eligible = DISPENSED + belum ada di items. Flag orphan (is_settled=1 tanpa item)
     // ikut ikut settle supaya saldo bisa naik lewat jalur resmi.
     const [lockedRows] = await conn.query(
-      `SELECT id, merchant_id, total
+      `SELECT id, merchant_id, total, split_model, menu_merchant_id, location_merchant_id,
+              owner_share_percent, menu_share_percent, location_share_percent
        FROM orders
        WHERE id IN (${inPlaceholders})
          AND status = 'DISPENSED'
@@ -137,29 +150,72 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       { forUpdate: true }
     );
 
-    const settledRows = [];
+    const round2 = (v) => Math.round(Number(v || 0) * 100) / 100;
+    const itemRows = [];
+    const orderPatches = [];
     for (const row of eligibleLocked) {
-      const merchantId = Number(row.merchant_id);
-      // Tarif Midtrans dari Settings; bagi hasil & penanggung fee dari merchant.
-      const split = computeOrderSplit({
-        gross: Number(row.total || 0),
-        terms: termsByMerchant.get(merchantId),
-        midtrans_fee_percent: midtransPercent,
-      });
-      settledRows.push({
-        id: Number(row.id),
-        merchant_id: merchantId,
-        gross: split.gross_amount,
-        midFee: split.midtrans_fee_amount,
-        platformMidFee: split.platform_midtrans_fee_amount,
-        ownFee: split.owner_fee_amount,
-        net: split.net_amount,
-        hasMismatch: 0,
-      });
+      const terms = termsByMerchant.get(Number(row.merchant_id)) || {};
+      const money = settlementLines({ ...row, ...terms, total: row.total }, midtransPercent);
+      if (!money.ok) continue;
+      const mismatch = money.model === "cruise" && money.cruise.platform_fee_shortfall > 0 ? 1 : 0;
+      for (const line of money.lines) {
+        const legacy = line.party_role === "merchant";
+        itemRows.push({
+          id: Number(row.id),
+          merchant_id: line.merchant_id,
+          party_role: line.party_role,
+          gross: legacy ? line.gross : line.net,
+          midFee: legacy ? line.midFee : 0,
+          platformMidFee: legacy ? line.platformMidFee : 0,
+          ownFee: legacy ? line.ownFee : 0,
+          net: line.net,
+          hasMismatch: mismatch,
+        });
+      }
+      if (money.model === "cruise") {
+        orderPatches.push({
+          id: Number(row.id),
+          midFee: 0,
+          platformMidFee: money.cruise.midtrans_fee_total,
+          ownFee: 0,
+          net: round2(money.lines.reduce((sum, line) => sum + line.net, 0)),
+          ownerShare: money.cruise.owner_share_amount,
+          menuShare: money.cruise.menu_share_amount,
+          locationShare: row.location_merchant_id ? money.cruise.location_share_amount : 0,
+          platformShare: money.cruise.platform_share_amount,
+          feeShortfall: money.cruise.platform_fee_shortfall,
+        });
+      } else if (money.model === "owner") {
+        orderPatches.push({
+          id: Number(row.id),
+          midFee: money.ownerRun.midtrans_fee_total,
+          platformMidFee: 0,
+          ownFee: 0,
+          net: money.ownerRun.owner_net_amount,
+          ownerShare: money.ownerRun.owner_net_amount,
+          menuShare: 0,
+          locationShare: 0,
+          platformShare: 0,
+          feeShortfall: 0,
+        });
+      } else {
+        orderPatches.push({
+          id: Number(row.id),
+          midFee: money.split.midtrans_fee_amount,
+          platformMidFee: money.split.platform_midtrans_fee_amount,
+          ownFee: money.split.owner_fee_amount,
+          net: money.split.net_amount,
+          ownerShare: 0,
+          menuShare: 0,
+          locationShare: 0,
+          platformShare: 0,
+          feeShortfall: 0,
+        });
+      }
     }
 
-    const skippedCount = Math.max(0, inputIds.length - settledRows.length);
-    if (!settledRows.length) {
+    const skippedCount = Math.max(0, inputIds.length - orderPatches.length);
+    if (!orderPatches.length) {
       await conn.rollback();
       return { settlement_ref: ref, merchants: [], skipped: skippedCount, settled: 0 };
     }
@@ -167,12 +223,15 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     // Urutan penting untuk trigger keras:
     // 1) items  2) ledger  3) flag orders (is_settled=1 wajib sudah ada di items)
     const chunkSize = 1000;
-    for (let i = 0; i < settledRows.length; i += chunkSize) {
-      const chunk = settledRows.slice(i, i + chunkSize);
-      const values = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
+    for (let i = 0; i < itemRows.length; i += chunkSize) {
+      const chunk = itemRows.slice(i, i + chunkSize);
+      const values = chunk.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(",");
       const params = [];
       for (const r of chunk) {
-        params.push(ref, r.id, r.merchant_id, r.gross, r.midFee, r.platformMidFee, r.ownFee, r.net, r.hasMismatch);
+        params.push(
+          ref, r.id, r.merchant_id, r.party_role, r.gross, r.midFee,
+          r.platformMidFee, r.ownFee, r.net, r.hasMismatch
+        );
         if (!merchantMap[r.merchant_id]) {
           merchantMap[r.merchant_id] = { tx_count: 0, gross: 0, midFee: 0, platformMidFee: 0, ownFee: 0, net: 0 };
         }
@@ -186,7 +245,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       }
       await conn.query(
         `INSERT INTO merchant_settlement_items
-         (settlement_ref, order_id, merchant_id, gross_amount, midtrans_fee_amount,
+         (settlement_ref, order_id, merchant_id, party_role, gross_amount, midtrans_fee_amount,
           platform_midtrans_fee_amount, owner_fee_amount, net_amount, fee_mismatch_warning)
          VALUES ${values}`,
         params
@@ -226,8 +285,8 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       );
     }
 
-    for (let i = 0; i < settledRows.length; i += chunkSize) {
-      const chunk = settledRows.slice(i, i + chunkSize);
+    for (let i = 0; i < orderPatches.length; i += chunkSize) {
+      const chunk = orderPatches.slice(i, i + chunkSize);
       const ids = chunk.map((r) => r.id);
       const idPh = ids.map(() => "?").join(",");
 
@@ -235,12 +294,22 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
       const platformFeeCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
       const ownCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
       const netCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const ownerShareCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const menuShareCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const locationShareCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const platformShareCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
+      const shortfallCase = chunk.map(() => "WHEN ? THEN ?").join(" ");
 
       const params = [now, ref];
       for (const r of chunk) params.push(r.id, r.midFee);
       for (const r of chunk) params.push(r.id, r.platformMidFee);
       for (const r of chunk) params.push(r.id, r.ownFee);
       for (const r of chunk) params.push(r.id, r.net);
+      for (const r of chunk) params.push(r.id, r.ownerShare);
+      for (const r of chunk) params.push(r.id, r.menuShare);
+      for (const r of chunk) params.push(r.id, r.locationShare);
+      for (const r of chunk) params.push(r.id, r.platformShare);
+      for (const r of chunk) params.push(r.id, r.feeShortfall);
       params.push(...ids);
 
       const [upd] = await conn.query(
@@ -251,7 +320,12 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
              midtrans_fee_amount = CASE id ${feeCase} ELSE midtrans_fee_amount END,
              platform_midtrans_fee_amount = CASE id ${platformFeeCase} ELSE platform_midtrans_fee_amount END,
              owner_fee_amount = CASE id ${ownCase} ELSE owner_fee_amount END,
-             net_amount = CASE id ${netCase} ELSE net_amount END
+             net_amount = CASE id ${netCase} ELSE net_amount END,
+             owner_share_amount = CASE id ${ownerShareCase} ELSE owner_share_amount END,
+             menu_share_amount = CASE id ${menuShareCase} ELSE menu_share_amount END,
+             location_share_amount = CASE id ${locationShareCase} ELSE location_share_amount END,
+             platform_share_amount = CASE id ${platformShareCase} ELSE platform_share_amount END,
+             platform_fee_shortfall = CASE id ${shortfallCase} ELSE platform_fee_shortfall END
          WHERE id IN (${idPh})`,
         params
       );
@@ -263,8 +337,7 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
     }
 
     await conn.commit();
-    const totalSettled = merchantResults.reduce((s, m) => s + m.tx_count, 0);
-    return { settlement_ref: ref, merchants: merchantResults, skipped: skippedCount, settled: totalSettled };
+    return { settlement_ref: ref, merchants: merchantResults, skipped: skippedCount, settled: orderPatches.length };
   } catch (err) {
     await conn.rollback();
     if (err && err.code === "ER_DUP_ENTRY") {

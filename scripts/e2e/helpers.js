@@ -12,6 +12,7 @@ function prepareE2eEnv() {
   process.env.XY_E2E_STUB = "1";
   if (!String(process.env.XY_MERCHANT_ID || "").trim()) process.env.XY_MERCHANT_ID = "e2e-stub";
   process.env.COOKIE_SECURE = "0";
+  process.env.MAIL_SINK = "memory";
   process.env.ALLOW_DEMO_QR_FALLBACK = "0";
   if (!process.env.LOGIN_RATE_LIMIT_MAX) process.env.LOGIN_RATE_LIMIT_MAX = "500";
   if (!process.env.HTTP_RATE_LIMIT_MAX) process.env.HTTP_RATE_LIMIT_MAX = "5000";
@@ -48,6 +49,7 @@ const payoutModel = require("../../models/payout");
 const { computeOrderSplit } = require("../../helper-function/partnership");
 const midtransSignature = require("../../../vendor/midtrans-signature");
 const attempts = require("../../helper-function/login-attempts");
+const mailer = require("../../services/mailer");
 
 const TAG = "E2E";
 const PASSWORD = "Testpass1";
@@ -188,7 +190,7 @@ async function request(ctx, method, urlPath, opts = {}) {
 }
 
 async function login(ctx, identifier, password) {
-  attempts.clearFails(identifier);
+  await attempts.clearFails(identifier);
   const jar = new Map();
   const page = await request(ctx, "GET", "/auth/login", { jar });
   ok("login page", page.status === 200, page.status);
@@ -198,9 +200,28 @@ async function login(ctx, identifier, password) {
     jar,
     body: { identifier, password, _csrf: csrf },
   });
-  ok(`login ${identifier} redirect`, posted.status === 302, { status: posted.status, text: posted.text.slice(0, 200) });
+  if (!(posted.status === 302 && String(posted.loc).includes("/auth/otp"))) {
+    ok(`login ${identifier} redirect`, posted.status === 302, {
+      status: posted.status,
+      loc: posted.loc,
+      text: posted.text.slice(0, 200),
+    });
+    ok(`login ${identifier} cookie`, jar.has("access_token"));
+    return { jar, csrf: jar.get("csrf_token") || csrf };
+  }
+  ok(`login ${identifier} pending`, jar.has("login_pending"));
+  const otpPage = await request(ctx, "GET", "/auth/otp", { jar });
+  ok("halaman otp", otpPage.status === 200, otpPage.status);
+  const otpCsrf = scrapeCsrf(otpPage.text) || jar.get("csrf_token");
+  const code = mailer.takeLastCode();
+  ok("kode otp", /^\d{6}$/.test(code), code);
+  const done = await request(ctx, "POST", "/auth/otp", {
+    jar,
+    body: { otp: code, _csrf: otpCsrf },
+  });
+  ok(`login ${identifier} redirect`, done.status === 302, { status: done.status, text: done.text.slice(0, 200) });
   ok(`login ${identifier} cookie`, jar.has("access_token"));
-  return { jar, csrf: jar.get("csrf_token") || csrf };
+  return { jar, csrf: jar.get("csrf_token") || otpCsrf };
 }
 
 async function merchantCsrf(ctx, session) {
@@ -245,6 +266,8 @@ async function cleanupE2e() {
 }
 
 async function seedUsersAndCatalog() {
+  const systemSettings = require("../../models/system-settings");
+  await systemSettings.setLoginOtpEnabled(false);
   const password_hash = await bcrypt.hash(PASSWORD, 10);
   const merchantId = await makeMerchant(TAG, "A");
   const merchantB = await makeMerchant(TAG, "B");

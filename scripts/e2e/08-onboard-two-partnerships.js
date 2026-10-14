@@ -176,10 +176,10 @@ module.exports = async function run(ctx) {
     const staff = await login(ctx, `${TAG}-staff`, PASSWORD);
 
     await record("A1", "Login admin dari halaman login", "A", async () => {
-      const home = await request(ctx, "GET", "/admin", { jar: admin.jar });
+      const home = await request(ctx, "GET", "/dashboard", { jar: admin.jar });
       eq("admin home", home.status, 200);
       ok("cookie", admin.jar.has("access_token"));
-      return "HTTP 200 /admin, cookie access_token ada";
+      return "HTTP 200 /dashboard, cookie access_token ada";
     });
 
     const shareName = `${TAG}-SHARE`;
@@ -589,7 +589,7 @@ module.exports = async function run(ctx) {
       const blocked = await request(ctx, "GET", "/admin", { jar: admin.jar });
       ok("sesi hilang", blocked.status === 302 || blocked.status === 401, blocked.status);
       admin = await login(ctx, `${TAG}-admin`, PASSWORD);
-      const home = await request(ctx, "GET", "/admin", { jar: admin.jar });
+      const home = await request(ctx, "GET", "/dashboard", { jar: admin.jar });
       eq("masuk lagi", home.status, 200);
       return "logout 302, /admin tanpa sesi ditolak, login ulang 200";
     });

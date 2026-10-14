@@ -19,6 +19,7 @@ const {
   secureEqual,
 } = require("../helper-function/http");
 const { absoluteImageUrl } = require("../helper-function/product-image");
+const { cruiseSnapshotFromMachine } = require("../helper-function/partnership");
 const screensaverModel = require("../models/screensaver");
 const kioskOtaModel = require("../models/kiosk-ota");
 const { buildPlaylist, jakartaToday } = require("../helper-function/screensaver-playlist");
@@ -301,6 +302,9 @@ exports.createMachineOrder = async (req, res, next) => {
     if (!machine.merchant_id) {
       return jsonErr(res, 409, "Mesin ini belum ditautkan ke merchant. Hubungi admin.");
     }
+    if (String(machine.commercial_model) === "cruise" && !machine.menu_merchant_id) {
+      return jsonErr(res, 409, "Mesin Cruise belum lengkap. Pemilik dan mitra menu wajib diisi.");
+    }
 
     const slot = await slotModel.findActiveByMachineAndCodeForOrder({ machine_id: machine.id, slot_code });
     if (!slot) return jsonErr(res, 404, "Slot not found or inactive");
@@ -331,6 +335,7 @@ exports.createMachineOrder = async (req, res, next) => {
         merchant_id: machine.merchant_id,
         machine_id: machine.id,
         location_id: machine.location_id || null,
+        ...cruiseSnapshotFromMachine(machine),
         status: "PENDING",
         currency: "IDR",
         subtotal,

@@ -2,6 +2,7 @@
 const { formatDateId } = require("../../helper-function/format-date");
 const locationModel = require("../../models/location");
 const machineModel = require("../../models/machine");
+const merchantModel = require("../../models/merchant");
 
 const { clean, toNonNegInt: toInt } = require("../../helper-function/http");
 
@@ -17,6 +18,20 @@ async function newParentWouldCycle(locationId, newParentId) {
     cur = row.parent_id != null ? Number(row.parent_id) : null;
   }
   return false;
+}
+
+async function locationPartnerChoices() {
+  const rows = await merchantModel.listAllForSelect();
+  return rows.filter((row) => row.merchant_role === "location");
+}
+
+function parsePlaceOwner(raw, partners) {
+  const id = toInt(raw, 0);
+  if (!id) return { owner_merchant_id: null };
+  if (!(partners || []).some((row) => String(row.id) === String(id))) {
+    return { error: "Pemilik tempat harus mitra lokasi yang aktif." };
+  }
+  return { owner_merchant_id: id };
 }
 
 async function resolveParentId(raw) {
@@ -114,15 +129,19 @@ exports.renderNew = async (req, res, next) => {
       }
     }
     const isSubFlow = Boolean(presetParent);
-    const masters = isSubFlow ? await locationModel.listMastersForSelect() : [];
+    const [masters, placePartners] = await Promise.all([
+      isSubFlow ? locationModel.listMastersForSelect() : Promise.resolve([]),
+      locationPartnerChoices(),
+    ]);
     return res.render("admin/locations/new", {
       title: isSubFlow ? "Tambah sub-lokasi" : "Tambah lokasi master",
       user: req.user,
       error: null,
       masters,
+      placePartners,
       isSubFlow,
       presetMasterName: isSubFlow ? (masters.find((m) => String(m.id) === presetParent)?.name || "") : "",
-      value: { name: "", address: "", notes: "", is_active: 1, parent_id: presetParent },
+      value: { name: "", address: "", notes: "", is_active: 1, parent_id: presetParent, owner_merchant_id: "" },
     });
   } catch (err) {
     return next(err);
@@ -139,7 +158,11 @@ exports.create = async (req, res, next) => {
     const isSubFlow = String(req.body.sub_flow || "") === "1";
     const bodyParent = String(req.body.parent_id || "").trim();
 
-    const masters = isSubFlow ? await locationModel.listMastersForSelect() : [];
+    const [masters, placePartners] = await Promise.all([
+      isSubFlow ? locationModel.listMastersForSelect() : Promise.resolve([]),
+      locationPartnerChoices(),
+    ]);
+    const ownerPick = parsePlaceOwner(req.body.owner_merchant_id, placePartners);
     const presetMasterName = isSubFlow
       ? masters.find((m) => String(m.id) === bodyParent)?.name || ""
       : "";
@@ -148,6 +171,7 @@ exports.create = async (req, res, next) => {
       title: isSubFlow ? "Tambah sub-lokasi" : "Tambah lokasi master",
       user: req.user,
       masters,
+      placePartners,
       isSubFlow,
       presetMasterName,
       value: {
@@ -156,8 +180,16 @@ exports.create = async (req, res, next) => {
         notes: notes || "",
         is_active,
         parent_id: bodyParent,
+        owner_merchant_id: clean(req.body.owner_merchant_id),
       },
     };
+
+    if (ownerPick.error) {
+      return res.status(400).render("admin/locations/new", {
+        ...baseLocals,
+        error: ownerPick.error,
+      });
+    }
 
     if (!name) {
       return res.status(400).render("admin/locations/new", {
@@ -186,7 +218,14 @@ exports.create = async (req, res, next) => {
       });
     }
 
-    await locationModel.create({ name, address, notes, is_active, parent_id });
+    await locationModel.create({
+      name,
+      address,
+      notes,
+      is_active,
+      parent_id,
+      owner_merchant_id: ownerPick.owner_merchant_id,
+    });
     if (parent_id) {
       return res.redirect(`/admin/locations/${parent_id}`);
     }
@@ -194,12 +233,16 @@ exports.create = async (req, res, next) => {
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
       const sub = String(req.body.sub_flow || "") === "1";
-      const masters = sub ? await locationModel.listMastersForSelect() : [];
+      const [masters, placePartners] = await Promise.all([
+        sub ? locationModel.listMastersForSelect() : Promise.resolve([]),
+        locationPartnerChoices(),
+      ]);
       const bp = String(req.body.parent_id || "").trim();
       return res.status(409).render("admin/locations/new", {
         title: sub ? "Tambah sub-lokasi" : "Tambah lokasi master",
         user: req.user,
         masters,
+        placePartners,
         isSubFlow: sub,
         presetMasterName: sub ? masters.find((m) => String(m.id) === bp)?.name || "" : "",
         error: "Nama lokasi bentrok di database.",
@@ -209,6 +252,7 @@ exports.create = async (req, res, next) => {
           notes: clean(req.body.notes),
           is_active: req.body.is_active === "0" ? 0 : 1,
           parent_id: bp,
+          owner_merchant_id: clean(req.body.owner_merchant_id),
         },
       });
     }
@@ -225,8 +269,11 @@ exports.renderEdit = async (req, res, next) => {
     if (!location) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
 
     const isArchived = Boolean(location.deleted_at);
-    const masters = await locationModel.listMastersForSelect();
-    const childCount = await locationModel.countActiveChildren(id);
+    const [masters, placePartners, childCount] = await Promise.all([
+      locationModel.listMastersForSelect(),
+      locationPartnerChoices(),
+      locationModel.countActiveChildren(id),
+    ]);
 
     return res.render("admin/locations/edit", {
       title: isArchived ? "Location (Arsip)" : "Edit Location",
@@ -235,6 +282,7 @@ exports.renderEdit = async (req, res, next) => {
       location,
       isArchived,
       masters,
+      placePartners,
       childCount,
       value: {
         name: location.name || "",
@@ -242,6 +290,7 @@ exports.renderEdit = async (req, res, next) => {
         notes: location.notes || "",
         is_active: location.is_active ? 1 : 0,
         parent_id: location.parent_id ? String(location.parent_id) : "",
+        owner_merchant_id: location.owner_merchant_id ? String(location.owner_merchant_id) : "",
       },
     });
   } catch (err) {
@@ -265,8 +314,12 @@ exports.update = async (req, res, next) => {
     const notes = clean(req.body.notes) || null;
     const is_active = req.body.is_active === "0" ? 0 : 1;
 
-    const masters = await locationModel.listMastersForSelect();
-    const childCount = await locationModel.countActiveChildren(id);
+    const [masters, placePartners, childCount] = await Promise.all([
+      locationModel.listMastersForSelect(),
+      locationPartnerChoices(),
+      locationModel.countActiveChildren(id),
+    ]);
+    const ownerPick = parsePlaceOwner(req.body.owner_merchant_id, placePartners);
 
     const renderErr = async (status, error, valueOverrides = {}) => {
       return res.status(status).render("admin/locations/edit", {
@@ -276,6 +329,7 @@ exports.update = async (req, res, next) => {
         location,
         isArchived: false,
         masters,
+        placePartners,
         childCount,
         value: {
           name: valueOverrides.name ?? name,
@@ -283,9 +337,12 @@ exports.update = async (req, res, next) => {
           notes: valueOverrides.notes ?? (notes || ""),
           is_active: valueOverrides.is_active ?? is_active,
           parent_id: valueOverrides.parent_id ?? String(req.body.parent_id || "").trim(),
+          owner_merchant_id: valueOverrides.owner_merchant_id ?? clean(req.body.owner_merchant_id),
         },
       });
     };
+
+    if (ownerPick.error) return renderErr(400, ownerPick.error);
 
     if (!name) {
       return renderErr(400, "Nama lokasi wajib diisi.");
@@ -319,7 +376,15 @@ exports.update = async (req, res, next) => {
       }
     }
 
-    const ok = await locationModel.updateById({ id, name, address, notes, is_active, parent_id });
+    const ok = await locationModel.updateById({
+      id,
+      name,
+      address,
+      notes,
+      is_active,
+      parent_id,
+      owner_merchant_id: ownerPick.owner_merchant_id,
+    });
     if (!ok) {
       return res.redirect("/admin/locations");
     }
@@ -330,10 +395,11 @@ exports.update = async (req, res, next) => {
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
       const eid = toInt(req.params.id, 0);
-      const [masters, locRow, childCount] = await Promise.all([
+      const [masters, locRow, childCount, placePartners] = await Promise.all([
         locationModel.listMastersForSelect(),
         locationModel.findByIdAny(eid),
         locationModel.countActiveChildren(eid),
+        locationPartnerChoices(),
       ]);
       return res.status(409).render("admin/locations/edit", {
         title: "Edit Location",
@@ -342,6 +408,7 @@ exports.update = async (req, res, next) => {
         location: locRow || { id: eid },
         isArchived: false,
         masters,
+        placePartners,
         childCount,
         value: {
           name: clean(req.body.name),
@@ -349,6 +416,7 @@ exports.update = async (req, res, next) => {
           notes: clean(req.body.notes),
           is_active: req.body.is_active === "0" ? 0 : 1,
           parent_id: String(req.body.parent_id || "").trim(),
+          owner_merchant_id: clean(req.body.owner_merchant_id),
         },
       });
     }

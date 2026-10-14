@@ -18,6 +18,8 @@ const {
 } = require("../../helper-function/settlement-status");
 const { resolveDateRange, datePresets, rangeLabel } = require("../../helper-function/date-range");
 const { buildQuery, presetLinks } = require("../../helper-function/list-query");
+const { cruiseSnapshotFromMachine, cruiseMachineReady, cruisePartyAmount, ownerOperatedAmount } = require("../../helper-function/partnership");
+const settlementModel = require("../../models/settlement");
 
 const parseVendorExpiry = (raw) => {
   if (!raw) return null;
@@ -102,10 +104,15 @@ exports.list = async (req, res, next) => {
     const totalPages = Math.max(1, Math.ceil(total / limit));
     const page = Math.min(totalPages, Math.max(1, toInt(req.query.page, 1)));
     const offset = (page - 1) * limit;
-    const rows = await orderModel.listMerchant({ ...filter, limit, offset });
+    const [rows, feeConfig] = await Promise.all([
+      orderModel.listMerchant({ ...filter, limit, offset }),
+      settlementModel.getFeeConfig().catch(() => ({ midtrans_fee_percent: 0.5 })),
+    ]);
 
     const mapped = rows.map((r) => {
       const settlement_status_label = settlementStatusLabel(r);
+      const share = cruisePartyAmount(r, merchant_id, feeConfig.midtrans_fee_percent)
+        ?? ownerOperatedAmount(r, merchant_id, feeConfig.midtrans_fee_percent);
       return {
         ...r,
         created_at_fmt: formatDateId(r.created_at),
@@ -114,6 +121,7 @@ exports.list = async (req, res, next) => {
         settlement_status_label,
         settlement_badge_class: settlementStatusBadgeClass(settlement_status_label),
         total_fmt: fmtMoney(r.total),
+        share_fmt: share == null ? null : fmtMoney(share),
       };
     });
 
@@ -171,6 +179,9 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
     if (machine.merchant_id == null || Number(machine.merchant_id) !== merchant_id) {
       return jsonErr(res, 403, "Mesin ini tidak ditugaskan ke merchant kamu. Hubungi admin untuk menautkan mesin.");
     }
+    if (!cruiseMachineReady(machine)) {
+      return jsonErr(res, 409, "Mesin Cruise belum lengkap. Pemilik dan mitra menu wajib diisi.");
+    }
 
     const slot = await orderModel.findMachineSlotActiveById(slot_id);
     if (!slot) return jsonErr(res, 404, "Slot not found or inactive");
@@ -200,6 +211,7 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
         merchant_id,
         machine_id: machine.id,
         location_id: machine.location_id || null,
+        ...cruiseSnapshotFromMachine(machine),
         status: "PENDING",
         currency: "IDR",
         subtotal,

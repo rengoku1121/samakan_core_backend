@@ -1,6 +1,7 @@
 const activityModel = require("../../models/activity-log");
 const { formatDateId } = require("../../helper-function/format-date");
 const { ACTION_LABELS } = require("../../helper-function/activity-describe");
+const { pickLimit } = require("../../helper-function/table-page");
 
 const ACTIONS = Object.keys(ACTION_LABELS);
 const ROLES = ["admin", "staff", "merchant", "superadmin"];
@@ -25,14 +26,12 @@ function filtersFrom(query) {
 
 exports.list = async (req, res, next) => {
   try {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = 30;
+    const limit = pickLimit(req.query.limit, [10, 20, 30, 50], 30);
     const filters = filtersFrom(req.query);
-    const [total, rows] = await Promise.all([
-      activityModel.count(filters),
-      activityModel.list(filters, limit, (page - 1) * limit),
-    ]);
-    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const total = await activityModel.count(filters);
+    const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
+    const page = Math.min(Math.max(1, Number(req.query.page) || 1), totalPages);
+    const rows = await activityModel.list(filters, limit, (page - 1) * limit);
     return res.render("admin/activity/list", {
       title: "Riwayat Aktivitas",
       user: req.user,
@@ -40,7 +39,8 @@ exports.list = async (req, res, next) => {
       actions: ACTIONS.map((id) => ({ id, label: ACTION_LABELS[id] })),
       roles: ROLES,
       total,
-      page: Math.min(page, totalPages),
+      limit,
+      page,
       totalPages,
       missing: false,
       rows: rows.map((row) => ({
@@ -59,6 +59,7 @@ exports.list = async (req, res, next) => {
         actions: [],
         roles: ROLES,
         total: 0,
+        limit: 30,
         page: 1,
         totalPages: 1,
         missing: true,

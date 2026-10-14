@@ -3,7 +3,7 @@
  * Run: node scripts/test-activity-log.js
  */
 const assert = require("assert");
-const { describeActivity, detailFromBody } = require("../helper-function/activity-describe");
+const { describeActivity, detailFromBody, shouldRecordActivity } = require("../helper-function/activity-describe");
 
 const cases = [
   ["login sukses", describeActivity("POST", "/auth/login", 302, { identifier: "admin2", password: "rahasia", _csrf: "x" }), "login", "Masuk ke Core"],
@@ -30,6 +30,13 @@ for (const [name, got, action, snippet] of cases) {
   }
   console.log("PASS", name);
 }
+
+const subscribe = describeActivity("POST", "/admin/notifications/subscribe", 200, {});
+assert.strictEqual(shouldRecordActivity(subscribe, {}), false);
+assert.strictEqual(shouldRecordActivity(subscribe, { notificationTurnedOn: true }), true);
+const unsubscribe = describeActivity("POST", "/admin/notifications/unsubscribe", 200, {});
+assert.strictEqual(shouldRecordActivity(unsubscribe, {}), true);
+console.log("PASS daftar ulang notifikasi tidak dicatat");
 
 const leaked = detailFromBody({ password: "rahasia", inquiry_token: "abc", name: "Toko" });
 assert.strictEqual(leaked, "name Toko");

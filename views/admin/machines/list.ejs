@@ -46,6 +46,11 @@
     .select{padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:900;font-size:13px;color:#374151;outline:none;}
     .select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
     .act{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+    .machine-toast{
+      margin:0 0 14px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:14px;
+      padding:12px 16px;font-size:14px;font-weight:800;line-height:1.4;
+      box-shadow:0 10px 24px rgba(6,95,70,.08);
+    }
   </style>
 </head>
 <body>
@@ -58,20 +63,20 @@
         <div class="meta">Total: <b><%= total %></b> • Page <b><%= page %></b>/<b><%= totalPages %></b></div>
       </div>
       <div class="actions">
-        <a class="btn btn-primary" href="/admin/machines/new">+ New Machine</a>
-        <a class="btn btn-ghost" href="/admin">Dashboard</a>
+        <a class="btn btn-primary" href="/admin/machines/new">Pasang mesin</a>
+        <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
         <form method="POST" action="/auth/logout">
           <button type="submit" class="btn btn-link">Logout</button>
         </form>
       </div>
     </div>
 
+    <% if (notice) { %>
+      <div class="machine-toast" role="status"><%= notice %></div>
+    <% } %>
+
     <div class="card">
       <div class="toolbar">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <span class="pill">Showing <small><%= rows ? rows.length : 0 %></small></span>
-          <span class="pill">Limit <small><%= limit %></small></span>
-        </div>
         <div class="muted">Klik <b>Detail</b> untuk lihat tanggal, MT, runtime, dll.</div>
       </div>
 
@@ -99,7 +104,7 @@
                 <td><%= m.name || '-' %></td>
                 <td class="mono"><%= m.category || '-' %></td>
                 <td><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(arsip)</span><% } %></td>
-                <td class="muted"><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %></td>
+                <td class="muted"><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %><%= m.commercial_model === 'cruise' ? ' · Cruise' : (m.commercial_model === 'plus' ? ' · Plus' : (m.commercial_model === 'basic' ? ' · Basic' : '')) %></td>
                 <td>
                   <% if (m.is_active) { %>
                     <span class="badge on"><span class="dot"></span> Active</span>
@@ -117,36 +122,7 @@
         </table>
       <% } %>
 
-      <div class="footer">
-        <div class="muted">
-          <% const start = (page - 1) * limit + 1; %>
-          <% const end = (page - 1) * limit + (rows ? rows.length : 0); %>
-          <% if (rows && rows.length) { %>
-            Showing <b><%= start %></b>–<b><%= end %></b> of <b><%= total %></b>
-          <% } else { %>
-            Showing 0 of <b><%= total %></b>
-          <% } %>
-        </div>
-
-        <div class="pager">
-          <label class="muted">Limit</label>
-          <select class="select" onchange="location.href='/admin/machines?page=1&limit=' + this.value;">
-            <option value="10" <%= limit === 10 ? 'selected' : '' %>>10</option>
-            <option value="20" <%= limit === 20 ? 'selected' : '' %>>20</option>
-            <option value="50" <%= limit === 50 ? 'selected' : '' %>>50</option>
-          </select>
-
-          <% const prev = page > 1 ? page - 1 : 1; %>
-          <% const next = page < totalPages ? page + 1 : totalPages; %>
-
-          <% if (page > 1) { %>
-            <a class="btn btn-primary" href="/admin/machines?page=<%= prev %>&limit=<%= limit %>">Prev</a>
-          <% } %>
-          <% if (page < totalPages) { %>
-            <a class="btn btn-primary" href="/admin/machines?page=<%= next %>&limit=<%= limit %>">Next</a>
-          <% } %>
-        </div>
-      </div>
+      <%- include('../../partials/table-pager', { basePath: '/admin/machines', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: '' }) %>
     </div>
   </div>
 </body>

@@ -24,12 +24,14 @@ async function main() {
     await pool.query(
       `
       UPDATE users
-      SET email = ?, password_hash = ?, role = ?, merchant_id = NULL, is_active = 1
+      SET email = ?, password_hash = ?, role = ?, merchant_id = NULL, is_active = 1,
+          auth_version = auth_version + 1
       WHERE id = ?
       LIMIT 1
       `,
       [EMAIL, password_hash, ROLE, existing.id]
     );
+    await require("../models/auth-session").revokeUser(existing.id);
     console.log(`User admin diperbarui: id=${existing.id} role=${ROLE}`);
   } else {
     const password_hash = await bcrypt.hash(PASSWORD, 10);

@@ -21,6 +21,7 @@
     <div class="card">
       <div class="toolbar">
         <form method="GET" action="/admin/activity">
+          <input type="hidden" name="limit" value="<%= limit %>" />
           <div>
             <label for="act-q">Cari</label>
             <input id="act-q" name="q" value="<%= filters.q %>" placeholder="username atau aktivitas" />
@@ -94,24 +95,14 @@
           <% } %>
         </tbody>
       </table>
-    </div>
-
-    <% if (totalPages > 1) { %>
       <%
-        const qs = ["q","action","role","date_from","date_to"]
+        const keepQs = ["q","action","role","date_from","date_to"]
           .filter(function(k){ return filters[k]; })
           .map(function(k){ return k + "=" + encodeURIComponent(filters[k]); })
           .join("&");
-        const prefix = qs ? qs + "&" : "";
       %>
-      <div class="pager">
-        <span class="muted">Halaman <%= page %> dari <%= totalPages %></span>
-        <div>
-          <% if (page > 1) { %><a class="btn btn-ghost" href="/admin/activity?<%= prefix %>page=<%= page - 1 %>">Sebelumnya</a><% } %>
-          <% if (page < totalPages) { %><a class="btn btn-ghost" href="/admin/activity?<%= prefix %>page=<%= page + 1 %>">Berikutnya</a><% } %>
-        </div>
-      </div>
-    <% } %>
+      <%- include('../../partials/table-pager', { basePath: '/admin/activity', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: keepQs, limits: [10, 20, 30, 50] }) %>
+    </div>
   </div>
 </body>
 </html>

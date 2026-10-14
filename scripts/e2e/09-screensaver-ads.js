@@ -54,6 +54,7 @@ async function mediaOf(id) {
 function settingsBody(overrides = {}) {
   const p = new URLSearchParams();
   p.set("idle_seconds", String(overrides.idle_seconds ?? 30));
+  p.set("flow_idle_seconds", String(overrides.flow_idle_seconds ?? 180));
   p.set("default_image_seconds", String(overrides.default_image_seconds ?? 12));
   const disabled = new Set(overrides.off || []);
   const seconds = overrides.seconds || {};
@@ -97,17 +98,47 @@ module.exports = async function run(ctx) {
   eq("admin create 403", adminPost.status, 403);
   eq("admin create tidak tersimpan", await campaignId(`${TAG}-ADS-ADMIN`), null);
 
-  const home = await request(ctx, "GET", "/admin", { jar: superadmin.jar });
+  const home = await request(ctx, "GET", "/dashboard", { jar: superadmin.jar });
   eq("superadmin dashboard", home.status, 200);
   ok("nav iklan untuk superadmin", home.text.includes('href="/admin/screensaver"'));
-  const adminHome = await request(ctx, "GET", "/admin", { jar: admin.jar });
+  ok("nav akun untuk superadmin", home.text.includes('href="/admin/users"'));
+  const adminHome = await request(ctx, "GET", "/dashboard", { jar: admin.jar });
   ok("nav iklan tersembunyi untuk admin", !adminHome.text.includes('href="/admin/screensaver"'));
+  ok("nav akun tersembunyi untuk admin", !adminHome.text.includes('href="/admin/users"'));
+
+  const coreSettings = await request(ctx, "GET", "/admin/settings", { jar: superadmin.jar });
+  eq("superadmin settings halaman", coreSettings.status, 200);
+  ok("saklar otp untuk superadmin", coreSettings.text.includes("Login OTP email"));
+  const adminCoreSettings = await request(ctx, "GET", "/admin/settings", { jar: admin.jar });
+  ok("saklar otp tersembunyi untuk admin", !adminCoreSettings.text.includes("Login OTP email"));
+  eq(
+    "admin tidak boleh ubah otp",
+    (await request(ctx, "POST", "/admin/settings/login-otp", {
+      jar: admin.jar,
+      body: { login_otp_enabled: "1" },
+    })).status,
+    403
+  );
+  const systemSettings = require("../../models/system-settings");
+  try {
+    eq(
+      "superadmin menyalakan otp",
+      (await request(ctx, "POST", "/admin/settings/login-otp", {
+        jar: superadmin.jar,
+        body: { login_otp_enabled: "1" },
+      })).status,
+      302
+    );
+    ok("otp tersimpan nyala", (await systemSettings.getLoginOtpEnabled()) === true);
+  } finally {
+    await systemSettings.setLoginOtpEnabled(false);
+  }
 
   eq("superadmin list", (await request(ctx, "GET", "/admin/screensaver", { jar: superadmin.jar })).status, 200);
   eq("superadmin new", (await request(ctx, "GET", "/admin/screensaver/new", { jar: superadmin.jar })).status, 200);
   const settingsPage = await request(ctx, "GET", "/admin/screensaver/settings", { jar: superadmin.jar });
   eq("superadmin settings", settingsPage.status, 200);
-  ok("halaman pengaturan", settingsPage.text.includes("Diam sebelum screensaver"));
+  ok("halaman pengaturan", settingsPage.text.includes("Diam di beranda"));
   eq(
     "admin settings 403",
     (await request(ctx, "GET", "/admin/screensaver/settings", { jar: admin.jar })).status,
@@ -421,4 +452,114 @@ module.exports = async function run(ctx) {
     body: settingsBody(),
   });
   await pool.query(`DELETE FROM machines WHERE id = ?`, [machineB]);
+
+  eq("admin daftar akun 403", (await request(ctx, "GET", "/admin/users", { jar: admin.jar })).status, 403);
+  eq(
+    "admin buat akun 403",
+    (
+      await request(ctx, "POST", "/admin/users", {
+        jar: admin.jar,
+        body: {
+          username: `${TAG}-blocked`,
+          email: `${TAG}-blocked@local.test`,
+          role: "staff",
+          password: PASSWORD,
+          password_confirm: PASSWORD,
+          is_active: "1",
+        },
+      })
+    ).status,
+    403
+  );
+  eq("staff daftar akun 403", (await request(ctx, "GET", "/admin/users", { jar: staff.jar })).status, 403);
+  eq("superadmin daftar akun", (await request(ctx, "GET", "/admin/users", { jar: superadmin.jar })).status, 200);
+  eq("form akun baru", (await request(ctx, "GET", "/admin/users/new", { jar: superadmin.jar })).status, 200);
+  const rejected = await request(ctx, "POST", "/admin/users", {
+    jar: superadmin.jar,
+    body: {
+      username: `${TAG}-badrole`,
+      email: `${TAG}-badrole@local.test`,
+      role: "superadmin",
+      password: PASSWORD,
+      password_confirm: PASSWORD,
+      is_active: "1",
+    },
+  });
+  eq("role superadmin ditolak", rejected.status, 400);
+  const panelUser = `${TAG}-panel`;
+  eq(
+    "buat staff",
+    (
+      await request(ctx, "POST", "/admin/users", {
+        jar: superadmin.jar,
+        body: {
+          username: panelUser,
+          email: `${panelUser}@local.test`,
+          role: "staff",
+          password: PASSWORD,
+          password_confirm: PASSWORD,
+          is_active: "1",
+        },
+      })
+    ).status,
+    302
+  );
+  const listed = await request(ctx, "GET", "/admin/users", { jar: superadmin.jar });
+  const idMatch = listed.text.match(new RegExp(`${panelUser}[\\s\\S]{0,500}/admin/users/(\\d+)/edit`));
+  ok("id akun baru", idMatch);
+  const panelId = idMatch[1];
+  eq(
+    "merchant tidak masuk form",
+    (await request(ctx, "GET", `/admin/users/${ctx.fx.merchantUserId}/edit`, { jar: superadmin.jar })).status,
+    404
+  );
+  eq("form ubah", (await request(ctx, "GET", `/admin/users/${panelId}/edit`, { jar: superadmin.jar })).status, 200);
+  const panel = await login(ctx, panelUser, PASSWORD);
+  eq("staff baru masuk", (await request(ctx, "GET", "/dashboard", { jar: panel.jar })).status, 200);
+  eq(
+    "ubah jadi admin",
+    (
+      await request(ctx, "POST", `/admin/users/${panelId}`, {
+        jar: superadmin.jar,
+        body: {
+          username: panelUser,
+          email: `${panelUser}@local.test`,
+          role: "admin",
+          password: "",
+          password_confirm: "",
+          is_active: "1",
+        },
+      })
+    ).status,
+    302
+  );
+  eq(
+    "sesi lama mati saat role berubah",
+    (await request(ctx, "GET", "/dashboard", { jar: panel.jar, accept: "application/json" })).status,
+    401
+  );
+  const promoted = await login(ctx, panelUser, PASSWORD);
+  eq("masuk sebagai admin", (await request(ctx, "GET", "/dashboard", { jar: promoted.jar })).status, 200);
+  eq(
+    "nonaktifkan",
+    (await request(ctx, "POST", `/admin/users/${panelId}/deactivate`, { jar: superadmin.jar })).status,
+    302
+  );
+  eq(
+    "sesi mati saat nonaktif",
+    (await request(ctx, "GET", "/dashboard", { jar: promoted.jar, accept: "application/json" })).status,
+    401
+  );
+  eq(
+    "aktifkan lagi",
+    (await request(ctx, "POST", `/admin/users/${panelId}/restore`, { jar: superadmin.jar })).status,
+    302
+  );
+  eq(
+    "sesi lama tidak hidup lagi",
+    (await request(ctx, "GET", "/dashboard", { jar: promoted.jar, accept: "application/json" })).status,
+    401
+  );
+  const restored = await login(ctx, panelUser, PASSWORD);
+  eq("masuk ulang setelah aktif", (await request(ctx, "GET", "/dashboard", { jar: restored.jar })).status, 200);
 };

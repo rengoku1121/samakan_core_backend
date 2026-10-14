@@ -12,6 +12,12 @@ const {
   PARTNERSHIP,
   normalizeTerms,
   computeOrderSplit,
+  computeCruiseSplit,
+  computeOwnerOperatedSplit,
+  cruiseSnapshotFromMachine,
+  settlementLines,
+  slotProductError,
+  placeOwnershipError,
   resolvePayoutFeeBearer,
   termsSummary,
 } = require("../helper-function/partnership");
@@ -231,6 +237,94 @@ function main() {
     const subs = termsSummary({ partnership_type: PARTNERSHIP.SUBSCRIPTION });
     assert("K: ringkasan subscription menyebut 100%", subs.includes("100%"), subs);
     pass("K_summary_matches_math");
+  }
+
+  // --- L: Cruise 50.000, pemilik 20%, menu dan lokasi bagi dua, fee 0,5% --
+  {
+    const split = computeCruiseSplit({
+      gross: 50000,
+      owner_share_percent: 20,
+      menu_share_percent: 50,
+      location_share_percent: 50,
+      midtrans_fee_percent: 0.5,
+    });
+    assert("L: pemilik 10.000", split.owner_share_amount === 10000, split);
+    assert("L: mitra menu 20.000", split.menu_share_amount === 20000, split);
+    assert("L: lokasi 10.000", split.location_share_amount === 10000, split);
+    assert("L: fee 250", split.midtrans_fee_total === 250, split);
+    assert("L: Samakan 9.750", split.platform_share_amount === 9750, split);
+    assert("L: tidak ada selisih fee", split.platform_fee_shortfall === 0, split);
+    const sum =
+      split.owner_share_amount +
+      split.menu_share_amount +
+      split.location_share_amount +
+      split.platform_share_amount +
+      split.midtrans_fee_total;
+    assert("L: jumlah sama dengan harga jual", sum === 50000, { sum, split });
+    const legacy = computeOrderSplit({
+      gross: 50000,
+      terms: { partnership_type: PARTNERSHIP.REVENUE_SHARE, revenue_share_percent: 20, midtrans_fee_bearer: "merchant" },
+      midtrans_fee_percent: 0.5,
+    });
+    assert("L: rumus lama tetap satu penerima", legacy.net_amount === 39750, legacy);
+    pass("L_cruise_waterfall", split);
+  }
+
+  // --- M: Plus dan Basic tidak memakai syarat merchant lama --------------
+  {
+    const split = computeOwnerOperatedSplit({ gross: 50000, midtrans_fee_percent: 0.5 });
+    assert("M: biaya pembayaran 250", split.midtrans_fee_total === 250, split);
+    assert("M: pemilik menerima 49.750", split.owner_net_amount === 49750, split);
+    assert("M: Samakan tidak menerima bagian", split.platform_share_amount === 0, split);
+    const lines = settlementLines(
+      {
+        total: 50000,
+        split_model: "owner",
+        merchant_id: 7,
+        partnership_type: "revenue_share",
+        revenue_share_percent: 40,
+        midtrans_fee_bearer: "merchant",
+      },
+      0.5
+    );
+    assert("M: bukan legacy", lines.model === "owner" && lines.ok, lines);
+    assert("M: satu baris ke pemilik", lines.lines.length === 1 && lines.lines[0].net === 49750, lines);
+    const snap = cruiseSnapshotFromMachine({
+      commercial_model: "plus",
+      merchant_id: 7,
+      menu_merchant_id: 9,
+    });
+    assert("M: snapshot Plus tidak membawa mitra", snap.split_model === "owner" && snap.menu_merchant_id == null, snap);
+    const cruiseSnap = cruiseSnapshotFromMachine({
+      commercial_model: "cruise",
+      merchant_id: 7,
+      menu_merchant_id: 9,
+      owner_share_percent: 20,
+      menu_share_percent: 50,
+      location_share_percent: 0,
+    });
+    assert("M: snapshot Cruise tetap Cruise", cruiseSnap.split_model === "cruise" && cruiseSnap.menu_merchant_id === 9, cruiseSnap);
+    assert(
+      "M: rak Cruise menolak menu orang lain",
+      slotProductError({ commercial_model: "cruise", menu_merchant_id: 9 }, { merchant_id: 7 }) != null
+    );
+    assert(
+      "M: tempat tanpa pemilik boleh dipakai mitra lokasi",
+      placeOwnershipError({ commercialModel: "cruise", locationMerchantId: 3, placeOwnerId: null }) == null
+    );
+    assert(
+      "M: tempat milik mitra lain ditolak",
+      placeOwnershipError({ commercialModel: "cruise", locationMerchantId: 3, placeOwnerId: 9 }) != null
+    );
+    assert(
+      "M: tempat milik mitra yang sama lolos",
+      placeOwnershipError({ commercialModel: "cruise", locationMerchantId: 3, placeOwnerId: 3 }) == null
+    );
+    assert(
+      "M: Plus tidak mensyaratkan pemilik tempat",
+      placeOwnershipError({ commercialModel: "plus", locationMerchantId: null, placeOwnerId: 3 }) == null
+    );
+    pass("M_owner_operated", split);
   }
 
   console.log(JSON.stringify({ pass: true, cases }, null, 2));

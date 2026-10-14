@@ -1,5 +1,6 @@
 // models/machine.js
 const { pool } = require("../utils/db");
+const { normalizeCommercialModel, serviceFeeForModel } = require("../helper-function/partnership");
 
 exports.countAll = async () => {
   const sql = `
@@ -18,6 +19,8 @@ exports.listAllForSelect = async () => {
       code,
       name,
       merchant_id,
+      commercial_model,
+      menu_merchant_id,
       is_active
     FROM machines
     ORDER BY code ASC
@@ -66,6 +69,7 @@ exports.listPaginated = async ({ limit, offset }) => {
       m.total_downtime_hours,
       m.location_id,
       m.merchant_id,
+      m.commercial_model,
       mer.name AS merchant_name,
       mer.merchant_code AS merchant_code,
       l.name AS location_name,
@@ -108,8 +112,19 @@ exports.findById = async (id) => {
       m.last_crash_message,
       m.location_id,
       m.merchant_id,
+      m.commercial_model,
+      m.menu_merchant_id,
+      m.location_merchant_id,
+      m.owner_share_percent,
+      m.menu_share_percent,
+      m.location_share_percent,
+      m.service_fee_amount,
       mer.name AS merchant_name,
       mer.merchant_code AS merchant_code,
+      menuMer.name AS menu_merchant_name,
+      menuMer.merchant_code AS menu_merchant_code,
+      locMer.name AS location_merchant_name,
+      locMer.merchant_code AS location_merchant_code,
       l.name AS location_name,
       l.deleted_at AS location_deleted_at,
       m.is_active,
@@ -118,6 +133,8 @@ exports.findById = async (id) => {
     FROM machines m
     LEFT JOIN locations l ON l.id = m.location_id
     LEFT JOIN merchants mer ON mer.id = m.merchant_id AND mer.deleted_at IS NULL
+    LEFT JOIN merchants menuMer ON menuMer.id = m.menu_merchant_id AND menuMer.deleted_at IS NULL
+    LEFT JOIN merchants locMer ON locMer.id = m.location_merchant_id AND locMer.deleted_at IS NULL
     WHERE m.id = ?
     LIMIT ?
   `;
@@ -149,6 +166,12 @@ exports.findActiveByCode = async (code) => {
       m.name,
       m.location_id,
       m.merchant_id,
+      m.commercial_model,
+      m.menu_merchant_id,
+      m.location_merchant_id,
+      m.owner_share_percent,
+      m.menu_share_percent,
+      m.location_share_percent,
       m.is_active,
       l.name AS location_name,
       mer.merchant_code AS merchant_code,
@@ -223,8 +246,15 @@ exports.create = async ({
   total_downtime_hours,
   location_id,
   merchant_id,
+  commercial_model,
+  menu_merchant_id,
+  location_merchant_id,
+  owner_share_percent,
+  menu_share_percent,
+  location_share_percent,
   is_active,
-}) => {
+}, conn) => {
+  const executor = conn || pool;
   const sql = `
     INSERT INTO machines (
       code,
@@ -241,10 +271,17 @@ exports.create = async ({
       total_downtime_hours,
       location_id,
       merchant_id,
+      commercial_model,
+      menu_merchant_id,
+      location_merchant_id,
+      owner_share_percent,
+      menu_share_percent,
+      location_share_percent,
+      service_fee_amount,
       is_active
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  const [result] = await pool.query(sql, [
+  const [result] = await executor.query(sql, [
     code,
     name ?? null,
     category ?? null,
@@ -259,6 +296,13 @@ exports.create = async ({
     total_downtime_hours ?? 0,
     location_id,
     merchant_id ?? null,
+    normalizeCommercialModel(commercial_model),
+    menu_merchant_id ?? null,
+    location_merchant_id ?? null,
+    owner_share_percent ?? 20,
+    menu_share_percent ?? 0,
+    location_share_percent ?? 0,
+    serviceFeeForModel(commercial_model),
     is_active,
   ]);
   return result.insertId;
@@ -280,6 +324,12 @@ exports.updateById = async ({
   total_downtime_hours,
   location_id,
   merchant_id,
+  commercial_model,
+  menu_merchant_id,
+  location_merchant_id,
+  owner_share_percent,
+  menu_share_percent,
+  location_share_percent,
   is_active,
 }) => {
   const sql = `
@@ -299,6 +349,13 @@ exports.updateById = async ({
       total_downtime_hours = ?,
       location_id = ?,
       merchant_id = ?,
+      commercial_model = ?,
+      menu_merchant_id = ?,
+      location_merchant_id = ?,
+      owner_share_percent = ?,
+      menu_share_percent = ?,
+      location_share_percent = ?,
+      service_fee_amount = ?,
       is_active = ?
     WHERE id = ?
     LIMIT ?
@@ -318,6 +375,13 @@ exports.updateById = async ({
     total_downtime_hours ?? 0,
     location_id,
     merchant_id ?? null,
+    normalizeCommercialModel(commercial_model),
+    menu_merchant_id ?? null,
+    location_merchant_id ?? null,
+    owner_share_percent ?? 20,
+    menu_share_percent ?? 0,
+    location_share_percent ?? 0,
+    serviceFeeForModel(commercial_model),
     is_active,
     id,
     1,
