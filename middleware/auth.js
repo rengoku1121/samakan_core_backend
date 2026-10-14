@@ -17,6 +17,14 @@ const extractToken = (req) => {
   return null;
 };
 
+const authEvents = [];
+function rememberAuth(entry) {
+  authEvents.push({ at: Date.now(), ...entry });
+  if (authEvents.length > 8) authEvents.shift();
+}
+exports.rememberAuth = rememberAuth;
+exports.recentAuthEvents = () => authEvents.slice();
+
 function authDebug(hypothesisId, location, message, data) {
   // #region agent log
   fetch("http://127.0.0.1:7747/ingest/b65552d9-3460-4b5c-aa0d-9260f9c34b9f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9a4bf9" }, body: JSON.stringify({ sessionId: "9a4bf9", runId: "pre-fix", hypothesisId, location, message, data, timestamp: Date.now() }) }).catch(() => {});
@@ -37,12 +45,15 @@ function requestNet(req) {
 
 const deny = (req, res, reason, extra) => {
   const why = String(reason || "unknown").slice(0, 48);
-  authDebug((extra && extra.hypothesisId) || "D", "middleware/auth.js:deny", "auth deny", {
+  const denyData = {
+    kind: "deny",
     reason: why,
     ...requestNet(req),
     ipOk: extra ? extra.ipOk : undefined,
     uaOk: extra ? extra.uaOk : undefined,
-  });
+  };
+  rememberAuth(denyData);
+  authDebug((extra && extra.hypothesisId) || "D", "middleware/auth.js:deny", "auth deny", denyData);
   try { res.setHeader("X-Auth-Deny", why); } catch (_) {}
 
   // clear token to force relogin
