@@ -74,7 +74,12 @@ async function openSession(req, res, user) {
     sid,
   });
   clearPending(req, res);
-  res.cookie("access_token", token, accessTokenCookieOptions(req));
+  const cookieOpts = accessTokenCookieOptions(req);
+  res.cookie("access_token", token, cookieOpts);
+  const xff = String(req.headers["x-forwarded-for"] || "");
+  // #region agent log
+  fetch("http://127.0.0.1:7747/ingest/b65552d9-3460-4b5c-aa0d-9260f9c34b9f", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "9a4bf9" }, body: JSON.stringify({ sessionId: "9a4bf9", runId: "pre-fix", hypothesisId: "E", location: "controllers/auth.js:openSession", message: "session opened", data: { role: user.role, cookieSecure: cookieOpts.secure, reqSecure: Boolean(req.secure), protocol: req.protocol, hasCf: Boolean(req.headers["cf-connecting-ip"]), xffHops: xff.split(",").map((s) => s.trim()).filter(Boolean).length, trust: String(req.app && req.app.get("trust proxy")), home: homeFor(user.role) }, timestamp: Date.now() }) }).catch(() => {});
+  // #endregion
   await attempts.clearFails(user.username, attempts.clientIp(req));
   if (user.email) await attempts.clearFails(user.email, attempts.clientIp(req));
   await userModel.updateLastLogin(user.id);
