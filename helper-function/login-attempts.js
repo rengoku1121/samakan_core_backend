@@ -16,8 +16,25 @@ function keyOfIp(ip) {
     .slice(0, 64);
 }
 
+function peerIp(req) {
+  const sock = req && (req.socket || req.connection);
+  return keyOfIp(sock && sock.remoteAddress);
+}
+
+function isLoopback(ip) {
+  return ip === "::1" || /^127\./.test(ip);
+}
+
+/** IP pengunjung dari Cloudflare, hanya jika Node dihubungi nginx di mesin yang sama. */
+function cloudflareVisitorIp(req) {
+  if (!req || !req.headers) return "";
+  const cf = keyOfIp(req.headers["cf-connecting-ip"]);
+  if (!cf || !isLoopback(peerIp(req))) return "";
+  return cf;
+}
+
 function clientIp(req) {
-  return keyOfIp(req && req.ip) || "unknown";
+  return cloudflareVisitorIp(req) || keyOfIp(req && req.ip) || "unknown";
 }
 
 /** rec = { count, resetAt } dengan resetAt dalam milidetik, atau null. */
@@ -92,6 +109,7 @@ module.exports = {
   keyOf,
   keyOfIp,
   clientIp,
+  cloudflareVisitorIp,
   isLockedState,
   nextState,
   isLocked,

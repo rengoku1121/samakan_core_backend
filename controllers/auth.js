@@ -85,6 +85,7 @@ async function openSession(req, res, user) {
     reqSecure: Boolean(req.secure),
     protocol: req.protocol,
     hasCf: Boolean(req.headers["cf-connecting-ip"]),
+    ipSource: attempts.cloudflareVisitorIp(req) ? "cf" : "forwarded",
     xffHops: xff.split(",").map((s) => s.trim()).filter(Boolean).length,
     trust: String(req.app && req.app.get("trust proxy")),
     home: homeFor(user.role),

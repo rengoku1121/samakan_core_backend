@@ -38,6 +38,7 @@ function requestNet(req) {
     secure: Boolean(req.secure),
     protocol: req.protocol,
     hasCf: Boolean(req.headers && req.headers["cf-connecting-ip"]),
+    ipSource: attempts.cloudflareVisitorIp(req) ? "cf" : "forwarded",
     xffHops: xff.split(",").map((s) => s.trim()).filter(Boolean).length,
     trust: String(req.app && req.app.get("trust proxy")),
   };
