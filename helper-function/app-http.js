@@ -116,7 +116,7 @@ function httpErrorStatus(err) {
 function shouldHydrateShellUser(req) {
   const p = String(req.path || "");
   if (p.startsWith("/api") || p.startsWith("/vendor") || p.startsWith("/public")) return false;
-  if (p === "/health" || p === "/sw.js" || p === "/manifest.webmanifest") return false;
+  if (p === "/health" || p === "/sw.js" || p === "/manifest.webmanifest" || p === "/pwa-build") return false;
   if (p === "/favicon.svg" || p === "/favicon.ico") return false;
   return true;
 }
@@ -157,6 +157,7 @@ function shellRender(req, res, next) {
           ? html.replace("</head>", `${headExtras}\n</head>`)
           : html;
       const themedHtml = wrapHtmlWithShell(htmlWithTheme, req);
+      res.setHeader("Cache-Control", "private, no-store");
 
       if (typeof renderCallback === "function") return renderCallback(null, themedHtml);
       return res.send(themedHtml);

@@ -17,6 +17,7 @@ const {
   notFoundHandler,
   errorHandler,
 } = require("./helper-function/app-http");
+const { PWA_BUILD } = require("./helper-function/app-shell");
 
 function createApp({ skipTimers = false, quiet = false } = {}) {
   const app = express();
@@ -56,6 +57,10 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
     res.type("application/manifest+json");
     res.setHeader("Cache-Control", "public, max-age=86400");
     return res.sendFile(path.join(publicDir, "manifest.webmanifest"));
+  });
+  app.get("/pwa-build", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ build: PWA_BUILD });
   });
   app.get(["/favicon.svg", "/favicon.ico"], (req, res) => {
     res.type("image/svg+xml");

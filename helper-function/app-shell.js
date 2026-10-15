@@ -2,8 +2,9 @@ const { escapeHtml } = require("../utils/escape-html");
 
 const { payoutUiEnabled } = require("./feature-flags");
 
-const SHELL_ASSET_VER = "20261006d";
+const SHELL_ASSET_VER = "20261015a";
 const THEME_VER = "20261014f";
+const PWA_BUILD = `${THEME_VER}-${SHELL_ASSET_VER}`;
 const THEME_COLOR = "#d91f26";
 
 /** Full URL path (e.g. /auth/login). req.path alone is wrong under mounted routers (/login only). */
@@ -262,8 +263,10 @@ function wrapHtmlWithShell(html, req) {
 function themeHeadExtras() {
   return `  <link rel="stylesheet" href="/public/theme-v2.css?v=${THEME_VER}" />
   <link rel="icon" href="/favicon.svg?v=${SHELL_ASSET_VER}" type="image/svg+xml" />
-  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/public/icons/apple-touch-icon.png?v=${SHELL_ASSET_VER}" />
+  <link rel="manifest" href="/manifest.webmanifest?v=${SHELL_ASSET_VER}" />
   <meta name="theme-color" content="${THEME_COLOR}" />
+  <meta name="samakan-build" content="${PWA_BUILD}" />
   <script src="/public/js/shell-fonts.js?v=${SHELL_ASSET_VER}" defer></script>`;
 }
 
@@ -271,6 +274,7 @@ module.exports = {
   fullRequestPath,
   wrapHtmlWithShell,
   themeHeadExtras,
+  PWA_BUILD,
   headerTitleForPath,
   activeHref,
   navForRole,

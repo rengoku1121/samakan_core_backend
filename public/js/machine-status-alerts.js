@@ -104,9 +104,45 @@
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
     if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") return;
 
+    var reloading = false;
+    function reloadOnce() {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    }
+
+    function watchInstalledApp(reg) {
+      var hadController = Boolean(navigator.serviceWorker.controller);
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (!hadController) {
+          hadController = true;
+          return;
+        }
+        reloadOnce();
+      });
+
+      function pullBuild() {
+        if (reg && reg.update) reg.update().catch(function () {});
+        var meta = document.querySelector('meta[name="samakan-build"]');
+        var mine = meta ? meta.getAttribute("content") : "";
+        if (!mine) return;
+        fetch("/pwa-build", { cache: "no-store", credentials: "same-origin" })
+          .then(function (resp) { return resp.ok ? resp.json() : null; })
+          .then(function (data) {
+            if (data && data.build && data.build !== mine) reloadOnce();
+          })
+          .catch(function () {});
+      }
+
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") pullBuild();
+      });
+    }
+
     navigator.serviceWorker
       .register("/sw.js")
       .then(function (reg) {
+        watchInstalledApp(reg);
         return Promise.all([reg, fetch("/admin/notifications/vapid-public-key", { credentials: "same-origin" })]);
       })
       .then(function (result) {
