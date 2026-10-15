@@ -116,11 +116,17 @@
             <form method="GET" action="/merchant" class="filter">
               <div class="field">
                 <label>Dari tanggal</label>
-                <input type="date" name="date_from" value="<%= dateFrom %>" />
+                <div class="date-slot">
+                  <input type="date" name="date_from" value="<%= dateFrom %>" />
+                  <span class="date-face" aria-hidden="true"></span>
+                </div>
               </div>
               <div class="field">
                 <label>Sampai tanggal</label>
-                <input type="date" name="date_to" value="<%= dateTo %>" />
+                <div class="date-slot">
+                  <input type="date" name="date_to" value="<%= dateTo %>" />
+                  <span class="date-face" aria-hidden="true"></span>
+                </div>
               </div>
               <button class="btn" type="submit">Terapkan</button>
             </form>
@@ -200,6 +206,6 @@
 
   <script src="/public/vendor/chart.umd.min.js" defer></script>
   <script src="/public/js/admin-dashboard-charts.js?v=20261014a" defer></script>
-  <script src="/public/js/dashboard-tabs.js?v=20261015c" defer></script>
+  <script src="/public/js/dashboard-tabs.js?v=20261015f" defer></script>
 </body>
 </html>

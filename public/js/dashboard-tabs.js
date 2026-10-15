@@ -15,6 +15,31 @@
     if (open) open.removeAttribute("open");
   });
 
+  function formatDashDate(value) {
+    var parts = String(value || "").split("-");
+    if (parts.length !== 3) return "";
+    var date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (isNaN(date.getTime())) return "";
+    try {
+      return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+    } catch (_) {
+      return value;
+    }
+  }
+
+  function paintDashDates() {
+    var inputs = root.querySelectorAll(".dash-head input[type='date']");
+    for (var i = 0; i < inputs.length; i++) {
+      var face = inputs[i].parentElement && inputs[i].parentElement.querySelector(".date-face");
+      if (face) face.textContent = formatDashDate(inputs[i].value);
+    }
+  }
+
+  root.addEventListener("change", function (ev) {
+    if (ev.target && ev.target.matches && ev.target.matches("input[type='date']")) paintDashDates();
+  });
+  paintDashDates();
+
   var kind = root.getAttribute("data-kind") || "merchant";
   var summaryUrl = root.getAttribute("data-summary") || "";
   var tabs = root.querySelector(".dash-tabs");

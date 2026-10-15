@@ -681,6 +681,10 @@ body.shell-app::after {
   max-width: 100%;
 }
 
+.shell .dash-head .filter .date-face {
+  display: none;
+}
+
 /* iOS mengunci lebar bawaan input tanggal. Di HP teks dikecilkan supaya "15 Oct 2026" muat setengah baris. */
 @media (max-width: 639px) {
   .shell .dash-head .filter {
@@ -699,12 +703,14 @@ body.shell-app::after {
   }
 
   .shell .dash-head .filter .field input[type="date"] {
+    position: relative;
     font-size: 12px !important;
     line-height: 1.15;
     min-height: 40px;
     height: 40px;
     padding: 6px 2px !important;
-    text-align: center;
+    text-align: center !important;
+    text-align-last: center;
     letter-spacing: 0;
     min-inline-size: 0;
     inline-size: 100%;
@@ -713,34 +719,46 @@ body.shell-app::after {
     appearance: none;
   }
 
-  .shell .dash-head .filter .field input[type="date"]::-webkit-date-and-time-value {
-    display: block;
-    width: 100%;
+  /* Safari iOS mengabaikan text-align pada input tanggal. Tulisan asli disembunyikan. */
+  .shell .dash-head .filter .date-slot {
+    position: relative;
     min-width: 0;
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.15;
-    text-align: center;
-    overflow: hidden;
+    width: 100%;
   }
 
+  .shell .dash-head .filter .field input[type="date"],
   .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit,
   .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-fields-wrapper,
   .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-text,
   .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-day-field,
   .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-month-field,
-  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-year-field {
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-    font-size: 12px;
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-year-field,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-date-and-time-value {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
   }
 
   .shell .dash-head .filter .field input[type="date"]::-webkit-calendar-picker-indicator {
-    margin: 0 2px 0 0;
+    opacity: 0;
+    width: 0;
+    margin: 0;
     padding: 0;
-    width: 14px;
-    height: 14px;
+  }
+
+  .shell .dash-head .filter .date-face {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    font-size: 12px;
+    line-height: 1.15;
+    color: #2a1a16;
+    text-align: center;
   }
 }
 
