@@ -649,7 +649,7 @@ body.shell-app::after {
   color: #bba39a;
 }
 
-/* Ringkasan: Dari dan Sampai selalu sejajar. Tombol tetap di bawah pada layar sempit. */
+/* Ringkasan: Dari dan Sampai tetap satu baris. Tombol di bawah pada layar sempit. */
 .shell .dash-head {
   flex-direction: column;
   align-items: stretch;
@@ -658,21 +658,90 @@ body.shell-app::after {
 .shell .dash-head .filter {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
+  gap: 8px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   align-items: end;
 }
 
 .shell .dash-head .filter .field {
   min-width: 0;
-  max-width: none;
+  max-width: 100%;
   width: auto;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .shell .dash-head .filter .field input {
+  display: block;
+  box-sizing: border-box;
   width: 100% !important;
   min-width: 0 !important;
+  max-width: 100%;
+}
+
+/* iOS mengunci lebar bawaan input tanggal. Di HP teks dikecilkan supaya "15 Oct 2026" muat setengah baris. */
+@media (max-width: 639px) {
+  .shell .dash-head .filter {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .shell .dash-head .filter .field {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+  }
+
+  .shell .dash-head .filter .field input[type="date"] {
+    font-size: 12px !important;
+    line-height: 1.15;
+    min-height: 40px;
+    height: 40px;
+    padding: 6px 2px !important;
+    text-align: center;
+    letter-spacing: 0;
+    min-inline-size: 0;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .shell .dash-head .filter .field input[type="date"]::-webkit-date-and-time-value {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.15;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-text,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-day-field,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-month-field,
+  .shell .dash-head .filter .field input[type="date"]::-webkit-datetime-edit-year-field {
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    font-size: 12px;
+  }
+
+  .shell .dash-head .filter .field input[type="date"]::-webkit-calendar-picker-indicator {
+    margin: 0 2px 0 0;
+    padding: 0;
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .shell .dash-head .filter > .btn,

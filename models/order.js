@@ -3,6 +3,9 @@ const crypto = require("crypto");
 const { pool } = require("../utils/db");
 const { pushDateRangeWhere } = require("../helper-function/date-range");
 
+const PAID_LIKE_SQL = "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
+const EXPORT_FETCH_LIMIT = 15001;
+
 function adminOrdersWhere({ status, merchant_id, machine_id, settlement_ref, date_from, date_to, q }) {
   const where = [];
   const params = [];
@@ -107,13 +110,14 @@ async function ordersSummary(where, params) {
   // Semua status "uang sudah masuk" (PAID/pemenuhan sebagian/dispense gagal),
   // TIDAK termasuk REFUNDED - uang itu sudah dikembalikan ke pembeli. Lihat
   // docs/architecture.md Fase 6-7 untuk daftar lengkap status order.
-  const PAID_LIKE_SQL = "('PAID','PAID_ITEM_MISSING','PAID_STOCK_FAILED','DISPENSING','DISPENSED','DISPENSE_FAILED')";
   const sql = `
     SELECT
       COUNT(1) AS total_orders,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE_SQL} THEN o.total ELSE 0 END), 0) AS sales_revenue,
       COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN o.total ELSE 0 END), 0) AS pending_amount,
-      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE_SQL} THEN 1 ELSE 0 END), 0) AS paid_orders
+      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE_SQL} THEN 1 ELSE 0 END), 0) AS paid_orders,
+      COALESCE(SUM(CASE WHEN o.status = 'REFUNDED' THEN 1 ELSE 0 END), 0) AS refunded_orders,
+      COALESCE(SUM(CASE WHEN o.status = 'REFUNDED' THEN o.total ELSE 0 END), 0) AS refunded_amount
     FROM orders o
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
   `;
@@ -124,8 +128,109 @@ async function ordersSummary(where, params) {
     sales_revenue: Number(r.sales_revenue || 0),
     pending_amount: Number(r.pending_amount || 0),
     paid_orders: Number(r.paid_orders || 0),
+    refunded_orders: Number(r.refunded_orders || 0),
+    refunded_amount: Number(r.refunded_amount || 0),
   };
 }
+
+function exportWhere(scope, filter) {
+  return scope === "merchant" ? merchantOrdersWhere(filter) : adminOrdersWhere(filter);
+}
+
+const EXPORT_SELECT = `
+  SELECT
+    o.order_code,
+    o.status,
+    o.total,
+    o.payment_ref,
+    o.paid_at,
+    o.created_at,
+    o.owner_share_amount,
+    o.menu_share_amount,
+    o.location_share_amount,
+    o.platform_share_amount,
+    m.merchant_code,
+    m.name AS merchant_name,
+    mc.code AS machine_code,
+    mc.name AS machine_name,
+    (
+      SELECT GROUP_CONCAT(
+        COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk')
+        ORDER BY oi.id SEPARATOR ', '
+      )
+      FROM order_items oi
+      WHERE oi.order_id = o.id
+    ) AS product_names
+  FROM orders o
+  INNER JOIN merchants m ON m.id = o.merchant_id
+  INNER JOIN machines mc ON mc.id = o.machine_id
+`;
+
+exports.listForExport = async (scope, filter) => {
+  const { where, params } = exportWhere(scope, filter);
+  const sql = `
+    ${EXPORT_SELECT}
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    ORDER BY o.created_at DESC, o.id DESC
+    LIMIT ?
+  `;
+  params.push(EXPORT_FETCH_LIMIT);
+  const [rows] = await pool.query(sql, params);
+  return rows;
+};
+
+exports.exportDaily = async (scope, filter) => {
+  const { where, params } = exportWhere(scope, filter);
+  const sql = `
+    SELECT
+      DATE_FORMAT(o.created_at, '%Y-%m-%d') AS day,
+      COUNT(1) AS total_orders,
+      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE_SQL} THEN o.total ELSE 0 END), 0) AS sales_revenue
+    FROM orders o
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    GROUP BY DATE_FORMAT(o.created_at, '%Y-%m-%d')
+    ORDER BY day ASC
+  `;
+  const [rows] = await pool.query(sql, params);
+  return rows;
+};
+
+exports.exportByMachine = async (scope, filter) => {
+  const { where, params } = exportWhere(scope, filter);
+  const sql = `
+    SELECT
+      mc.code AS machine_code,
+      mc.name AS machine_name,
+      COUNT(1) AS total_orders,
+      COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE_SQL} THEN o.total ELSE 0 END), 0) AS sales_revenue
+    FROM orders o
+    INNER JOIN machines mc ON mc.id = o.machine_id
+    ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+    GROUP BY mc.id, mc.code, mc.name
+    ORDER BY sales_revenue DESC, mc.code ASC
+  `;
+  const [rows] = await pool.query(sql, params);
+  return rows;
+};
+
+exports.exportByProduct = async (scope, filter) => {
+  const { where, params } = exportWhere(scope, filter);
+  const paid = `o.status IN ${PAID_LIKE_SQL}`;
+  where.push(paid);
+  const sql = `
+    SELECT
+      COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk') AS product_name,
+      COALESCE(SUM(oi.qty), 0) AS qty,
+      COALESCE(SUM(oi.line_total), 0) AS amount
+    FROM orders o
+    INNER JOIN order_items oi ON oi.order_id = o.id
+    WHERE ${where.join(" AND ")}
+    GROUP BY COALESCE(NULLIF(TRIM(oi.product_name), ''), oi.product_sku, 'Produk')
+    ORDER BY amount DESC, product_name ASC
+  `;
+  const [rows] = await pool.query(sql, params);
+  return rows;
+};
 
 exports.countMerchant = async (filter) => {
   const { where, params } = merchantOrdersWhere(filter);

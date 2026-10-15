@@ -10,9 +10,16 @@ const {
   settlementStatusLabel,
   settlementStatusBadgeClass,
 } = require("../../helper-function/settlement-status");
-const { resolveDateRange, datePresets, rangeLabel } = require("../../helper-function/date-range");
+const { resolveDateRange, datePresets, rangeLabel, ymdLocal } = require("../../helper-function/date-range");
+const orderExport = require("../orders-export");
 const { buildQuery, presetLinks } = require("../../helper-function/list-query");
 const { computeCruiseSplit } = require("../../helper-function/partnership");
+
+exports.exportFiltered = (req, res, next) =>
+  orderExport.downloadFiltered(req, res, next, { scope: "admin", listPath: "/admin/orders" });
+
+exports.exportMonthly = (req, res, next) =>
+  orderExport.downloadMonthly(req, res, next, { scope: "admin" });
 
 exports.list = async (req, res, next) => {
   try {
@@ -89,6 +96,10 @@ exports.list = async (req, res, next) => {
       qsBase: buildQuery({ ...filters, limit }),
       presets: presetLinks(datePresets(), { ...filters, limit }),
       rangeLabel: rangeLabel(date_from, date_to),
+      exportError: clean(req.query.export_err).slice(0, 180),
+      monthInput: /^\d{4}-\d{2}$/.test(clean(req.query.month))
+        ? clean(req.query.month)
+        : ymdLocal(new Date()).slice(0, 7),
       summary: {
         total_orders: summary.total_orders,
         paid_orders: summary.paid_orders,

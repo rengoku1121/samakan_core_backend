@@ -13,6 +13,7 @@
     .order-code{font-weight:800}
     .settlement-ref{margin-top:4px;font-size:12px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;display:block}
     .nowrap{white-space:nowrap}
+    .alert{margin:0 0 14px}
     @media (min-width:900px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
   </style>
 </head>
@@ -63,6 +64,10 @@
       </div>
     </div>
 
+    <% if (exportError) { %>
+      <div class="alert" role="alert"><%= exportError %></div>
+    <% } %>
+
     <div class="card">
       <div class="toolbar">
         <form method="GET" action="/orders">
@@ -96,6 +101,12 @@
 
           <button class="btn btn-primary" type="submit">Terapkan</button>
           <a class="btn btn-ghost" href="/orders">Reset</a>
+          <button class="btn btn-ghost" type="submit" formaction="/orders/export">Unduh Excel</button>
+          <div>
+            <label for="f-month">Bulan laporan</label>
+            <input id="f-month" type="month" name="month" value="<%= monthInput %>" />
+          </div>
+          <button class="btn btn-ghost" type="submit" formaction="/orders/export/monthly">Laporan bulan</button>
         </form>
       </div>
 

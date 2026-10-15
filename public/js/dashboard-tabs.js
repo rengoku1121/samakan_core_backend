@@ -4,6 +4,17 @@
   var root = document.querySelector("[data-dash]");
   if (!root) return;
 
+  document.addEventListener("click", function (ev) {
+    var open = root.querySelector(".dash-info[open]");
+    if (!open || open.contains(ev.target)) return;
+    open.removeAttribute("open");
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Escape") return;
+    var open = root.querySelector(".dash-info[open]");
+    if (open) open.removeAttribute("open");
+  });
+
   var kind = root.getAttribute("data-kind") || "merchant";
   var summaryUrl = root.getAttribute("data-summary") || "";
   var tabs = root.querySelector(".dash-tabs");

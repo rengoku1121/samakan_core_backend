@@ -6,7 +6,24 @@
   <title><%= title %></title>
   <style>
     .admin-dash { width: 100%; max-width: 100%; overflow: hidden; }
-    .dash-title h2 { margin:0 0 12px; font-size:22px; font-weight:700; color:#2a1a16; }
+    .dash-title { position:relative; display:flex; align-items:center; gap:8px; margin:0 0 12px; }
+    .dash-title h2 { margin:0; font-size:22px; font-weight:700; color:#2a1a16; }
+    .dash-info { position:static; }
+    .dash-info summary {
+      list-style:none; width:22px; height:22px; border-radius:50%;
+      border:1px solid #e7cfc6; background:#fff; color:#8e7269;
+      font-size:13px; font-weight:700; font-style:italic; line-height:1;
+      display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .dash-info summary::-webkit-details-marker { display:none; }
+    .dash-info summary::marker { content:""; }
+    .dash-info p {
+      position:absolute; left:0; top:calc(100% + 8px); z-index:6;
+      width:min(280px, 100%); margin:0; padding:10px 12px; box-sizing:border-box;
+      border-radius:12px; border:1px solid #f4e2d9; background:#fff;
+      box-shadow:0 8px 24px rgba(42,26,22,0.12);
+      color:#5c463f; font-size:13px; line-height:1.45; font-weight:500; font-style:normal;
+    }
     .dash-tabs {
       display:grid; grid-template-columns:1fr 1fr; position:relative;
       margin:0 0 18px; border-bottom:1px solid #f4e2d9;
@@ -30,7 +47,10 @@
     .muted { color:#8e7269; font-size:13px; line-height:1.45; }
     .dash-panel > .muted { margin:0 0 16px; }
     .shell .admin-dash .dash-head { margin:0 0 18px; width:100%; }
-    .shell .admin-dash .dash-head .filter { gap:12px 14px; }
+    .shell .admin-dash .dash-head .filter { gap:8px; }
+    @media (min-width: 640px) {
+      .shell .admin-dash .dash-head .filter { gap:12px 14px; }
+    }
     .shell .admin-dash .dash-head .filter > .btn {
       padding:10px 18px !important; height:auto !important; min-height:42px;
     }
@@ -38,7 +58,7 @@
     .filter { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
     .field { display:grid; gap:5px; }
     .field label { font-size:12px; color:#8e7269; font-weight:500; }
-    .field input { min-width:160px; padding:9px 10px; border-radius:10px; border:1px solid #f4e2d9; background:#fff; color:#2a1a16; }
+    .field input { width:100%; min-width:0; max-width:100%; box-sizing:border-box; padding:9px 10px; border-radius:10px; border:1px solid #f4e2d9; background:#fff; color:#2a1a16; }
     .btn { border:0; border-radius:10px; padding:10px 14px; color:#fff; font-weight:600; cursor:pointer; background:#d91f26; box-shadow:0 2px 8px rgba(217,31,38,0.18); }
     .btn:hover { background:#bc1a21; }
     .stats { display:grid; grid-template-columns:repeat(4, minmax(150px, 1fr)); gap:12px; margin:0 0 14px; min-width:0; }
@@ -77,6 +97,10 @@
   <div class="admin-dash" data-dash data-kind="admin" data-summary="/dashboard/summary">
     <div class="dash-title">
       <h2>Ringkasan</h2>
+      <details class="dash-info">
+        <summary aria-label="Penjelasan ringkasan">i</summary>
+        <p>Rentang tanggal menampilkan omzet, bagian Samakan, dan pembayaran yang masih terbuka. Semua waktu menghitung sejak awal, tanpa filter tanggal.</p>
+      </details>
     </div>
     <div class="dash-tabs" role="tablist" aria-label="Jenis ringkasan">
       <button type="button" class="dash-tab is-active" role="tab" id="tab-range" data-tab="range" aria-selected="true" aria-controls="panel-range">Rentang tanggal</button>
@@ -86,7 +110,6 @@
     <div class="dash-viewport">
       <div class="dash-track">
         <section class="dash-panel" id="panel-range" role="tabpanel" aria-labelledby="tab-range" data-panel="range">
-          <p class="muted">Omzet, bagian Samakan, dan pembayaran yang masih terbuka pada rentang tanggal.</p>
           <div class="dash-head">
             <form method="GET" action="/dashboard" class="filter">
               <div class="field">
@@ -154,7 +177,6 @@
         </section>
 
         <section class="dash-panel" id="panel-all" role="tabpanel" aria-labelledby="tab-all" data-panel="all" aria-hidden="true">
-          <p class="muted">Hitungan sejak awal, tanpa filter tanggal.</p>
           <div data-all-body>
             <p class="muted dash-placeholder">Angka semua waktu dimuat saat tab ini dibuka.</p>
           </div>
@@ -165,6 +187,6 @@
 
   <script src="/public/vendor/chart.umd.min.js" defer></script>
   <script src="/public/js/admin-dashboard-charts.js?v=20261014a" defer></script>
-  <script src="/public/js/dashboard-tabs.js?v=20261014a" defer></script>
+  <script src="/public/js/dashboard-tabs.js?v=20261015c" defer></script>
 </body>
 </html>
