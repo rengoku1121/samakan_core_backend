@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+  <style>
+    .seq-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+    .seq-tab{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:#fff;color:#7c2d12;font-weight:800;font-size:13px;text-decoration:none}
+    .seq-tab b{font-size:11px;padding:1px 7px;border-radius:999px;background:#fff2e5;color:#7c2d12}
+    .seq-tab.is-on{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;border-color:transparent}
+    .seq-tab.is-on b{background:rgba(255,255,255,.25);color:#fff}
+    .seq-list{list-style:none;margin:12px 0 0;padding:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .seq-row{display:grid;grid-template-columns:34px minmax(0,1fr) 150px auto;gap:12px;align-items:center;padding:10px 12px;border-top:1px solid #f1f5f9;background:#fff}
+    .seq-row:first-child{border-top:0}
+    .seq-n{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#fff2e5;color:#7c2d12;font-weight:900;font-size:13px}
+    .seq-row select,.seq-row input{margin:0}
+    .seq-ad-note{font-size:12.5px;color:var(--muted)}
+    .seq-actions{display:flex;gap:6px}
+    .seq-actions .btn{padding:7px 9px}
+    .seq-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}
+    .seq-loop{font-size:13px;color:var(--muted)}
+    .seq-loop b{color:var(--text)}
+    .seq-legend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:13px}
+    .seq-legend b{display:block;font-size:13px}
+    .seq-legend span{color:var(--muted);font-size:12.5px}
+    @media (max-width:720px){
+      .seq-row{grid-template-columns:28px minmax(0,1fr);}
+      .seq-row .seq-sec,.seq-row .seq-actions{grid-column:2}
+      .seq-legend{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap narrow">
+    <div class="header">
+      <div>
+        <h1>Urutan tayang</h1>
+        <div class="meta">Urutan slide screensaver per paket mesin. Diputar berulang saat layar kiosk diam.</div>
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver/house">Materi Samakan</a>
+        <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke iklan</a>
+      </div>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><b>Gagal:</b> <%= error %></div><% } %>
+
+    <nav class="seq-tabs" aria-label="Paket mesin">
+      <% models.forEach(function (m) { %>
+        <a class="seq-tab<%= m === model ? ' is-on' : '' %>" href="/admin/screensaver/sequence?model=<%= m %>"<%= m === model ? ' aria-current="page"' : '' %>><%= modelLabels[m] %> <b><%= counts[m] %></b></a>
+      <% }) %>
+    </nav>
+
+    <form method="POST" action="/admin/screensaver/sequence/<%= model %>" class="card" data-seq-form data-min="<%= limits.min %>" data-max="<%= limits.max %>" data-max-slots="<%= limits.maxSlots %>">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="section-title">
+        <h2>Paket <%= modelLabels[model] %></h2>
+        <button type="button" class="btn btn-ghost btn-sm" data-seq-add>+ Tambah slot</button>
+      </div>
+      <p class="hint" style="margin-top:0">Detik <%= limits.min %>–<%= limits.max %> per slot, maksimal <%= limits.maxSlots %> slot. Slot yang tidak punya isi dilewati saat tayang.</p>
+
+      <ol class="seq-list" data-seq-list>
+        <% slots.forEach(function (s, i) { %>
+          <li class="seq-row" data-seq-row>
+            <span class="seq-n" data-seq-n><%= i + 1 %></span>
+            <select name="kind" aria-label="Jenis slot" data-seq-kind>
+              <% kinds.forEach(function (k) { %>
+                <option value="<%= k %>" <%= s.kind === k ? 'selected' : '' %>><%= kindLabels[k] %></option>
+              <% }) %>
+            </select>
+            <div class="seq-sec">
+              <input type="number" name="seconds" min="<%= limits.min %>" max="<%= limits.max %>" value="<%= Math.round(s.duration_ms / 1000) %>" aria-label="Detik" data-seq-seconds <%= s.kind === 'ad' ? 'hidden' : '' %> />
+              <span class="seq-ad-note" data-seq-adnote <%= s.kind === 'ad' ? '' : 'hidden' %>>Durasi media campaign</span>
+            </div>
+            <div class="seq-actions">
+              <button type="button" class="btn btn-ghost" data-seq-up aria-label="Naikkan">↑</button>
+              <button type="button" class="btn btn-ghost" data-seq-down aria-label="Turunkan">↓</button>
+              <button type="button" class="btn btn-danger" data-seq-del aria-label="Hapus">✕</button>
+            </div>
+          </li>
+        <% }) %>
+      </ol>
+
+      <div class="seq-foot">
+        <span class="seq-loop">Satu putaran sekitar <b data-seq-loop><%= loop %></b> detik<span data-seq-loop-ad>, belum termasuk iklan</span>.</span>
+        <button class="btn btn-primary" type="submit">Simpan urutan</button>
+      </div>
+
+      <template data-seq-template>
+        <li class="seq-row" data-seq-row>
+          <span class="seq-n" data-seq-n></span>
+          <select name="kind" aria-label="Jenis slot" data-seq-kind>
+            <% kinds.forEach(function (k) { %>
+              <option value="<%= k %>" <%= k === 'menu' ? 'selected' : '' %>><%= kindLabels[k] %></option>
+            <% }) %>
+          </select>
+          <div class="seq-sec">
+            <input type="number" name="seconds" min="<%= limits.min %>" max="<%= limits.max %>" value="8" aria-label="Detik" data-seq-seconds />
+            <span class="seq-ad-note" data-seq-adnote hidden>Durasi media campaign</span>
+          </div>
+          <div class="seq-actions">
+            <button type="button" class="btn btn-ghost" data-seq-up aria-label="Naikkan">↑</button>
+            <button type="button" class="btn btn-ghost" data-seq-down aria-label="Turunkan">↓</button>
+            <button type="button" class="btn btn-danger" data-seq-del aria-label="Hapus">✕</button>
+          </div>
+        </li>
+      </template>
+    </form>
+
+    <div class="card">
+      <h2>Isi tiap jenis slot</h2>
+      <ul class="seq-legend">
+        <li><b>Tutorial Samakan</b><span>Materi tutorial yang diunggah di Materi Samakan, bergiliran satu per putaran.</span></li>
+        <li><b>Menu di mesin</b><span>Satu produk berstok per slot (foto, nama, harga), bergeser tiap putaran.</span></li>
+        <li><b>Promo Samakan</b><span>Materi promo yang diunggah. Bila belum ada, memakai slide promo bawaan kiosk.</span></li>
+        <li><b>Iklan berbayar</b><span>Satu campaign aktif dan lunas per putaran, bergiliran. Dilewati bila tidak ada iklan.</span></li>
+      </ul>
+      <p class="hint">Foto tampil sesuai detik slot. Video diputar sampai selesai, paling lama sesuai detik slot.</p>
+    </div>
+
+    <form method="POST" action="/admin/screensaver/sequence/<%= model %>/reset">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <button class="btn btn-ghost" type="submit" data-confirm="Kembalikan urutan paket <%= modelLabels[model] %> ke bawaan?">Kembalikan ke urutan bawaan</button>
+    </form>
+  </div>
+  <script src="/public/js/admin-screensaver.js?v=20261018a" defer></script>
+  <script src="/public/js/admin-screensaver-sequence.js?v=20261018a" defer></script>
+</body>
+</html>

@@ -125,24 +125,28 @@
     <% } %>
 
     <div class="card">
-      <h2>Kiosk UI</h2>
-      <div class="muted" style="margin-bottom:12px;">Layout grid + cara menampilkan katalog di layar kiosk.</div>
-      <form method="POST" action="/admin/settings/kiosk-ui">
+      <h2>Kiosk UI (pengaturan umum)</h2>
+      <div class="muted" style="margin-bottom:12px;">Cara menampilkan katalog di layar kiosk. Berlaku untuk semua mesin yang tidak punya pengaturan sendiri. Atur per mesin di halaman detail mesin.</div>
+      <% const globalSlot = kioskUi.catalog_mode === 'slot'; %>
+      <form method="POST" action="/admin/settings/kiosk-ui" data-kiosk-ui-form>
         <div class="row">
           <div>
             <label>Mode katalog</label>
-            <select name="catalog_mode" required>
+            <select name="catalog_mode" required data-kiosk-mode>
               <option value="product" <%= kioskUi.catalog_mode === 'product' ? 'selected' : '' %>>Per produk (stok digabung)</option>
               <option value="slot" <%= kioskUi.catalog_mode === 'slot' ? 'selected' : '' %>>Per slot (denah mesin 001–074)</option>
             </select>
           </div>
-          <div>
+          <div data-kiosk-columns<%- globalSlot ? ' style="display:none"' : '' %>>
             <label>Kolom katalog (item per baris)</label>
             <select name="catalog_columns" required>
               <% [2,3,4].forEach(function(n){ %>
                 <option value="<%= n %>" <%= Number(kioskUi.catalog_columns) === n ? 'selected' : '' %>><%= n %> kolom</option>
               <% }) %>
             </select>
+          </div>
+          <div data-kiosk-slot-note style="align-self:center;<%= globalSlot ? '' : 'display:none;' %>">
+            <p class="muted" style="margin:18px 0 0;">Mode per slot selalu tampil 4 kolom, sama seperti rak mesin.</p>
           </div>
         </div>
         <div class="muted" style="margin:10px 0 0; font-size:13px;">
@@ -154,6 +158,7 @@
           <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
         </div>
       </form>
+      <script src="/public/js/kiosk-ui-form.js?v=20261017a" defer></script>
     </div>
   </div>
 </body>

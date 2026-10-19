@@ -346,6 +346,45 @@ body.shell-app::after {
   border-color: var(--s-primary-100);
 }
 
+/* Tarik untuk memuat ulang, hanya saat aplikasi terpasang. */
+.pull-refresh {
+  position: fixed;
+  left: 50%;
+  top: calc(62px + env(safe-area-inset-top));
+  z-index: 99970;
+  transform: translate(-50%, -8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s linear;
+}
+
+.pull-refresh.is-on {
+  opacity: 1;
+}
+
+.pull-refresh-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: #8e7269;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  border: 1px solid #f4e2d9;
+  box-shadow: 0 6px 16px rgba(42, 26, 22, 0.12);
+}
+
+.pull-refresh.is-armed .pull-refresh-label {
+  color: #d91f26;
+}
+
+body.shell-app.is-pulling .shell-content {
+  transform: translateY(44px);
+}
+
 /* Topbar */
 .shell-topbar {
   position: sticky;
@@ -2117,5 +2156,108 @@ body.shell-app::after {
 
   .shell-content {
     padding: 22px max(28px, env(safe-area-inset-right)) 40px max(28px, env(safe-area-inset-left));
+  }
+}
+
+/* HP / tablet sempit: input, select, dan tanggal tidak boleh melewati tepi layar.
+   iOS mengunci lebar bawaan input tanggal dan select (ikut opsi terpanjang),
+   dan men-zoom halaman kalau ukuran huruf kontrol di bawah 16px. */
+@media (max-width: 900px) {
+  .shell .toolbar,
+  .shell .toolbar form,
+  .shell form.filters,
+  .shell form.orders-filter,
+  .shell .filter,
+  .shell .filter-bar,
+  .shell .card form,
+  .shell .grid2,
+  .shell .grid3 {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .shell .toolbar form > *,
+  .shell form.filters > *,
+  .shell form.orders-filter > *,
+  .shell .filter > *,
+  .shell .card form > *,
+  .shell .grid2 > *,
+  .shell .grid3 > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .shell .grid2,
+  .shell .grid3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shell input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]),
+  .shell select,
+  .shell textarea {
+    display: block;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+    font-size: 16px;
+  }
+
+  .shell select {
+    padding-left: 10px !important;
+    padding-right: 28px !important;
+    background-position: right 10px center !important;
+    text-overflow: ellipsis;
+  }
+
+  .shell .table-pager-limit select {
+    display: inline-block;
+    width: 100px !important;
+    max-width: 100px !important;
+    min-width: 0 !important;
+    inline-size: 100px;
+    max-inline-size: 100px;
+    font-size: 16px;
+  }
+
+  .shell input[type="date"],
+  .shell input[type="datetime-local"],
+  .shell input[type="time"],
+  .shell input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    background-color: var(--s-surface) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%238e7269' stroke-width='1.6' stroke-linecap='round'%3E%3Crect x='2' y='3.2' width='12' height='10.6' rx='2'/%3E%3Cpath d='M2 6.6h12M5.4 1.8v2.4M10.6 1.8v2.4'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 12px center !important;
+    background-size: 16px 16px !important;
+    padding-right: 36px !important;
+  }
+
+  .shell input[type="date"]::-webkit-calendar-picker-indicator,
+  .shell input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .shell input[type="time"]::-webkit-calendar-picker-indicator,
+  .shell input[type="month"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 42px;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+}
+
+/* Layar sangat sempit: dua kolom memotong tulisan select, jadi ditumpuk. */
+@media (max-width: 399px) {
+  .shell form.orders-filter {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

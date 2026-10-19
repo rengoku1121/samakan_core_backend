@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    .ads-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+    .ads-step { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; }
+    .ads-step-n { flex: 0 0 auto; width: 26px; height: 26px; box-sizing: border-box; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; background: var(--s-primary-50); color: var(--s-primary-700); border: 1px solid var(--s-primary-100); }
+    .ads-step b { display: block; font-size: 13.5px; color: var(--s-text); margin: 2px 0 2px; }
+    .ads-step-text { display: block; font-size: 12.5px; color: var(--s-muted); line-height: 1.4; }
+
+    .ads-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 13px; color: var(--s-muted); }
+    .ads-filter { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--s-border2); background: var(--s-surface); color: var(--s-text2); font-size: 12.5px; font-weight: 700; text-decoration: none; white-space: nowrap; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+    .ads-filter b { min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--s-surface2); color: var(--s-text); font-size: 11.5px; text-align: center; }
+    .ads-filter:hover { border-color: var(--s-primary-100); background: var(--s-primary-50); color: var(--s-primary-700); }
+    .ads-filter.is-on { border-color: var(--s-primary); background: var(--s-primary); color: #fff; }
+    .ads-filter.is-on b { background: rgba(255, 255, 255, 0.22); color: #fff; }
+    .ads-machine-count { margin-left: auto; }
+    .ads-empty-filter { text-align: center; padding: 26px 18px !important; color: var(--s-muted); font-size: 13.5px; }
+    .ads-empty-filter p { margin: 0 0 12px; }
+
+    .ads-list { display: grid; gap: 12px; }
+    .ads-item { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 14px; padding: 14px; }
+    .ads-thumb { position: relative; width: 168px; height: 96px; border-radius: 12px; overflow: hidden; background: #1a100e; }
+    .ads-thumb img, .ads-thumb video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ads-thumb-more { position: absolute; right: 6px; bottom: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(26, 16, 14, 0.72); color: #fff; font-size: 11px; font-weight: 700; }
+    .ads-thumb-kind { position: absolute; left: 6px; top: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(26, 16, 14, 0.72); color: #fff; font-size: 11px; font-weight: 700; }
+    .ads-body { min-width: 0; }
+    .ads-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 6px; }
+    .ads-title h2 { margin: 0 !important; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+    .ads-facts { display: grid; gap: 4px; margin: 0 0 10px; font-size: 13px; color: var(--s-text2); }
+    .ads-facts .k { display: inline-block; min-width: 64px; color: var(--s-muted); }
+    .ads-machines { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+    .ads-msg { margin: 0 0 10px !important; padding: 9px 12px !important; font-size: 13px !important; }
+    .ads-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--s-muted); }
+
+    .ads-empty { text-align: center; padding: 34px 18px !important; }
+    .ads-empty-icon { width: 48px; height: 48px; margin: 0 auto 10px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--s-primary-50); color: var(--s-primary); }
+    .ads-empty h2 { margin: 0 0 4px !important; font-size: 16px; }
+    .ads-empty p { margin: 0 auto 14px; max-width: 420px; color: var(--s-muted); font-size: 13.5px; line-height: 1.5; }
+
+    @media (max-width: 720px) {
+      .ads-steps { gap: 6px; }
+      .ads-step { flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; text-align: center; }
+      .ads-step b { font-size: 12px; margin: 0; }
+      .ads-step-text { display: none; }
+      .ads-item { grid-template-columns: minmax(0, 1fr); }
+      .ads-thumb { width: 100%; height: auto; padding-top: 56.25%; }
+      .ads-thumb img, .ads-thumb video { position: absolute; top: 0; left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <%
+    const badgeClass = { pending: 'b-pending', approved: 'b-paid', rejected: 'b-failed', cancelled: 'b-other' };
+    const fmtDate = function (ymd) {
+      if (!ymd) return '-';
+      const p = String(ymd).split('-');
+      const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return Number(p[2]) + ' ' + (bulan[Number(p[1]) - 1] || p[1]) + ' ' + p[0];
+    };
+    const fmtSent = function (d) {
+      if (!d) return '';
+      try {
+        return new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+      } catch (e) { return ''; }
+    };
+  %>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Iklan</h1>
+        <div class="muted">Pasang iklan di layar mesin Plus atau Basic milik Anda.</div>
+      </div>
+      <div>
+        <a class="btn btn-primary" href="/merchant/ads/new">Ajukan iklan</a>
+      </div>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok" style="margin:0 0 14px"><%= notice %></div><% } %>
+    <% if (errorNotice) { %><div class="alert alert-error" style="margin:0 0 14px"><%= errorNotice %></div><% } %>
+
+    <div class="ads-steps">
+      <div class="card ads-step">
+        <span class="ads-step-n">1</span>
+        <div><b>Ajukan</b><span class="ads-step-text">Isi nama, tanggal tayang, materi, dan mesin.</span></div>
+      </div>
+      <div class="card ads-step">
+        <span class="ads-step-n">2</span>
+        <div><b>Samakan meninjau</b><span class="ads-step-text">Permintaan disetujui atau ditolak dengan catatan.</span></div>
+      </div>
+      <div class="card ads-step">
+        <span class="ads-step-n">3</span>
+        <div><b>Tayang</b><span class="ads-step-text">Setelah pembayaran lunas, Samakan menyalakan iklan di mesin.</span></div>
+      </div>
+    </div>
+
+    <% if (totalAll) { %>
+      <%
+        const filters = [
+          { key: '', label: 'Semua', n: totalAll },
+          { key: 'pending', label: 'Menunggu', n: counts.pending },
+          { key: 'approved', label: 'Disetujui', n: counts.approved },
+          { key: 'rejected', label: 'Ditolak', n: counts.rejected },
+        ];
+        if (counts.cancelled) filters.push({ key: 'cancelled', label: 'Dibatalkan', n: counts.cancelled });
+      %>
+      <nav class="ads-summary" aria-label="Filter status">
+        <% filters.forEach(function (f) { %>
+          <a class="dash-tab ads-filter<%= status === f.key ? ' is-on' : '' %>" href="/merchant/ads<%= f.key ? '?status=' + f.key : '' %>"<%= status === f.key ? ' aria-current="page"' : '' %>><%= f.label %> <b><%= f.n %></b></a>
+        <% }) %>
+        <span class="ads-machine-count"><%= machines.length %> mesin bisa dipilih</span>
+      </nav>
+    <% } %>
+
+    <% if (!rows.length && totalAll) { %>
+      <div class="card ads-empty-filter">
+        <p>Tidak ada permintaan berstatus <b><%= statusLabels[status] || status %></b>.</p>
+        <a class="btn btn-ghost btn-sm" href="/merchant/ads">Lihat semua</a>
+      </div>
+    <% } else if (!rows.length) { %>
+      <div class="card ads-empty">
+        <div class="ads-empty-icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10.5 9.5v5l4-2.5z"/></svg>
+        </div>
+        <h2>Belum ada permintaan iklan</h2>
+        <p>Anda punya <%= machines.length %> mesin Plus atau Basic yang bisa dipakai untuk iklan. Siapkan foto atau video, lalu ajukan ke Samakan.</p>
+        <a class="btn btn-primary" href="/merchant/ads/new">Ajukan iklan pertama</a>
+      </div>
+    <% } else { %>
+      <div class="ads-list">
+        <% rows.forEach(function (row) { %>
+          <% const first = (row.media || [])[0]; const more = (row.media || []).length - 1; %>
+          <article class="card ads-item">
+            <div class="ads-thumb">
+              <% if (first && first.media_type === 'video') { %>
+                <video src="<%= first.file_path %>" muted playsinline preload="metadata"></video>
+                <span class="ads-thumb-kind">Video</span>
+              <% } else if (first) { %>
+                <img src="<%= first.file_path %>" alt="" loading="lazy" />
+              <% } %>
+              <% if (more > 0) { %><span class="ads-thumb-more">+<%= more %> file</span><% } %>
+            </div>
+
+            <div class="ads-body">
+              <div class="ads-title">
+                <h2><%= row.name %></h2>
+                <span class="badge <%= badgeClass[row.status] || 'b-other' %>"><%= statusLabels[row.status] || row.status %></span>
+              </div>
+
+              <div class="ads-facts">
+                <div><span class="k">Tayang</span><%= fmtDate(row.start_date) %> – <%= fmtDate(row.end_date) %></div>
+                <div>
+                  <span class="k">Mesin</span>
+                  <span class="ads-machines">
+                    <% (row.machines || []).forEach(function (m) { %>
+                      <span class="pill"><%= m.machine_code || ('Mesin #' + m.machine_id) %></span>
+                    <% }) %>
+                  </span>
+                </div>
+              </div>
+
+              <% if (row.status === 'pending') { %>
+                <div class="alert alert-warn ads-msg">Menunggu tinjauan Samakan.</div>
+              <% } else if (row.status === 'approved') { %>
+                <div class="alert alert-ok ads-msg">Disetujui. Iklan tayang setelah pembayaran lunas dan Samakan menyalakannya.</div>
+              <% } else if (row.status === 'rejected') { %>
+                <div class="alert alert-error ads-msg"><b>Catatan Samakan:</b> <%= row.review_note || 'Tidak ada catatan.' %></div>
+              <% } %>
+
+              <div class="ads-foot">
+                <span>Diajukan <%= fmtSent(row.created_at) %></span>
+                <% if (row.status === 'pending') { %>
+                  <form method="POST" action="/merchant/ads/<%= row.id %>/cancel" onsubmit="return confirm('Batalkan permintaan ini?');">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <button class="btn btn-ghost btn-sm" type="submit">Batalkan</button>
+                  </form>
+                <% } else if (row.status === 'rejected') { %>
+                  <a class="btn btn-ghost btn-sm" href="/merchant/ads/new">Ajukan ulang</a>
+                <% } %>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+
+      <% if (totalPages > 1) { %>
+        <%- include('../../partials/table-pager', { basePath: '/merchant/ads', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows.length, keepQs: status ? 'status=' + status : '' }) %>
+      <% } %>
+    <% } %>
+  </div>
+</body>
+</html>

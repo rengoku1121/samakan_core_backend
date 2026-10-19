@@ -5,6 +5,7 @@ const attempts = require("../helper-function/login-attempts");
 const { verifyAccessToken } = require("../helper-function/jwt");
 const { clearAccessTokenCookieOptions } = require("../helper-function/cookie");
 const { canEditMoneySettings, roleAllowed } = require("../helper-function/rbac");
+const adRequests = require("../models/screensaver-request");
 
 const extractToken = (req) => {
   // cookie
@@ -95,11 +96,21 @@ exports.requireAuth = async (req, res, next) => {
       }
     }
 
+    let canRequestAds = false;
+    if (dbUser.role === "merchant") {
+      try {
+        canRequestAds = (await adRequests.countEligible(normMid(dbMerchantId))) > 0;
+      } catch (err) {
+        if (!err || err.code !== "ER_NO_SUCH_TABLE") throw err;
+      }
+    }
+
     // attach user for downstream use (merchant_id selalu number untuk query konsisten)
     req.user = {
       id: String(dbUser.id),
       role: dbUser.role,
       merchant_id: normMid(dbMerchantId),
+      canRequestAds,
     };
 
     return next();

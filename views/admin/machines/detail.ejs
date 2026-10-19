@@ -131,6 +131,51 @@
         <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
       </div>
     </div>
+
+    <% if (typeof kioskUi !== 'undefined' && kioskUi) { %>
+      <% const g = kioskUi.global; const eff = kioskUi.effective; %>
+      <div class="card" id="kiosk-ui" style="margin-top:18px;">
+        <h2 style="margin:0 0 4px;font-size:17px;">Tampilan katalog kiosk</h2>
+        <div class="muted">Kosongkan pilihan agar mesin ini ikut pengaturan umum di Settings.</div>
+
+        <% if (kioskUi.notice) { %><div class="alert alert-ok" style="margin-top:12px;"><%= kioskUi.notice %></div><% } %>
+        <% if (kioskUi.error) { %><div class="alert alert-error" style="margin-top:12px;"><%= kioskUi.error %></div><% } %>
+
+        <% const slotChosen = (kioskUi.own.mode || g.catalog_mode) === 'slot'; %>
+        <form method="POST" action="/admin/machines/<%= m.id %>/kiosk-ui" style="margin-top:14px;" data-kiosk-ui-form data-global-mode="<%= g.catalog_mode %>">
+          <div class="row" style="margin-top:0;align-items:flex-start;">
+            <div style="flex:1 1 220px;">
+              <label for="kiosk_catalog_mode" style="display:block;font-size:12px;font-weight:800;margin-bottom:6px;">Mode katalog</label>
+              <select id="kiosk_catalog_mode" name="kiosk_catalog_mode" style="width:100%;" data-kiosk-mode>
+                <option value="" <%= kioskUi.own.mode === '' ? 'selected' : '' %>>Ikut pengaturan umum (sekarang: <%= kioskUi.modeLabels[g.catalog_mode] %>)</option>
+                <option value="product" <%= kioskUi.own.mode === 'product' ? 'selected' : '' %>><%= kioskUi.modeLabels.product %></option>
+                <option value="slot" <%= kioskUi.own.mode === 'slot' ? 'selected' : '' %>><%= kioskUi.modeLabels.slot %></option>
+              </select>
+            </div>
+            <div style="flex:1 1 220px;<%= slotChosen ? 'display:none;' : '' %>" data-kiosk-columns>
+              <label for="kiosk_catalog_columns" style="display:block;font-size:12px;font-weight:800;margin-bottom:6px;">Kolom per baris</label>
+              <select id="kiosk_catalog_columns" name="kiosk_catalog_columns" style="width:100%;">
+                <option value="" <%= kioskUi.own.columns === '' ? 'selected' : '' %>>Ikut pengaturan umum (sekarang: <%= g.catalog_columns %> kolom)</option>
+                <% [2, 3, 4].forEach(function (n) { %>
+                  <option value="<%= n %>" <%= kioskUi.own.columns === String(n) ? 'selected' : '' %>><%= n %> kolom</option>
+                <% }) %>
+              </select>
+            </div>
+            <div style="flex:1 1 220px;align-self:center;<%= slotChosen ? '' : 'display:none;' %>" data-kiosk-slot-note>
+              <p class="muted" style="margin:18px 0 0;">Mode per slot selalu tampil 4 kolom, sama seperti rak mesin.</p>
+            </div>
+          </div>
+          <p class="muted" style="margin:6px 0 0;">
+            Yang tampil di mesin sekarang: <b><%= kioskUi.modeLabels[eff.catalog_mode] %></b><% if (eff.catalog_mode === 'product') { %>, <b><%= eff.catalog_columns %> kolom</b><% } %>
+            · <%= eff.source === 'machine' ? 'pengaturan khusus mesin ini' : 'ikut pengaturan umum' %>
+          </p>
+          <div class="row" style="margin-top:14px;">
+            <button class="btn btn-primary" type="submit">Simpan tampilan</button>
+          </div>
+        </form>
+      </div>
+      <script src="/public/js/kiosk-ui-form.js?v=20261017a" defer></script>
+    <% } %>
   </div>
 </body>
 </html>

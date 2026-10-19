@@ -1,5 +1,7 @@
 // controllers/admin/screensaver.js — iklan screensaver kiosk, khusus superadmin.
 const screensaverModel = require("../../models/screensaver");
+const requestModel = require("../../models/screensaver-request");
+const sequenceModel = require("../../models/screensaver-sequence");
 const merchantModel = require("../../models/merchant");
 const machineModel = require("../../models/machine");
 const { formatDateId } = require("../../helper-function/format-date");
@@ -35,6 +37,7 @@ const {
 const NOTICES = {
   created: "Campaign dibuat.",
   saved: "Campaign disimpan.",
+  "from-request": "Permintaan mitra disetujui. Isi harga, tandai lunas, lalu aktifkan agar iklan tayang.",
   status: "Status tayang diperbarui.",
   payment: "Status pembayaran diperbarui.",
   deleted: "Campaign dihapus beserta medianya.",
@@ -89,7 +92,12 @@ function finalizeAll(files, imageMs, fileSeconds = []) {
 
 async function sweepQuietly() {
   try {
-    sweepOrphans(await screensaverModel.allMediaPaths());
+    const [campaignPaths, requestPaths, housePaths] = await Promise.all([
+      screensaverModel.allMediaPaths(),
+      requestModel.allMediaPaths().catch((err) => (err && err.code === "ER_NO_SUCH_TABLE" ? [] : Promise.reject(err))),
+      sequenceModel.allHouseMediaPaths(),
+    ]);
+    sweepOrphans(campaignPaths.concat(requestPaths, housePaths));
   } catch (err) {
     console.error("[screensaver-sweep]", err.message);
   }
@@ -127,6 +135,12 @@ async function renderForm(req, res, { status = 200, campaign = null, value, erro
 exports.list = async (req, res, next) => {
   try {
     const today = jakartaToday();
+    let pendingRequests = 0;
+    try {
+      pendingRequests = await requestModel.countPending();
+    } catch (err) {
+      if (!err || err.code !== "ER_NO_SUCH_TABLE") throw err;
+    }
     const mapped = (await screensaverModel.listCampaigns()).map((c) => ({
       ...c,
       price_fmt: rupiah(c.price_amount),
@@ -147,6 +161,7 @@ exports.list = async (req, res, next) => {
       total: paged.total,
       totalPages: paged.totalPages,
       today,
+      pendingRequests,
       notice: NOTICES[String(req.query.ok || "")] || null,
       errorNotice: req.query.err ? String(req.query.err).slice(0, 200) : null,
       playlistLabels: PLAYLIST_LABELS,

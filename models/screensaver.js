@@ -157,20 +157,24 @@ const PAID_AT_SQL = `CASE
   WHEN ? = 'unpaid' THEN NULL
   ELSE paid_at END`;
 
+async function insertCampaign(conn, fields, targets, media, userId) {
+  const [res] = await conn.query(
+    `INSERT INTO screensaver_campaigns
+      (name, advertiser_name, playlist_mode, price_amount, payment_status, status,
+       start_date, end_date, priority, notes, paid_at, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${fields.payment_status === "paid" ? "CURRENT_TIMESTAMP(3)" : "NULL"}, ?, ?)`,
+    [...campaignValues(fields), userId, userId]
+  );
+  const id = Number(res.insertId);
+  await replaceTargets(conn, id, targets);
+  await appendMedia(conn, id, media);
+  return id;
+}
+
+exports.insertCampaign = insertCampaign;
+
 exports.createCampaign = async (fields, targets, media, userId) =>
-  inTransaction(async (conn) => {
-    const [res] = await conn.query(
-      `INSERT INTO screensaver_campaigns
-        (name, advertiser_name, playlist_mode, price_amount, payment_status, status,
-         start_date, end_date, priority, notes, paid_at, created_by, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${fields.payment_status === "paid" ? "CURRENT_TIMESTAMP(3)" : "NULL"}, ?, ?)`,
-      [...campaignValues(fields), userId, userId]
-    );
-    const id = Number(res.insertId);
-    await replaceTargets(conn, id, targets);
-    await appendMedia(conn, id, media);
-    return id;
-  });
+  inTransaction((conn) => insertCampaign(conn, fields, targets, media, userId));
 
 exports.updateCampaign = async (id, fields, targets, media, userId) =>
   inTransaction(async (conn) => {

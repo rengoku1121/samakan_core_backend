@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div>
+        <h1>Permintaan iklan</h1>
+        <div class="meta">Dari pemilik mesin Plus atau Basic. Setuju membuat campaign draft yang belum lunas. Iklan belum tayang sampai ditandai lunas dan aktif.</div>
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke iklan</a>
+      </div>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (errorNotice) { %><div class="alert alert-error"><b>Gagal:</b> <%= errorNotice %></div><% } %>
+
+    <div class="card flush">
+      <% if (!rows.length) { %>
+        <div class="empty">Belum ada permintaan.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Permintaan</th>
+              <th>Mesin</th>
+              <th>Materi</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(function (row) { %>
+              <tr>
+                <td>
+                  <b><%= row.name %></b><br />
+                  <span class="muted"><%= row.merchant_name || 'Mitra' %><%= row.merchant_code ? ' · ' + row.merchant_code : '' %></span><br />
+                  <span class="muted"><%= row.start_date %> – <%= row.end_date %></span><br />
+                  <% var badge = row.status === 'pending' ? 'warn' : (row.status === 'approved' ? 'on' : (row.status === 'rejected' ? 'bad' : 'off')); %>
+                  <span class="badge <%= badge %>"><%= statusLabels[row.status] || row.status %></span>
+                  <% if (row.review_note) { %><div class="muted"><%= row.review_note %></div><% } %>
+                  <% if (row.campaign_id) { %>
+                    <div><a href="/admin/screensaver/<%= row.campaign_id %>/edit">Buka campaign</a></div>
+                  <% } %>
+                </td>
+                <td>
+                  <% (row.machines || []).forEach(function (m) { %>
+                    <div><%= m.machine_code || ('#' + m.machine_id) %></div>
+                    <div class="muted"><%= packageLabels[m.commercial_model] || '' %></div>
+                  <% }) %>
+                </td>
+                <td>
+                  <% (row.media || []).forEach(function (m) { %>
+                    <% if (m.media_type === 'video') { %>
+                      <video class="thumb" src="<%= m.file_path %>" muted playsinline preload="metadata"></video>
+                    <% } else { %>
+                      <img class="thumb" src="<%= m.file_path %>" alt="" />
+                    <% } %>
+                  <% }) %>
+                </td>
+                <td>
+                  <% if (row.status === 'pending') { %>
+                    <form method="POST" action="/admin/screensaver/requests/<%= row.id %>/approve" onsubmit="return confirm('Jadikan campaign draft? Iklan belum tayang sampai ditandai lunas dan aktif.');">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <button class="btn btn-primary btn-sm" type="submit">Setujui</button>
+                    </form>
+                    <form method="POST" action="/admin/screensaver/requests/<%= row.id %>/reject" style="margin-top:8px">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                      <input type="text" name="review_note" maxlength="500" placeholder="Catatan penolakan" required style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #e5e7eb;border-radius:8px" />
+                      <button class="btn btn-danger btn-sm" type="submit">Tolak</button>
+                    </form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <%- include('../../partials/table-pager', { basePath: '/admin/screensaver/requests', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows.length, keepQs: '' }) %>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

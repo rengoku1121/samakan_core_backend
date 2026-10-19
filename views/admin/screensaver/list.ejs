@@ -17,6 +17,9 @@
         </div>
       </div>
       <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver/requests">Permintaan mitra<% if (typeof pendingRequests !== 'undefined' && pendingRequests) { %> (<%= pendingRequests %>)<% } %></a>
+        <a class="btn btn-ghost" href="/admin/screensaver/sequence">Urutan tayang</a>
+        <a class="btn btn-ghost" href="/admin/screensaver/house">Materi Samakan</a>
         <a class="btn btn-ghost" href="/admin/screensaver/settings">Pengaturan pemutar</a>
         <a class="btn btn-primary" href="/admin/screensaver/new">+ Campaign baru</a>
       </div>

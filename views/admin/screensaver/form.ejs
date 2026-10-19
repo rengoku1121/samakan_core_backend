@@ -43,12 +43,12 @@
               <option value="merge" <%= value.playlist_mode === 'merge' ? 'selected' : '' %>><%= playlistLabels.merge %></option>
               <option value="replace" <%= value.playlist_mode === 'replace' ? 'selected' : '' %>><%= playlistLabels.replace %></option>
             </select>
-            <div class="hint">Gantikan = slide bawaan Samakan disembunyikan selama campaign ini tayang. Kalau semua media gagal dimuat, kiosk tetap kembali ke slide bawaan.</div>
+            <div class="hint">Hanya untuk aplikasi kiosk versi lama. Kiosk terbaru memutar iklan di slot Iklan berbayar sesuai <a href="/admin/screensaver/sequence">Urutan tayang</a>.</div>
           </div>
           <div>
             <label for="priority">Urutan tayang</label>
             <input type="number" id="priority" name="priority" min="1" max="9999" value="<%= value.priority %>" />
-            <div class="hint">Angka kecil tayang lebih dulu bila ada beberapa campaign di mesin yang sama.</div>
+            <div class="hint">Angka kecil dapat giliran lebih dulu bila ada beberapa campaign di mesin yang sama. Satu campaign tampil per putaran.</div>
           </div>
         </div>
 

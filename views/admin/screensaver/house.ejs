@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <%- include('_style') %>
+</head>
+<body>
+  <div class="wrap narrow">
+    <div class="header">
+      <div>
+        <h1>Materi Samakan</h1>
+        <div class="meta">Tutorial cara pesan dan promo Samakan yang tampil di slot Tutorial dan Promo pada urutan tayang.</div>
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="/admin/screensaver/sequence">Urutan tayang</a>
+        <a class="btn btn-ghost" href="/admin/screensaver">Kembali ke iklan</a>
+      </div>
+    </div>
+
+    <% if (notice) { %><div class="alert alert-ok"><%= notice %></div><% } %>
+    <% if (error) { %><div class="alert alert-error"><b>Gagal:</b> <%= error %></div><% } %>
+
+    <form method="POST" action="/admin/screensaver/house" enctype="multipart/form-data" class="card">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <h2>Tambah materi</h2>
+      <div class="grid2">
+        <div>
+          <label for="kind">Jenis</label>
+          <select id="kind" name="kind" required>
+            <option value="tutorial">Tutorial Samakan</option>
+            <option value="promo">Promo Samakan</option>
+          </select>
+        </div>
+        <div>
+          <label for="media_files">Foto atau video</label>
+          <input type="file" id="media_files" name="media_files" multiple required accept="image/jpeg,image/png,image/webp,video/mp4" />
+        </div>
+      </div>
+      <p class="hint">JPG, PNG, WEBP, atau MP4. Foto maks <%= limits.imageMb %> MB, video maks <%= limits.videoMb %> MB, paling banyak <%= limits.maxFiles %> file sekali unggah. Lama tayang diatur di Urutan tayang.</p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn btn-primary" type="submit">Unggah</button>
+      </div>
+    </form>
+
+    <% groups.forEach(function (g) { %>
+      <div class="card">
+        <div class="section-title">
+          <h2><%= g.label %></h2>
+          <span class="muted"><%= g.items.filter(function (m) { return m.status === 'active'; }).length %> aktif dari <%= g.items.length %></span>
+        </div>
+        <% if (!g.items.length) { %>
+          <p class="hint">
+            <% if (g.kind === 'promo') { %>Belum ada materi. Slot Promo memakai slide promo bawaan kiosk.<% } else { %>Belum ada materi. Slot Tutorial dilewati sampai ada materi aktif.<% } %>
+          </p>
+        <% } %>
+        <% g.items.forEach(function (m, i) { %>
+          <div class="media-row">
+            <% if (m.media_type === 'video') { %>
+              <video class="thumb" src="<%= m.file_path %>" muted playsinline preload="metadata"></video>
+            <% } else { %>
+              <img class="thumb" src="<%= m.file_path %>" alt="" />
+            <% } %>
+            <div>
+              <b><%= m.original_name || (m.media_type === 'video' ? 'Video' : 'Foto') %></b>
+              <div class="muted"><%= m.media_type === 'video' ? 'Video' : 'Foto' %> · <%= (Number(m.file_size) / 1024 / 1024).toFixed(1) %> MB · urutan <%= i + 1 %></div>
+              <span class="badge <%= m.status === 'active' ? 'on' : 'off' %>" style="margin-top:6px"><%= m.status === 'active' ? 'Aktif' : 'Nonaktif' %></span>
+            </div>
+            <div class="media-actions">
+              <form method="POST" action="/admin/screensaver/house/<%= m.id %>/move" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="direction" value="up" />
+                <button class="btn btn-ghost btn-sm" type="submit" aria-label="Naikkan" <%= i === 0 ? 'disabled' : '' %>>↑</button>
+              </form>
+              <form method="POST" action="/admin/screensaver/house/<%= m.id %>/move" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="direction" value="down" />
+                <button class="btn btn-ghost btn-sm" type="submit" aria-label="Turunkan" <%= i === g.items.length - 1 ? 'disabled' : '' %>>↓</button>
+              </form>
+              <form method="POST" action="/admin/screensaver/house/<%= m.id %>/status" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="status" value="<%= m.status === 'active' ? 'inactive' : 'active' %>" />
+                <button class="btn btn-ghost btn-sm" type="submit"><%= m.status === 'active' ? 'Nonaktifkan' : 'Aktifkan' %></button>
+              </form>
+              <form method="POST" action="/admin/screensaver/house/<%= m.id %>/delete" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button class="btn btn-danger btn-sm" type="submit" data-confirm="Hapus materi ini? File akan dihapus permanen.">Hapus</button>
+              </form>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% }) %>
+  </div>
+  <script src="/public/js/admin-screensaver.js?v=20261018a" defer></script>
+</body>
+</html>

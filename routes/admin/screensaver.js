@@ -1,6 +1,8 @@
 const router = require("express").Router();
 const multer = require("multer");
 const screensaver = require("../../controllers/admin/screensaver");
+const adRequests = require("../../controllers/admin/screensaver-requests");
+const sequence = require("../../controllers/admin/screensaver-sequence");
 const { requireAuth, requireRole } = require("../../middleware/auth");
 const {
   MAX_FILES,
@@ -37,6 +39,17 @@ router.get("/", ...superadmin, screensaver.list);
 router.get("/new", ...superadmin, screensaver.renderNew);
 router.get("/settings", ...superadmin, screensaver.renderSettings);
 router.post("/settings", ...superadmin, screensaver.saveSettings);
+router.get("/requests", ...superadmin, adRequests.list);
+router.post("/requests/:id/approve", ...superadmin, adRequests.approve);
+router.post("/requests/:id/reject", ...superadmin, adRequests.reject);
+router.get("/sequence", ...superadmin, sequence.renderSequence);
+router.post("/sequence/:model/reset", ...superadmin, sequence.resetSequence);
+router.post("/sequence/:model", ...superadmin, sequence.saveSequence);
+router.get("/house", ...superadmin, sequence.renderHouse);
+router.post("/house", ...superadmin, acceptMedia, sequence.uploadHouse);
+router.post("/house/:id/status", ...superadmin, sequence.setHouseStatus);
+router.post("/house/:id/move", ...superadmin, sequence.moveHouse);
+router.post("/house/:id/delete", ...superadmin, sequence.deleteHouse);
 router.post("/", ...superadmin, acceptMedia, screensaver.create);
 router.get("/:id/edit", ...superadmin, screensaver.renderEdit);
 router.post("/:id/status", ...superadmin, screensaver.setStatus);

@@ -26,6 +26,15 @@ const { buildPlaylist, jakartaToday } = require("../helper-function/screensaver-
 const { withPlayerSettings } = require("../helper-function/screensaver-settings");
 const { parseInstalledVersion, parseVersionCode, publicUpdate } = require("../helper-function/kiosk-ota");
 const { storedFilePath } = require("../helper-function/kiosk-apk");
+const { resolveKioskUi } = require("../helper-function/kiosk-ui");
+const sequenceModel = require("../models/screensaver-sequence");
+const {
+  modelOf,
+  buildSequencePayload,
+  houseItems,
+  menuItemsFromSlots,
+} = require("../helper-function/screensaver-sequence");
+const crypto = require("crypto");
 const fs = require("fs");
 
 exports.requireKioskInternalToken = (req, res, next) => {
@@ -74,10 +83,12 @@ exports.getCatalog = async (req, res, next) => {
       return jsonErr(res, 404, "Machine not found or inactive");
     }
 
-    const [slots, kioskUi] = await Promise.all([
+    const [slots, globalUi, machineUi] = await Promise.all([
       slotModel.listForKioskCatalog(machine.id),
       systemSettings.getKioskUiConfig(),
+      machineModel.getKioskUiOverride(machine.id),
     ]);
+    const kioskUi = resolveKioskUi(globalUi, machineUi);
 
     return res.status(200).json({
       success: true,
@@ -90,9 +101,9 @@ exports.getCatalog = async (req, res, next) => {
           merchant_name: machine.merchant_name || null,
         },
         ui: {
-          /** Item per baris di katalog kiosk (2–4), diatur dari Admin → Settings */
+          /** Item per baris (2–4): pengaturan mesin, atau Admin → Settings bila kosong */
           catalog_columns: kioskUi.catalog_columns,
-          /** product | slot — diatur dari Admin → Settings */
+          /** product | slot: pengaturan mesin, atau Admin → Settings bila kosong */
           catalog_mode: kioskUi.catalog_mode,
         },
         slots: slots.map((s) => {
@@ -138,14 +149,36 @@ exports.getScreensaver = async (req, res, next) => {
       return jsonErr(res, 404, "Machine not found or inactive");
     }
 
-    const [{ campaigns, media }, player] = await Promise.all([
+    const model = modelOf(machine.commercial_model);
+    const toUrl = (stored) => absoluteImageUrl(req, stored);
+    const [{ campaigns, media }, player, seqSlots, house, catalogSlots] = await Promise.all([
       screensaverModel.resolveForMachine(machine, jakartaToday()),
       systemSettings.getScreensaverPlayerConfig(),
+      sequenceModel.getSequenceForKiosk(model),
+      sequenceModel.listActiveHouseMedia(),
+      slotModel.listForKioskCatalog(machine.id),
     ]);
-    const playlist = withPlayerSettings(
-      buildPlaylist(campaigns, media, (stored) => absoluteImageUrl(req, stored)),
-      player
-    );
+    const playlist = withPlayerSettings(buildPlaylist(campaigns, media, toUrl), player);
+
+    // Field lama (items, include_builtin, settings) tetap sama untuk APK lama.
+    // sequence hanya ada setelah migrasi 025; APK baru memutar urutan ini.
+    let payload = playlist;
+    if (seqSlots) {
+      const sequence = buildSequencePayload({
+        model,
+        slots: seqSlots,
+        tutorial: houseItems(house, "tutorial", toUrl),
+        promo: houseItems(house, "promo", toUrl),
+        menu: menuItemsFromSlots(catalogSlots, toUrl),
+        adItems: playlist.items,
+      });
+      const version = crypto
+        .createHash("sha1")
+        .update(JSON.stringify({ v: playlist.version, q: sequence }))
+        .digest("hex")
+        .slice(0, 16);
+      payload = { ...playlist, version, sequence };
+    }
 
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({
@@ -153,7 +186,7 @@ exports.getScreensaver = async (req, res, next) => {
       data: {
         machine_code: machine.code,
         generated_at: new Date().toISOString(),
-        ...playlist,
+        ...payload,
       },
     });
   } catch (err) {

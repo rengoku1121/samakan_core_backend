@@ -2,8 +2,8 @@ const { escapeHtml } = require("../utils/escape-html");
 
 const { payoutUiEnabled } = require("./feature-flags");
 
-const SHELL_ASSET_VER = "20261015a";
-const THEME_VER = "20261015f";
+const SHELL_ASSET_VER = "20261016b";
+const THEME_VER = "20261019a";
 const PWA_BUILD = `${THEME_VER}-${SHELL_ASSET_VER}`;
 const THEME_COLOR = "#d91f26";
 
@@ -86,6 +86,7 @@ const MERCHANT_NAV = [
       { href: "/merchant", label: "Dashboard", icon: "home", exact: true },
       { href: "/orders", label: "Orders", icon: "receipt" },
       { href: "/orders/qris", label: "QRIS", icon: "qr" },
+      { href: "/merchant/ads", label: "Iklan", icon: "screen" },
       { href: "/merchant/balance", label: "Saldo & Payout", icon: "wallet" },
     ],
   },
@@ -106,12 +107,17 @@ const PAGE_TITLES = [
   ["/admin/xy", "XY Platform"],
   ["/admin/activity", "Riwayat Aktivitas"],
   ["/admin/kiosk-ota", "Pembaruan APK"],
+  ["/admin/screensaver/requests", "Permintaan Iklan"],
+  ["/admin/screensaver/sequence", "Urutan Tayang"],
+  ["/admin/screensaver/house", "Materi Samakan"],
   ["/admin/screensaver/settings", "Pengaturan Screensaver"],
   ["/admin/screensaver", "Iklan Screensaver"],
   ["/admin/users", "Akun Admin"],
   ["/admin/settings", "Settings"],
   ["/orders/qris", "Generate QRIS"],
   ["/orders", "Orders"],
+  ["/merchant/ads/new", "Ajukan Iklan"],
+  ["/merchant/ads", "Iklan"],
   ["/merchant/balance", "Saldo & Payout"],
 ];
 
@@ -121,6 +127,21 @@ function stripTrailingSlash(p) {
 
 function matchesPrefix(pathFull, prefix) {
   return pathFull === prefix || pathFull.startsWith(`${prefix}/`);
+}
+
+/** Halaman yang datanya berubah dan aman dimuat ulang. Form dan detail order tidak ikut. */
+function pullRefreshForPath(rawPath) {
+  const pathFull = stripTrailingSlash(rawPath);
+  if (pathFull === "/dashboard" || pathFull === "/admin" || pathFull === "/merchant") return true;
+  if (pathFull === "/admin/orders" || pathFull === "/admin/orders/reconciliation") return true;
+  if (pathFull === "/orders") return true;
+  if (pathFull === "/admin/machines") return true;
+  if (/^\/admin\/machines\/[^/]+\/detail$/.test(pathFull)) return true;
+  if (pathFull === "/admin/slots" || pathFull === "/admin/slots/list") return true;
+  if (pathFull === "/admin/activity") return true;
+  if (pathFull === "/merchant/ads") return true;
+  if (pathFull === "/admin/screensaver/requests") return true;
+  return false;
 }
 
 function headerTitleForPath(rawPath) {
@@ -145,8 +166,9 @@ function activeHref(groups, rawPath) {
   return best;
 }
 
-function navForRole(userRole) {
+function navForRole(userRole, opts = {}) {
   const role = String(userRole || "").toLowerCase();
+  const canRequestAds = Boolean(opts.canRequestAds);
   const groups = (role === "merchant" ? MERCHANT_NAV : ADMIN_NAV)
     .map((g) => ({ ...g, items: g.items.filter((it) => !it.roles || it.roles.includes(role)) }))
     .filter((g) => g.items.length);
@@ -155,6 +177,7 @@ function navForRole(userRole) {
       ...g,
       items: g.items.filter((it) => {
         if (it.href === "/merchant/balance") return false;
+        if (it.href === "/merchant/ads") return canRequestAds;
         if (it.href === "/admin/settlement/ledger") return false;
         if (!payoutUiEnabled && it.href === "/admin/payouts") return false;
         return true;
@@ -163,8 +186,8 @@ function navForRole(userRole) {
     .filter((g) => g.items.length);
 }
 
-function navHtmlForRole(userRole, pathFull) {
-  const groups = navForRole(userRole);
+function navHtmlForRole(userRole, pathFull, opts) {
+  const groups = navForRole(userRole, opts);
   const current = activeHref(groups, pathFull);
   const body = groups
     .map((g) => {
@@ -191,7 +214,7 @@ function wrapHtmlWithShell(html, req) {
   const isAuthPage = pathFull.startsWith("/auth");
   const isLoggedIn = Boolean(req.user);
   const userRole = req.user?.role || "";
-  const navHtml = navHtmlForRole(userRole, pathFull);
+  const navHtml = navHtmlForRole(userRole, pathFull, { canRequestAds: Boolean(req.user && req.user.canRequestAds) });
 
   const brandHref = userRole === "merchant" ? "/merchant" : "/dashboard";
   const workspaceBadge =
@@ -206,6 +229,7 @@ function wrapHtmlWithShell(html, req) {
 
   const safeHeaderTitle = escapeHtml(headerTitle);
   const safeWorkspaceBadge = escapeHtml(workspaceBadge);
+  const pullRefresh = !isAuthPage && isLoggedIn && pullRefreshForPath(pathFull) ? ' data-pull-refresh="1"' : "";
 
   const shellBody =
     isAuthPage || !isLoggedIn
@@ -218,7 +242,7 @@ function wrapHtmlWithShell(html, req) {
   </div>
 </body>`
       : `
-<body class="shell shell-app shell-role-${escapeHtml(userRole || "guest")}">
+<body class="shell shell-app shell-role-${escapeHtml(userRole || "guest")}"${pullRefresh}>
   <div class="app-layout">
     <div class="shell-drawer-backdrop" id="shell-drawer-backdrop" aria-hidden="true"></div>
     <aside class="shell-sidebar" id="shell-drawer" aria-label="Navigasi utama">
@@ -252,6 +276,7 @@ function wrapHtmlWithShell(html, req) {
     </main>
   </div>
   <script src="/public/js/shell-nav.js?v=${SHELL_ASSET_VER}" defer></script>
+  <script src="/public/js/pull-refresh.js?v=${SHELL_ASSET_VER}" defer></script>
   <script src="/public/js/table-mobile-cards.js?v=${SHELL_ASSET_VER}" defer></script>
   <script src="/public/js/table-pager.js?v=${THEME_VER}" defer></script>
   <script src="/public/js/machine-status-alerts.js?v=${SHELL_ASSET_VER}" defer></script>
@@ -276,6 +301,7 @@ module.exports = {
   themeHeadExtras,
   PWA_BUILD,
   headerTitleForPath,
+  pullRefreshForPath,
   activeHref,
   navForRole,
 };

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    .ads-form { max-width: 760px; }
+    .ads-sec { padding: 16px; margin: 0 0 12px; }
+    .ads-sec-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+    .ads-sec-n { flex: 0 0 auto; width: 24px; height: 24px; box-sizing: border-box; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; background: var(--s-primary-50); color: var(--s-primary-700); border: 1px solid var(--s-primary-100); }
+    .ads-sec-head h2 { margin: 0 !important; font-size: 15px; font-weight: 800; }
+    .ads-field { display: grid; gap: 6px; margin: 0 0 12px; }
+    .ads-field:last-child { margin-bottom: 0; }
+    .ads-field label { font-size: 12.5px; font-weight: 700; }
+    .ads-field input[type="text"], .ads-field input[type="date"] { width: 100%; box-sizing: border-box; }
+    .ads-dates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; margin: 0 0 10px; }
+    .ads-dates .ads-field { margin: 0; }
+    .ads-help { margin: 0; font-size: 12.5px; color: var(--s-muted); line-height: 1.45; }
+
+    .ads-machines { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+    .ads-machine { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--s-border2); border-radius: 12px; background: var(--s-surface); cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+    .ads-machine:hover { border-color: var(--s-primary-100); background: var(--s-primary-50); }
+    .ads-machine input { width: 18px; height: 18px; margin: 0; accent-color: var(--s-primary); }
+    .ads-machine b { display: block; font-size: 13.5px; color: var(--s-text); }
+    .ads-machine span { display: block; font-size: 12px; color: var(--s-muted); }
+    .ads-machine.is-on { border-color: var(--s-primary); background: var(--s-primary-50); }
+
+    .ads-drop { display: block; padding: 22px 16px; border: 1.5px dashed var(--s-border2); border-radius: 14px; background: var(--s-surface2); text-align: center; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+    .ads-drop:hover, .ads-drop.is-over { border-color: var(--s-primary); background: var(--s-primary-50); }
+    .ads-drop-icon { width: 40px; height: 40px; margin: 0 auto 8px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--s-surface); color: var(--s-primary); border: 1px solid var(--s-border); }
+    .ads-drop b { display: block; font-size: 14px; color: var(--s-text); margin: 0 0 2px; }
+    .ads-drop span { display: block; font-size: 12.5px; color: var(--s-muted); }
+    .ads-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .ads-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 10px 0 0; }
+    .ads-previews:empty { display: none; }
+    .ads-prev { position: relative; padding-top: 56.25%; border-radius: 10px; overflow: hidden; background: #1a100e; }
+    .ads-prev img, .ads-prev video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .ads-prev em { position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px; font-style: normal; font-size: 11px; color: #fff; background: rgba(26, 16, 14, 0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .ads-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin: 4px 0 0; }
+    @media (max-width: 560px) {
+      .ads-actions .btn { flex: 1 1 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap ads-form">
+    <div class="header">
+      <div>
+        <h1>Ajukan iklan</h1>
+        <div class="muted">Samakan meninjau permintaan ini. Iklan tayang setelah disetujui dan pembayaran lunas.</div>
+      </div>
+    </div>
+
+    <% if (error) { %><div class="alert alert-error" style="margin:0 0 14px"><%= error %></div><% } %>
+
+    <form method="POST" action="/merchant/ads" enctype="multipart/form-data" data-ads-form>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <section class="card ads-sec">
+        <div class="ads-sec-head"><span class="ads-sec-n">1</span><h2>Iklan</h2></div>
+        <div class="ads-field">
+          <label for="name">Nama iklan</label>
+          <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
+        </div>
+        <div class="ads-dates">
+          <div class="ads-field">
+            <label for="start_date">Mulai tayang</label>
+            <input type="date" id="start_date" name="start_date" required value="<%= value.start_date %>" />
+          </div>
+          <div class="ads-field">
+            <label for="end_date">Selesai tayang</label>
+            <input type="date" id="end_date" name="end_date" required value="<%= value.end_date %>" />
+          </div>
+        </div>
+        <p class="ads-help">Tanggal mengikuti WIB. Hari terakhir ikut tayang.</p>
+      </section>
+
+      <section class="card ads-sec">
+        <div class="ads-sec-head"><span class="ads-sec-n">2</span><h2>Mesin</h2></div>
+        <div class="ads-machines">
+          <% machines.forEach(function (m) { %>
+            <% const on = (value.machine_ids || []).map(Number).indexOf(Number(m.id)) >= 0; %>
+            <label class="ads-machine<%= on ? ' is-on' : '' %>">
+              <input type="checkbox" name="machine_ids" value="<%= m.id %>" <%= on ? 'checked' : '' %> />
+              <div>
+                <b><%= m.code %></b>
+                <span><%= m.name && m.name !== m.code ? m.name + ' · ' : '' %>Paket <%= m.commercial_model === 'basic' ? 'Basic' : 'Plus' %></span>
+              </div>
+            </label>
+          <% }) %>
+        </div>
+      </section>
+
+      <section class="card ads-sec">
+        <div class="ads-sec-head"><span class="ads-sec-n">3</span><h2>Materi</h2></div>
+        <label class="ads-drop" data-ads-drop style="position:relative">
+          <input type="file" id="media_files" name="media_files" multiple required accept="image/jpeg,image/png,image/webp,video/mp4" data-ads-files />
+          <div class="ads-drop-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          </div>
+          <b data-ads-drop-title>Pilih foto atau video</b>
+          <span>JPG, PNG, WEBP, atau MP4. Foto maks <%= limits.imageMb %> MB, video maks <%= limits.videoMb %> MB, paling banyak <%= limits.maxFiles %> file.</span>
+        </label>
+        <div class="ads-previews" data-ads-previews></div>
+      </section>
+
+      <div class="ads-actions">
+        <a class="btn btn-ghost" href="/merchant/ads">Batal</a>
+        <button class="btn btn-primary" type="submit">Kirim permintaan</button>
+      </div>
+    </form>
+  </div>
+  <script src="/public/js/merchant-ads-form.js?v=20261017a" defer></script>
+</body>
+</html>

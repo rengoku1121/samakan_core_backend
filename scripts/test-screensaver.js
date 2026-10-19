@@ -17,8 +17,15 @@ const {
 } = require("../helper-function/screensaver-settings");
 const media = require("../helper-function/screensaver-media");
 const { roleAllowed } = require("../helper-function/rbac");
-const { navForRole, headerTitleForPath } = require("../helper-function/app-shell");
+const { navForRole, headerTitleForPath, pullRefreshForPath } = require("../helper-function/app-shell");
 const { describeActivity } = require("../helper-function/activity-describe");
+const {
+  isEligibleMachine,
+  selectMachines,
+  parseRequestForm,
+  campaignFromRequest,
+  parseRejectNote,
+} = require("../helper-function/screensaver-request");
 
 function assert(name, cond, extra) {
   if (!cond) {
@@ -274,5 +281,68 @@ assert("activity pembayaran", act.action === "ads" && /pembayaran/.test(act.summ
 assert("activity hapus media", describeActivity("POST", "/admin/screensaver/5/media/9/delete", 302, {}).summary.startsWith("Hapus media"));
 assert("activity ubah campaign", describeActivity("POST", "/admin/screensaver/5", 302, { name: "X" }).summary.startsWith("Ubah campaign"));
 assert("activity catatan tidak dicatat", !/rahasia/.test(describeActivity("POST", "/admin/screensaver", 302, { notes: "rahasia" }).summary));
+
+// Permintaan iklan Plus/Basic.
+const eligible = [
+  { id: 1, merchant_id: 10, commercial_model: "plus", is_active: 1 },
+  { id: 2, merchant_id: 10, commercial_model: "basic", is_active: 1 },
+  { id: 3, merchant_id: 10, commercial_model: "cruise", is_active: 1 },
+  { id: 4, merchant_id: 11, commercial_model: "plus", is_active: 1 },
+  { id: 5, merchant_id: 10, commercial_model: "plus", is_active: 0 },
+];
+assert("plus milik sendiri", isEligibleMachine(eligible[0], 10));
+assert("cruise ditolak", !isEligibleMachine(eligible[2], 10));
+assert("mesin orang lain ditolak", !isEligibleMachine(eligible[3], 10));
+assert("mesin nonaktif ditolak", !isEligibleMachine(eligible[4], 10));
+assert("pilih plus+basic", !selectMachines(eligible, 10, [1, 2]).error);
+assert("pilih cruise gagal", !!selectMachines(eligible, 10, [3]).error);
+assert("pilih kosong gagal", !!selectMachines(eligible, 10, []).error);
+const badDate = parseRequestForm(
+  { name: "Promo", start_date: "2026-10-10", end_date: "2026-10-01", machine_ids: [1] },
+  eligible,
+  10
+);
+assert("tanggal balik ditolak", /selesai/.test(badDate.error || ""));
+const okReq = parseRequestForm(
+  { name: "Promo Kopi", start_date: "2026-10-01", end_date: "2026-10-31", machine_ids: ["1", "2"] },
+  eligible,
+  10
+);
+assert("form permintaan valid", !okReq.error && okReq.targets.length === 2, okReq);
+const fromReq = campaignFromRequest({ id: 12, name: "Promo Kopi", start_date: "2026-10-01", end_date: "2026-10-31" }, "Lokal Demo");
+assert(
+  "campaign dari persetujuan draft unpaid",
+  fromReq.status === "draft" && fromReq.payment_status === "unpaid" && fromReq.price_amount === 0 && /#12/.test(fromReq.notes)
+);
+assert("tolak tanpa catatan gagal", !!parseRejectNote("").error);
+assert("tolak dengan catatan", parseRejectNote("materi kurang jelas").note === "materi kurang jelas");
+assert("nav merchant tanpa Plus/Basic tanpa menu iklan", !hrefs("merchant").includes("/merchant/ads"));
+assert(
+  "nav merchant Plus/Basic punya menu iklan",
+  navForRole("merchant", { canRequestAds: true })
+    .flatMap((g) => g.items.map((i) => i.href))
+    .includes("/merchant/ads")
+);
+assert("judul permintaan admin", headerTitleForPath("/admin/screensaver/requests") === "Permintaan Iklan");
+assert("judul ajukan mitra", headerTitleForPath("/merchant/ads/new") === "Ajukan Iklan");
+assert("pull refresh daftar mitra", pullRefreshForPath("/merchant/ads"));
+assert("pull refresh form mitra tidak", !pullRefreshForPath("/merchant/ads/new"));
+assert("pull refresh antrian admin", pullRefreshForPath("/admin/screensaver/requests"));
+assert(
+  "activity ajukan iklan",
+  describeActivity("POST", "/merchant/ads", 302, { name: "X" }).summary.startsWith("Ajukan iklan")
+);
+assert(
+  "activity setujui",
+  describeActivity("POST", "/admin/screensaver/requests/3/approve", 302, {}).summary.startsWith("Setujui permintaan")
+);
+assert(
+  "activity tolak",
+  describeActivity("POST", "/admin/screensaver/requests/3/reject", 302, { review_note: "x" }).summary.startsWith("Tolak permintaan")
+);
+assert(
+  "activity batalkan",
+  describeActivity("POST", "/merchant/ads/3/cancel", 302, {}).summary.startsWith("Batalkan permintaan")
+);
 
 console.log("PASS: screensaver");

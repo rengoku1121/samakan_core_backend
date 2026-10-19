@@ -187,6 +187,32 @@ exports.findActiveByCode = async (code) => {
   return rows[0] || null;
 };
 
+/**
+ * Pengaturan katalog khusus mesin. null = ikut pengaturan umum, termasuk saat
+ * migrasi 024 belum dijalankan (kolom belum ada), supaya katalog kiosk tetap jalan.
+ */
+exports.getKioskUiOverride = async (id) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT kiosk_catalog_mode, kiosk_catalog_columns FROM machines WHERE id = ? LIMIT 1`,
+      [id]
+    );
+    return rows[0] || null;
+  } catch (err) {
+    if (err && err.code === "ER_BAD_FIELD_ERROR") return null;
+    throw err;
+  }
+};
+
+/** mode/columns null = kembali ikut pengaturan umum. */
+exports.setKioskUiOverride = async (id, { mode, columns }) => {
+  const [result] = await pool.query(
+    `UPDATE machines SET kiosk_catalog_mode = ?, kiosk_catalog_columns = ? WHERE id = ? LIMIT 1`,
+    [mode ?? null, columns ?? null, id]
+  );
+  return result.affectedRows === 1;
+};
+
 /** Mencatat heartbeat APK kiosk. version_code kosong = klien lama, kolom diisi NULL. */
 exports.touchHeartbeat = async ({ id, app_version, version_code = null, ota_status = null, ota_error = null }) => {
   const sql = `

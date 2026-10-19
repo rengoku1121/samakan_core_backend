@@ -11,6 +11,12 @@ const { pool } = require("../../utils/db");
 
 const { clean, lower, toNonNegInt: toInt, cleanDate } = require("../../helper-function/http");
 const { canEditMoneySettings } = require("../../helper-function/rbac");
+const systemSettings = require("../../models/system-settings");
+const {
+  resolveKioskUi,
+  parseMachineKioskUiForm,
+  MODE_LABELS: KIOSK_MODE_LABELS,
+} = require("../../helper-function/kiosk-ui");
 const {
   validateCruiseAssignment,
   normalizeCommercialModel,
@@ -732,11 +738,43 @@ exports.detail = async (req, res, next) => {
     if (!machine) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
 
     const m = formatMachineForDisplay(machine);
+    const [globalUi, ownUi] = await Promise.all([
+      systemSettings.getKioskUiConfig(),
+      machineModel.getKioskUiOverride(id),
+    ]);
     return res.render("admin/machines/detail", {
       title: `Machine ${machine.code}`,
       user: req.user,
       m,
+      kioskUi: {
+        global: globalUi,
+        own: {
+          mode: ownUi ? ownUi.kiosk_catalog_mode || "" : "",
+          columns: ownUi && ownUi.kiosk_catalog_columns != null ? String(ownUi.kiosk_catalog_columns) : "",
+        },
+        effective: resolveKioskUi(globalUi, ownUi),
+        modeLabels: KIOSK_MODE_LABELS,
+        notice: req.query.kiosk_ui === "saved" ? "Tampilan katalog disimpan. Berlaku saat katalog di mesin dibuka berikutnya." : null,
+        error: req.query.kiosk_ui_err ? String(req.query.kiosk_ui_err).slice(0, 200) : null,
+      },
     });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateKioskUi = async (req, res, next) => {
+  try {
+    const id = toInt(req.params.id, 0);
+    const machine = id ? await machineModel.findById(id) : null;
+    if (!machine) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
+
+    const parsed = parseMachineKioskUiForm(req.body);
+    if (parsed.error) {
+      return res.redirect(`/admin/machines/${id}/detail?kiosk_ui_err=${encodeURIComponent(parsed.error)}#kiosk-ui`);
+    }
+    await machineModel.setKioskUiOverride(id, { mode: parsed.mode, columns: parsed.columns });
+    return res.redirect(`/admin/machines/${id}/detail?kiosk_ui=saved#kiosk-ui`);
   } catch (err) {
     return next(err);
   }
