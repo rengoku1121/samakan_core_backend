@@ -82,9 +82,15 @@ module.exports = async function run(ctx) {
   ok("stok tetap hold (7)", Number(stockAfter[0].stock) === 7, stockAfter[0]);
 
   ctx.paidOrder = { orderCode };
-  const [ordRow] = await pool.query(`SELECT id, status, total FROM orders WHERE order_code = ?`, [orderCode]);
+  const [ordRow] = await pool.query(
+    `SELECT id, status, total, split_model FROM orders WHERE order_code = ?`,
+    [orderCode]
+  );
   ctx.paidOrder.id = Number(ordRow[0].id);
   ctx.paidOrder.total = Number(ordRow[0].total);
+  eq("split owner", String(ordRow[0].split_model), "owner");
+  const [macModel] = await pool.query(`SELECT commercial_model FROM machines WHERE id = ?`, [fx.machineId]);
+  eq("mesin plus", String(macModel[0].commercial_model), "plus");
 
   const replay = await payViaVendor(ctx, orderCode, "15000");
   ok("replay webhook 200", replay.status === 200);

@@ -4,7 +4,7 @@ const payoutModel = require("../models/payout");
 const merchantModel = require("../models/merchant");
 const { issueCsrf } = require("../helper-function/csrf");
 const { payoutStatusLabel, payoutBadgeClass } = require("../helper-function/payout-status");
-const { normalizeTerms, partnershipLabel, termsSummary, cruisePartyAmount, ownerOperatedAmount } = require("../helper-function/partnership");
+const { normalizeTerms, merchantRoleLabel, cruisePartyAmount, ownerOperatedAmount } = require("../helper-function/partnership");
 const { resolveDashboardRange, chartDailySeries } = require("../helper-function/date-range");
 
 const fmtIdr = (n) =>
@@ -169,8 +169,7 @@ exports.renderBalance = async (req, res, next) => {
       // Merchant perlu tahu kenapa saldonya lebih kecil dari total penjualan.
       partnership: {
         ...normalizeTerms(merchant),
-        label: partnershipLabel(merchant && merchant.partnership_type),
-        summary: termsSummary(merchant),
+        summary: merchantRoleLabel(merchant && merchant.merchant_role),
       },
       rows: mappedRows,
       page,

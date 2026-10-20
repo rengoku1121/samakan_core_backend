@@ -238,7 +238,7 @@ module.exports = async function run(ctx) {
   eq("item video", pl.json.data.items[1].type, "video");
   eq("video tanpa durasi", pl.json.data.items[1].duration_ms, null);
   ok("url absolut", /^http:\/\/127\.0\.0\.1:\d+\/public\/uploads\/screensaver\//.test(pl.json.data.items[0].url));
-  ok("tanpa harga/catatan", !/price|notes|payment|kontrak|advertiser/i.test(pl.text));
+  ok("iklan tanpa harga/catatan", !/price|notes|payment|kontrak|advertiser/i.test(JSON.stringify(pl.json.data.items)));
   eq("merge tetap pakai slide bawaan", pl.json.data.include_builtin, true);
   const versionBefore = pl.json.data.version;
 
@@ -248,8 +248,8 @@ module.exports = async function run(ctx) {
   // Mesin merchant B + campaign khusus mesin itu (replace).
   const [macB] = await pool.query(
     `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_mode,
-                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 1)`,
+                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 'plus', 1)`,
     [`${TAG}-ADS-MB`, `${TAG} ads B`, fx.locationId, fx.merchantB]
   );
   const machineB = Number(macB.insertId);

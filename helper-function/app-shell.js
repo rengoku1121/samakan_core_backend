@@ -3,7 +3,7 @@ const { escapeHtml } = require("../utils/escape-html");
 const { payoutUiEnabled } = require("./feature-flags");
 
 const SHELL_ASSET_VER = "20261016b";
-const THEME_VER = "20261019a";
+const THEME_VER = "20261019c";
 const PWA_BUILD = `${THEME_VER}-${SHELL_ASSET_VER}`;
 const THEME_COLOR = "#d91f26";
 

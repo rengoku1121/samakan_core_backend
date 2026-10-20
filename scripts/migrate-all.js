@@ -38,6 +38,7 @@ const MIGRATIONS = [
   "migrate-screensaver-ad-requests.js",
   "migrate-machine-kiosk-ui.js",
   "migrate-screensaver-sequence.js",
+  "migrate-drop-legacy-partnership.js",
 ];
 
 let failed = 0;

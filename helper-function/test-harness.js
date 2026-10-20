@@ -167,16 +167,12 @@ async function makeMerchant(tag, suffix, terms = {}) {
   const code = `${tag}-${suffix}`.slice(0, 32);
   const [res] = await pool.query(
     `INSERT INTO merchants
-      (merchant_code, name, partnership_type, revenue_share_percent, subscription_amount,
-       midtrans_fee_bearer, payout_fee_bearer, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (merchant_code, name, merchant_role, payout_fee_bearer, is_active)
+     VALUES (?, ?, ?, ?, ?)`,
     [
       code,
       `${tag} ${suffix}`,
-      terms.partnership_type || "revenue_share",
-      terms.revenue_share_percent || 0,
-      terms.subscription_amount || 0,
-      terms.midtrans_fee_bearer || "merchant",
+      ["owner", "menu", "location"].includes(terms.merchant_role) ? terms.merchant_role : "owner",
       terms.payout_fee_bearer || "inherit",
       terms.is_active == null ? 1 : terms.is_active,
     ]
@@ -191,15 +187,15 @@ async function makeDispensedOrder(tag, suffix, merchantId, total, status = "DISP
   );
   const [mac] = await pool.query(
     `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_mode,
-                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 1)`,
+                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 'plus', 1)`,
     [`${tag}-${suffix}-M`.slice(0, 32), `${tag} ${suffix}`, Number(loc.insertId), merchantId]
   );
   const orderCode = `${tag}-${suffix}-ORD`;
   const [ord] = await pool.query(
     `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency,
-                         subtotal, total, payment_provider, payment_ref, paid_at, is_settled)
-     VALUES (?, ?, ?, NULL, ?, 'IDR', ?, ?, 'MIDTRANS', ?, NOW(3), 0)`,
+                         subtotal, total, payment_provider, payment_ref, paid_at, is_settled, split_model)
+     VALUES (?, ?, ?, NULL, ?, 'IDR', ?, ?, 'MIDTRANS', ?, NOW(3), 0, 'owner')`,
     [orderCode, merchantId, Number(mac.insertId), status, total, total, orderCode]
   );
   return { id: Number(ord.insertId), order_code: orderCode, merchant_id: merchantId, total };

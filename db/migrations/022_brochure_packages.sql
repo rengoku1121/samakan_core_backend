@@ -3,13 +3,13 @@
 -- Angka biaya layanan adalah catatan paket, bukan tagihan.
 
 ALTER TABLE machines
-  MODIFY COLUMN commercial_model ENUM('legacy','cruise','plus','basic') NOT NULL DEFAULT 'legacy';
+  MODIFY COLUMN commercial_model ENUM('cruise','plus','basic') NOT NULL DEFAULT 'plus';
 
 ALTER TABLE machines
   ADD COLUMN service_fee_amount DECIMAL(14,2) NOT NULL DEFAULT 0 AFTER location_share_percent;
 
 ALTER TABLE orders
-  MODIFY COLUMN split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'legacy';
+  MODIFY COLUMN split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'owner';
 
 ALTER TABLE products
   ADD COLUMN merchant_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER requires_heating;

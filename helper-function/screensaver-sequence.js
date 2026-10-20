@@ -4,8 +4,8 @@
  * ad (iklan berbayar, satu campaign per putaran).
  */
 
-const MODELS = Object.freeze(["cruise", "plus", "basic", "legacy"]);
-const MODEL_LABELS = Object.freeze({ cruise: "Cruise", plus: "Plus", basic: "Basic", legacy: "Model lama" });
+const MODELS = Object.freeze(["cruise", "plus", "basic"]);
+const MODEL_LABELS = Object.freeze({ cruise: "Cruise", plus: "Plus", basic: "Basic" });
 const KINDS = Object.freeze(["tutorial", "menu", "promo", "ad"]);
 const KIND_LABELS = Object.freeze({
   tutorial: "Tutorial Samakan",
@@ -34,10 +34,10 @@ function defaultSequence() {
   return DEFAULT_SEQUENCE.map((s) => ({ kind: s.kind, duration_ms: s.duration_ms }));
 }
 
-/** commercial_model mesin → kunci urutan. Nilai lain (termasuk kosong) = model lama. */
+/** commercial_model mesin → kunci urutan. Nilai lain tidak punya urutan paket. */
 function modelOf(commercialModel) {
   const m = String(commercialModel || "").trim().toLowerCase();
-  return MODELS.includes(m) ? m : "legacy";
+  return MODELS.includes(m) ? m : "";
 }
 
 function clampMs(raw) {

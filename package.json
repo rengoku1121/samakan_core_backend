@@ -41,6 +41,7 @@
     "migrate:screensaver-ad-requests": "node scripts/migrate-screensaver-ad-requests.js",
     "migrate:machine-kiosk-ui": "node scripts/migrate-machine-kiosk-ui.js",
     "migrate:screensaver-sequence": "node scripts/migrate-screensaver-sequence.js",
+    "migrate:drop-legacy-partnership": "node scripts/migrate-drop-legacy-partnership.js",
     "seed:superadmin": "node scripts/seed-superadmin-user.js",
     "test:screensaver": "node scripts/test-screensaver.js",
     "test:kiosk-ota": "node scripts/test-kiosk-ota.js",

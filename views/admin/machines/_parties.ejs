@@ -1,5 +1,5 @@
 <%
-  const model = String(value?.commercial_model || 'legacy');
+  const model = String(value?.commercial_model || '');
   const cruise = model === 'cruise';
   const ownerRun = model === 'plus' || model === 'basic';
   const moneyLocked = !['admin', 'superadmin'].includes(String(user && user.role).toLowerCase());
@@ -8,8 +8,8 @@
   const placePartners = (merchants || []).filter(function (m) { return m.merchant_role === 'location'; });
 %>
 <label for="commercial_model">Model kerja sama</label>
-<select id="commercial_model" name="commercial_model" data-commercial-model <%= lockAttr %> <%= model === 'legacy' ? 'required' : '' %>>
-  <% if (model === 'legacy') { %>
+<select id="commercial_model" name="commercial_model" data-commercial-model <%= lockAttr %> <%= !cruise && !ownerRun ? 'required' : '' %>>
+  <% if (!cruise && !ownerRun) { %>
     <option value="" selected>Pilih paket</option>
   <% } %>
   <option value="cruise" <%= cruise ? 'selected' : '' %>>Cruise (pemilik, mitra menu, lokasi)</option>
@@ -59,9 +59,9 @@
 
 <label for="merchant_id"><%= cruise || ownerRun ? 'Pemilik mesin' : 'Merchant' %></label>
 <select id="merchant_id" name="merchant_id" required>
-  <option value="">-- pilih <%= cruise ? 'pemilik' : 'merchant' %> --</option>
+  <option value="">-- pilih <%= cruise || ownerRun ? 'pemilik' : 'merchant' %> --</option>
   <% (merchants || []).forEach(function (m) { %>
-    <option value="<%= m.id %>" data-role="<%= m.merchant_role || 'legacy' %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+    <option value="<%= m.id %>" data-role="<%= m.merchant_role || '' %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
   <% }) %>
 </select>
 <div class="hint" data-merchant-hint>

@@ -216,13 +216,16 @@ exports.createOrderAndGenerateQris = async (req, res, next) => {
     const subtotal = unit_price * qty;
     const total = subtotal;
 
+    const split = cruiseSnapshotFromMachine(machine);
+    if (!split) return jsonErr(res, 400, "Model kerja sama mesin belum diatur.");
+
     const created = await orderModel.createPendingOrderWithStockHold({
       order: {
         order_code_prefix: "ORD",
         merchant_id,
         machine_id: machine.id,
         location_id: machine.location_id || null,
-        ...cruiseSnapshotFromMachine(machine),
+        ...split,
         status: "PENDING",
         currency: "IDR",
         subtotal,

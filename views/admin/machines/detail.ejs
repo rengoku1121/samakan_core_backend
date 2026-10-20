@@ -58,7 +58,7 @@
         <dd><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(lokasi arsip)</span><% } %></dd>
 
         <dt>Merchant</dt>
-        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %> · <%= m.package_label || 'Model lama' %></dd>
+        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %> · <%= m.package_label || 'Paket belum diatur' %></dd>
         <% if (m.commercial_model === 'plus' || m.commercial_model === 'basic') { %>
           <dt>Biaya layanan</dt>
           <dd>Rp <%= m.service_fee_fmt %> per bulan, dicatat dan tidak dipotong saldo</dd>

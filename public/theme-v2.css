@@ -855,31 +855,48 @@ body.shell-app.is-pulling .shell-content {
   min-width: 0;
 }
 
-/* Orders di HP: tanggal sejajar, status+merchant sejajar, mesin satu baris. */
-@media (max-width: 639px) {
-  .shell form.orders-filter {
+/* Orders dan Riwayat Aktivitas di HP: dua kolom untuk yang pendek, satu baris untuk yang panjang. */
+@media (max-width: 900px) {
+  .shell form.orders-filter,
+  .shell form.activity-filter {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 12px;
+    gap: 10px 8px;
     align-items: end;
   }
 
+  .shell form.orders-filter > .filter-q,
+  .shell form.activity-filter > .filter-q,
   .shell form.orders-filter > .date-presets,
   .shell form.orders-filter > .filter-machine,
-  .shell form.orders-filter > .filter-q {
+  .shell form.orders-filter > .filter-month {
     grid-column: 1 / -1;
   }
 
-  .shell form.orders-filter > input[type="hidden"] {
+  .shell form.orders-filter > input[type="hidden"],
+  .shell form.activity-filter > input[type="hidden"] {
     display: none;
   }
 
   .shell form.orders-filter > .btn,
-  .shell form.orders-filter > button {
+  .shell form.orders-filter > button,
+  .shell form.activity-filter > .btn,
+  .shell form.activity-filter > button {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+    min-height: 44px;
     box-sizing: border-box;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    white-space: nowrap;
+  }
+
+  .shell form.orders-filter select,
+  .shell form.activity-filter select {
+    padding-left: 10px !important;
+    padding-right: 22px !important;
+    background-position: right 8px center !important;
   }
 }
 
@@ -2255,9 +2272,3 @@ body.shell-app.is-pulling .shell-content {
   }
 }
 
-/* Layar sangat sempit: dua kolom memotong tulisan select, jadi ditumpuk. */
-@media (max-width: 399px) {
-  .shell form.orders-filter {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}

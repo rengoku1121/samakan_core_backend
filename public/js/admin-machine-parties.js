@@ -1,5 +1,5 @@
 /**
- * Form mesin: Legacy atau Cruise.
+ * Form mesin: Cruise, Plus, atau Basic.
  * Menyembunyikan syarat Cruise dan membatasi pilihan pemilik.
  * Server tetap yang menolak kombinasi yang tidak sah.
  */

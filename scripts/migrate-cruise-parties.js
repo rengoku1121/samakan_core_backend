@@ -74,14 +74,14 @@ async function main() {
       conn,
       "merchants",
       "merchant_role",
-      "merchant_role ENUM('legacy','owner','menu','location') NOT NULL DEFAULT 'legacy' AFTER name"
+      "merchant_role ENUM('owner','menu','location') NOT NULL DEFAULT 'owner' AFTER name"
     );
 
     await addColumn(
       conn,
       "machines",
       "commercial_model",
-      "commercial_model ENUM('legacy','cruise') NOT NULL DEFAULT 'legacy' AFTER merchant_id"
+      "commercial_model ENUM('cruise','plus','basic') NOT NULL DEFAULT 'plus' AFTER merchant_id"
     );
     await addColumn(
       conn,
@@ -130,7 +130,7 @@ async function main() {
       conn,
       "orders",
       "split_model",
-      "split_model ENUM('legacy','cruise') NOT NULL DEFAULT 'legacy' AFTER merchant_id"
+      "split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'owner' AFTER merchant_id"
     );
     await addColumn(
       conn,

@@ -6,14 +6,10 @@ const userModel = require("../../models/user");
 const settlementModel = require("../../models/settlement");
 const payoutModel = require("../../models/payout");
 const {
-  PARTNERSHIP,
   normalizeTerms,
   normalizeMerchantRole,
   merchantRoleLabel,
-  partnershipLabel,
-  termsSummary,
   payoutFeeBearerLabel,
-  validateTerms,
 } = require("../../helper-function/partnership");
 const { canEditMoneySettings } = require("../../helper-function/rbac");
 const { pool } = require("../../utils/db");
@@ -22,19 +18,8 @@ const bcrypt = require("bcryptjs");
 const { clean: normalizeText, lower: normalizeLower, toNonNegInt: toInt } = require("../../helper-function/http");
 const normalizeName = normalizeText;
 
-/**
- * Syarat kerja sama dari form. `normalizeTerms` yang memutuskan nilai akhir,
- * jadi memilih Subscription otomatis menolkan persentase bagi hasil dan
- * sebaliknya — form tidak bisa mengirim kombinasi yang bertentangan.
- */
 const buildTerms = (body = {}) => ({
-  ...normalizeTerms({
-    partnership_type: body.partnership_type,
-    revenue_share_percent: body.revenue_share_percent,
-    subscription_amount: String(body.subscription_amount || "").replace(/[.,\s]/g, ""),
-    midtrans_fee_bearer: body.midtrans_fee_bearer,
-    payout_fee_bearer: body.payout_fee_bearer,
-  }),
+  ...normalizeTerms({ payout_fee_bearer: body.payout_fee_bearer }),
   merchant_role: normalizeMerchantRole(body.merchant_role),
 });
 
@@ -48,8 +33,12 @@ const buildNewValue = (body = {}) => ({
   ...buildTerms(body),
 });
 
-const termsForActor = (user, submitted, existing) =>
-  canEditMoneySettings(user) ? buildTerms(submitted) : buildTerms(existing || {});
+const termsForActor = (user, submitted, existing) => {
+  if (canEditMoneySettings(user)) return buildTerms(submitted);
+  const kept = buildTerms(existing || {});
+  if (!kept.merchant_role) kept.merchant_role = "owner";
+  return kept;
+};
 
 /** Label "Ikut Setting" harus menyebut nilai global yang berlaku saat ini. */
 const globalPayoutFeeBearer = async () => {
@@ -104,14 +93,8 @@ exports.list = async (req, res, next) => {
         created_at: formatDateId(r.created_at),
         updated_at: formatDateId(r.updated_at),
         deleted_at_fmt: r.deleted_at ? formatDateId(r.deleted_at) : null,
-        partnership_label:
-          normalizeMerchantRole(r.merchant_role) === "legacy"
-            ? partnershipLabel(r.partnership_type)
-            : merchantRoleLabel(r.merchant_role),
-        terms_summary:
-          normalizeMerchantRole(r.merchant_role) === "legacy"
-            ? termsSummary(r)
-            : merchantRoleLabel(r.merchant_role),
+        partnership_label: merchantRoleLabel(r.merchant_role),
+        terms_summary: merchantRoleLabel(r.merchant_role),
         payout_fee_bearer_label: payoutFeeBearerLabel(r.payout_fee_bearer, globalBearer),
         balance: Number(balanceMap.get(Number(r.id))?.balance || 0),
         total_gross: Number(balanceMap.get(Number(r.id))?.total_gross || 0),
@@ -146,12 +129,7 @@ exports.renderNew = async (req, res) => {
       email: "",
       password: "",
       password_confirm: "",
-      ...normalizeTerms({
-        partnership_type: PARTNERSHIP.REVENUE_SHARE,
-        revenue_share_percent: 0,
-        midtrans_fee_bearer: "merchant",
-        payout_fee_bearer: "inherit",
-      }),
+      ...normalizeTerms({ payout_fee_bearer: "inherit" }),
       merchant_role: "owner",
     },
   });
@@ -166,10 +144,12 @@ exports.create = async (req, res, next) => {
       return renderNewForm(res, req, { status: 400, error: "Nama merchant wajib diisi.", value });
     }
     const terms = termsForActor(req.user, value, null);
-    const termsError =
-      canEditMoneySettings(req.user) && terms.merchant_role === "legacy" ? validateTerms(terms) : null;
-    if (termsError) {
-      return renderNewForm(res, req, { status: 400, error: termsError, value });
+    if (!terms.merchant_role) {
+      return renderNewForm(res, req, {
+        status: 400,
+        error: "Peran wajib dipilih: pemilik mesin, mitra menu, atau mitra lokasi.",
+        value,
+      });
     }
     if (!username) {
       return renderNewForm(res, req, { status: 400, error: "Username login merchant wajib diisi.", value });
@@ -295,10 +275,9 @@ exports.update = async (req, res, next) => {
       });
 
     if (!name) return renderError(400, "Nama merchant wajib diisi.");
-
-    const termsError =
-      canEditMoneySettings(req.user) && terms.merchant_role === "legacy" ? validateTerms(terms) : null;
-    if (termsError) return renderError(400, termsError);
+    if (!terms.merchant_role) {
+      return renderError(400, "Peran wajib dipilih: pemilik mesin, mitra menu, atau mitra lokasi.");
+    }
 
     if (name !== merchant.name) {
       const existing = await merchantModel.findByName(name);

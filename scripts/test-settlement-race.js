@@ -38,7 +38,7 @@ async function main() {
         assert("A: satu item", Number(items[0].c) === 1);
         assert("A: total dari DB bukan payload palsu", money(items[0].net) !== 999999999, items[0]);
         const bal = await settlementModel.getMerchantBalance(mid);
-        assert("A: net memakai total DB 100000", money(bal.total_gross) === 100000, bal);
+        assert("A: saldo mengikuti total DB setelah biaya pembayaran", money(bal.balance) === 99500, bal);
         pass("A_force_excel_and_tampered_total");
       }
 
@@ -57,12 +57,8 @@ async function main() {
       }
 
       {
-        const m1 = await makeMerchant(TAG, "C1", {
-          partnership_type: "revenue_share",
-          revenue_share_percent: 30,
-          midtrans_fee_bearer: "platform",
-        });
-        const m2 = await makeMerchant(TAG, "C2", { partnership_type: "subscription", midtrans_fee_bearer: "merchant" });
+        const m1 = await makeMerchant(TAG, "C1");
+        const m2 = await makeMerchant(TAG, "C2");
         const o1 = await makeDispensedOrder(TAG, "C1", m1, 1000000);
         const o2 = await makeDispensedOrder(TAG, "C2", m2, 1000000);
         const r = await settlementModel.executeSettlement({
@@ -72,8 +68,8 @@ async function main() {
           notes: TAG,
         });
         assert("C: mixed batch 2", r.settled === 2, r);
-        assert("C: bagi hasil 700rb", money((await settlementModel.getMerchantBalance(m1)).balance) === 700000);
-        assert("C: subscription 995rb", money((await settlementModel.getMerchantBalance(m2)).balance) === 995000);
+        assert("C: pemilik pertama 995rb", money((await settlementModel.getMerchantBalance(m1)).balance) === 995000);
+        assert("C: pemilik kedua 995rb", money((await settlementModel.getMerchantBalance(m2)).balance) === 995000);
         pass("C_mixed_merchant_batch");
       }
 

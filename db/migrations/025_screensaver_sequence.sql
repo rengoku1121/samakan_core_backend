@@ -1,12 +1,12 @@
 -- 025_screensaver_sequence.sql
--- Urutan slot screensaver per paket mesin (cruise / plus / basic / legacy) dan
+-- Urutan slot screensaver per paket mesin (cruise / plus / basic) dan
 -- materi Samakan (tutorial, promo) yang diunggah superadmin.
 -- Urutan bawaan diisi oleh scripts/migrate-screensaver-sequence.js hanya untuk
 -- paket yang belum punya baris. File media tetap di public/uploads/screensaver/.
 
 CREATE TABLE IF NOT EXISTS screensaver_sequence_slots (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  commercial_model ENUM('cruise','plus','basic','legacy') NOT NULL,
+  commercial_model ENUM('cruise','plus','basic') NOT NULL,
   position INT NOT NULL DEFAULT 0,
   kind ENUM('tutorial','menu','promo','ad') NOT NULL,
   duration_ms INT UNSIGNED NOT NULL DEFAULT 10000,

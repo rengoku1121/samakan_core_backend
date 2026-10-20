@@ -35,7 +35,6 @@ const ALLOWED = new Set([
   "kiosk_catalog_columns",
   "payout_enabled",
   "login_otp_enabled",
-  "partnership_type",
   "merchant_role",
   "commercial_model",
   "amount",

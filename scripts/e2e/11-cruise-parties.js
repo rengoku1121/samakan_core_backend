@@ -1,6 +1,6 @@
 /**
  * Cruise: tiga merchant, satu mesin, satu order dispensed, tiga saldo, lalu refund.
- * Mesin legacy tidak diubah rumusnya.
+ * Mesin tanpa paket ditolak.
  *
  * Run: E2E_ONLY=11-cruise-parties npm run test:e2e
  */
@@ -116,13 +116,10 @@ module.exports = async function run(ctx) {
     merchant_id: String(owner.id),
     is_active: "1",
   });
-  eq("mesin legacy", legacyRes.status, 302);
-  const [legacyRows] = await pool.query(
-    `SELECT commercial_model, menu_merchant_id FROM machines WHERE code = ?`,
-    [legacyCode]
-  );
-  eq("tetap legacy", legacyRows[0].commercial_model, "legacy");
-  ok("tanpa mitra menu", legacyRows[0].menu_merchant_id == null);
+  eq("mesin tanpa paket ditolak", legacyRes.status, 400);
+  ok("menolak model lama", /Cruise, Plus, atau Basic/.test(legacyRes.text || ""));
+  const [legacyRows] = await pool.query(`SELECT id FROM machines WHERE code = ?`, [legacyCode]);
+  eq("mesin tanpa paket tidak tersimpan", legacyRows.length, 0);
 
   const staffCruise = await form(staff, "POST", "/admin/machines", {
     code: `${TAG}-MST`.slice(0, 32),

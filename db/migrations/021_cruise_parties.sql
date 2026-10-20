@@ -1,11 +1,12 @@
 -- Tiga pihak Cruise: pemilik, mitra menu, mitra lokasi.
--- Merchant dan mesin yang sudah ada tetap legacy (bagi hasil / subscription).
+-- Kolom baru tidak memakai peran atau paket legacy.
+-- orders.split_model tetap punya nilai legacy hanya untuk order historis.
 
 ALTER TABLE merchants
-  ADD COLUMN merchant_role ENUM('legacy','owner','menu','location') NOT NULL DEFAULT 'legacy' AFTER name;
+  ADD COLUMN merchant_role ENUM('owner','menu','location') NOT NULL DEFAULT 'owner' AFTER name;
 
 ALTER TABLE machines
-  ADD COLUMN commercial_model ENUM('legacy','cruise') NOT NULL DEFAULT 'legacy' AFTER merchant_id,
+  ADD COLUMN commercial_model ENUM('cruise','plus','basic') NOT NULL DEFAULT 'plus' AFTER merchant_id,
   ADD COLUMN menu_merchant_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER commercial_model,
   ADD COLUMN location_merchant_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER menu_merchant_id,
   ADD COLUMN owner_share_percent DECIMAL(5,2) NOT NULL DEFAULT 20 AFTER location_merchant_id,
@@ -13,7 +14,7 @@ ALTER TABLE machines
   ADD COLUMN location_share_percent DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER menu_share_percent;
 
 ALTER TABLE orders
-  ADD COLUMN split_model ENUM('legacy','cruise') NOT NULL DEFAULT 'legacy' AFTER merchant_id,
+  ADD COLUMN split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'owner' AFTER merchant_id,
   ADD COLUMN menu_merchant_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER split_model,
   ADD COLUMN location_merchant_id BIGINT UNSIGNED NULL DEFAULT NULL AFTER menu_merchant_id,
   ADD COLUMN owner_share_percent DECIMAL(5,2) NOT NULL DEFAULT 0 AFTER location_merchant_id,

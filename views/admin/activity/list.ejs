@@ -20,9 +20,9 @@
 
     <div class="card">
       <div class="toolbar">
-        <form method="GET" action="/admin/activity">
+        <form class="activity-filter" method="GET" action="/admin/activity">
           <input type="hidden" name="limit" value="<%= limit %>" />
-          <div>
+          <div class="filter-q">
             <label for="act-q">Cari</label>
             <input id="act-q" name="q" value="<%= filters.q %>" placeholder="username atau aktivitas" />
           </div>

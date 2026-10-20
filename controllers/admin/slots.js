@@ -17,10 +17,10 @@ function productsForMachine(products, machine) {
 }
 
 function productHint(machine) {
-  const model = String((machine && machine.commercial_model) || "legacy");
+  const model = String((machine && machine.commercial_model) || "");
   if (model === "cruise") return "Hanya menu milik mitra menu mesin ini.";
   if (model === "plus" || model === "basic") return "Hanya menu milik pemilik mesin ini.";
-  return "Mesin lama memakai katalog bersama, tanpa pemilik menu.";
+  return "Pilih paket Cruise, Plus, atau Basic.";
 }
 
 const defaultExpiresFromShelfLifeDays = (days) => {

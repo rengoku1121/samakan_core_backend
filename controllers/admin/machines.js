@@ -110,16 +110,7 @@ const cruiseFieldsFromMachine = (machine) => ({
     machine && machine.location_share_percent != null ? String(Number(machine.location_share_percent)) : "0",
 });
 
-const legacyCommercial = () => ({
-  error: null,
-  commercial_model: "legacy",
-  menu_merchant_id: null,
-  location_merchant_id: null,
-  owner_share_percent: 20,
-  menu_share_percent: 0,
-  location_share_percent: 0,
-  owner_id: null,
-});
+const packageRequired = () => ({ error: "Pilih paket Cruise, Plus, atau Basic." });
 
 function ownerOperatedCommercial(model, merchants, merchantId) {
   const owner = (merchants || []).find((row) => String(row.id) === String(merchantId));
@@ -152,7 +143,7 @@ function keptCommercial(existing) {
       owner_id: parseMerchantId(existing.merchant_id),
     };
   }
-  if (kept.commercial_model !== "cruise") return legacyCommercial();
+  if (kept.commercial_model !== "cruise") return packageRequired();
   return {
     error: null,
     commercial_model: "cruise",
@@ -173,14 +164,14 @@ function resolveCommercial(user, body, merchants, existing) {
     if (isOwnerOperatedModel(requested)) {
       return ownerOperatedCommercial(requested, merchants, body.merchant_id);
     }
-    return legacyCommercial();
+    return packageRequired();
   }
 
   const fields = cruiseFieldsFromBody(body);
   if (isOwnerOperatedModel(fields.commercial_model)) {
     return ownerOperatedCommercial(fields.commercial_model, merchants, body.merchant_id);
   }
-  if (fields.commercial_model !== "cruise") return legacyCommercial();
+  if (fields.commercial_model !== "cruise") return packageRequired();
 
   const ownerPercent = parsePercentField(fields.owner_share_percent, 20);
   const menuPercent = parsePercentField(fields.menu_share_percent, 0);
@@ -293,7 +284,6 @@ const formValueFromBody = (body) => ({
   total_downtime_hours: String(body.total_downtime_hours ?? "").trim().replace(",", "."),
   location_id: clean(body.location_id),
   merchant_id: clean(body.merchant_id),
-  legacy_merchant_id: clean(body.legacy_merchant_id),
   ...cruiseFieldsFromBody(body),
   is_active: body.is_active === "0" ? 0 : 1,
   place_mode: body.place_mode === "new" ? "new" : "existing",
@@ -331,7 +321,6 @@ const blankInstallValue = () => ({
   merchant_id: "",
   menu_merchant_id: "",
   location_merchant_id: "",
-  legacy_merchant_id: "",
   commercial_model: "cruise",
   owner_share_percent: "20",
   menu_share_percent: "0",
@@ -649,7 +638,7 @@ async function createWizard(req, res) {
       ...machineFields,
       location_id: locationId,
       merchant_id: cruise || ownerRun ? ids.owner : merchantId,
-      commercial_model: cruise ? "cruise" : ownerRun ? model : "legacy",
+      commercial_model: ownerRun ? model : "cruise",
       menu_merchant_id: cruise ? ids.menu : null,
       location_merchant_id: cruise ? ids.location : null,
       owner_share_percent: cruise ? ownerPercent : ownerRun ? 0 : 20,

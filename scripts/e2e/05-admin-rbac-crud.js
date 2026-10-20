@@ -31,12 +31,11 @@ module.exports = async function run(ctx) {
       email: `${uniq("e100")}@local.test`,
       password: PASSWORD,
       password_confirm: PASSWORD,
-      partnership_type: "revenue_share",
-      revenue_share_percent: "100",
+      merchant_role: "owner",
       is_active: "1",
     },
   });
-  eq("bagi hasil 100% ditolak", hundred.status, 400);
+  eq("merchant tanpa persen lama tetap dibuat", hundred.status, 302);
 
   const mName = uniq("NEW");
   const mUser = uniq("un").replace(/[^a-z0-9-]/gi, "").slice(0, 24);
@@ -48,9 +47,7 @@ module.exports = async function run(ctx) {
       email: `${mUser}@local.test`,
       password: PASSWORD,
       password_confirm: PASSWORD,
-      partnership_type: "revenue_share",
-      revenue_share_percent: "10",
-      midtrans_fee_bearer: "merchant",
+      merchant_role: "owner",
       payout_fee_bearer: "inherit",
       is_active: "1",
     },
@@ -65,8 +62,7 @@ module.exports = async function run(ctx) {
       email: `${mUser}x@local.test`,
       password: PASSWORD,
       password_confirm: PASSWORD,
-      partnership_type: "revenue_share",
-      revenue_share_percent: "10",
+      merchant_role: "owner",
       is_active: "1",
     },
   });
@@ -80,9 +76,7 @@ module.exports = async function run(ctx) {
     body: {
       name: mName,
       is_active: "1",
-      partnership_type: "revenue_share",
-      revenue_share_percent: "10",
-      midtrans_fee_bearer: "merchant",
+      merchant_role: "owner",
       payout_fee_bearer: "inherit",
     },
   });
@@ -126,6 +120,7 @@ module.exports = async function run(ctx) {
       installed_at: "2024-01-02",
       location_id: String(fx.locationId),
       merchant_id: String(fx.merchantId),
+      commercial_model: "plus",
       is_active: "1",
     },
   });
@@ -146,6 +141,7 @@ module.exports = async function run(ctx) {
         installed_at: "2024-01-02",
         location_id: String(fx.locationId),
         merchant_id: String(fx.merchantId),
+        commercial_model: "plus",
         is_active: "1",
       },
     })).status,
@@ -157,7 +153,7 @@ module.exports = async function run(ctx) {
   const sku = uniq("SKU").slice(0, 32);
   const prod = await request(ctx, "POST", "/admin/products", {
     jar: admin.jar,
-    body: { sku, name: "E2E snack", price: "12000", shelf_life_days: "30", requires_heating: "0", is_active: "1" },
+    body: { sku, name: "E2E snack", price: "12000", shelf_life_days: "30", requires_heating: "0", merchant_id: String(fx.merchantId), is_active: "1" },
   });
   eq("create product", prod.status, 302);
   const [prodRow] = await pool.query(`SELECT id FROM products WHERE sku = ?`, [sku]);
@@ -167,7 +163,7 @@ module.exports = async function run(ctx) {
     "update product",
     (await request(ctx, "POST", `/admin/products/${prodId}`, {
       jar: admin.jar,
-      body: { sku, name: "E2E snack u", price: "13000", shelf_life_days: "30", requires_heating: "0", is_active: "1" },
+      body: { sku, name: "E2E snack u", price: "13000", shelf_life_days: "30", requires_heating: "0", merchant_id: String(fx.merchantId), is_active: "1" },
     })).status,
     302
   );
@@ -208,7 +204,7 @@ module.exports = async function run(ctx) {
 
   const staffFees = await request(ctx, "POST", "/admin/settings/fees", {
     jar: staff.jar,
-    body: { midtrans_fee_percent: "0.5", owner_fee_percent: "0" },
+    body: { midtrans_fee_percent: "0.5" },
   });
   eq("staff settings/fees 403", staffFees.status, 403);
   const staffPayout = await request(ctx, "POST", "/admin/settings/payout", {
@@ -225,7 +221,7 @@ module.exports = async function run(ctx) {
 
   const adminFees = await request(ctx, "POST", "/admin/settings/fees", {
     jar: admin.jar,
-    body: { midtrans_fee_percent: "0.5", owner_fee_percent: "0" },
+    body: { midtrans_fee_percent: "0.5" },
   });
   ok("admin fees", adminFees.status === 302 || adminFees.status === 200, adminFees.status);
 };

@@ -555,7 +555,7 @@ exports.create = async ({
   expires_at,
   heat_requested = null,
   stock_reserved = 0,
-  split_model = "legacy",
+  split_model,
   menu_merchant_id = null,
   location_merchant_id = null,
   owner_share_percent = 0,
@@ -595,10 +595,15 @@ exports.create = async ({
         ? 1
         : 0;
 
+  const activeSplit = String(split_model || "").toLowerCase();
+  if (activeSplit !== "cruise" && activeSplit !== "owner") {
+    throw new Error("Split model wajib cruise atau owner.");
+  }
+
   const [result] = await executor.query(sql, [
     order_code,
     merchant_id,
-    split_model === "cruise" ? "cruise" : split_model === "owner" ? "owner" : "legacy",
+    activeSplit,
     menu_merchant_id || null,
     location_merchant_id || null,
     Number(owner_share_percent || 0),
@@ -845,7 +850,8 @@ exports.getAdminDashboardSummary = async ({ dateFrom, dateTo, merchantId = null,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN o.total ELSE 0 END), 0) AS turnover,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN
         CASE WHEN o.split_model = 'cruise' THEN COALESCE(o.platform_share_amount, 0)
-             ELSE COALESCE(o.owner_fee_amount, 0) END
+             WHEN o.split_model = 'legacy' THEN COALESCE(o.owner_fee_amount, 0)
+             ELSE 0 END
       ELSE 0 END), 0) AS profit,
       COALESCE(SUM(CASE WHEN o.status IN ${PAID_LIKE} THEN 1 ELSE 0 END), 0) AS transactions,
       COALESCE(SUM(CASE WHEN o.status = 'PENDING' THEN o.total ELSE 0 END), 0) AS pending_amount,

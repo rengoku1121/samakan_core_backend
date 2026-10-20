@@ -12,22 +12,18 @@ const ORDER_SPLIT_COLUMNS = `
 exports.getFeeConfig = async (conn) => {
   const executor = conn || pool;
   const [rows] = await executor.query(
-    `SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('midtrans_fee_percent', 'owner_fee_percent')`
+    `SELECT setting_key, setting_value FROM system_settings WHERE setting_key = 'midtrans_fee_percent'`
   );
   const map = {};
   for (const r of rows) map[r.setting_key] = r.setting_value;
   return {
     midtrans_fee_percent: parseFloat(map.midtrans_fee_percent || "0.5"),
-    owner_fee_percent: parseFloat(map.owner_fee_percent || "0"),
   };
 };
 
-/** Simpan tarif Midtrans. Bagi hasil global hanya ditulis bila pemanggil masih mengirimnya. */
-exports.updateFeeConfig = async ({ midtrans_fee_percent, owner_fee_percent }) => {
+/** Simpan tarif Midtrans. */
+exports.updateFeeConfig = async ({ midtrans_fee_percent }) => {
   const rows = [["midtrans_fee_percent", String(midtrans_fee_percent)]];
-  if (owner_fee_percent != null && Number.isFinite(Number(owner_fee_percent))) {
-    rows.push(["owner_fee_percent", String(owner_fee_percent)]);
-  }
   const placeholders = rows.map(() => "(?, ?)").join(", ");
   await pool.query(
     `INSERT INTO system_settings (setting_key, setting_value) VALUES ${placeholders}
@@ -49,10 +45,8 @@ exports.findEligibleOrders = async ({ merchant_id } = {}) => {
   }
   const sql = `
     SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at,
-           ${ORDER_SPLIT_COLUMNS},
-           m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer
+           ${ORDER_SPLIT_COLUMNS}
     FROM orders o
-    LEFT JOIN merchants m ON m.id = o.merchant_id
     WHERE ${where.join(" AND ")}
     ORDER BY o.id ASC
   `;
@@ -67,10 +61,8 @@ exports.findEligibleByOrderIds = async (orderIds) => {
   const sql = `
     SELECT o.id, o.order_code, o.payment_ref, o.merchant_id, o.total, o.status, o.paid_at, o.is_settled,
            ${ORDER_SPLIT_COLUMNS},
-           m.partnership_type, m.revenue_share_percent, m.midtrans_fee_bearer,
            EXISTS (SELECT 1 FROM merchant_settlement_items msi WHERE msi.order_id = o.id) AS has_settlement_item
     FROM orders o
-    LEFT JOIN merchants m ON m.id = o.merchant_id
     WHERE (o.order_code IN (${placeholders}) OR o.payment_ref IN (${placeholders}))
     ORDER BY o.id ASC
   `;
@@ -87,8 +79,8 @@ exports.findEligibleByOrderIds = async (orderIds) => {
  * @param {string} [params.notes]
  * @returns {object} { settlement_ref, merchants: [{merchant_id, net_amount, ...}] }
  *
- * Bagi hasil diambil dari kolom merchant (partnership_type + revenue_share_percent),
- * bukan lagi dari owner_fee_percent global.
+ * Cruise memakai persen yang tersimpan di order. Plus dan Basic memakai harga jual
+ * setelah fee pembayaran. Order split_model legacy tidak dihitung lagi.
  */
 exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
   const conn = await pool.getConnection();
@@ -193,19 +185,6 @@ exports.executeSettlement = async ({ orders, feeConfig, source, notes }) => {
           ownFee: 0,
           net: money.ownerRun.owner_net_amount,
           ownerShare: money.ownerRun.owner_net_amount,
-          menuShare: 0,
-          locationShare: 0,
-          platformShare: 0,
-          feeShortfall: 0,
-        });
-      } else {
-        orderPatches.push({
-          id: Number(row.id),
-          midFee: money.split.midtrans_fee_amount,
-          platformMidFee: money.split.platform_midtrans_fee_amount,
-          ownFee: money.split.owner_fee_amount,
-          net: money.split.net_amount,
-          ownerShare: 0,
           menuShare: 0,
           locationShare: 0,
           platformShare: 0,

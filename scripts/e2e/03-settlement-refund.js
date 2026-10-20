@@ -6,7 +6,7 @@ const {
   pool,
   PASSWORD,
   TAG,
-  computeOrderSplit,
+  settlementLines,
 } = require("./helpers");
 
 module.exports = async function run(ctx) {
@@ -81,7 +81,13 @@ module.exports = async function run(ctx) {
     ok("force parallel bukan 5xx", f1.status < 500 && f2.status < 500, { a: f1.status, b: f2.status });
   }
 
-  const [settledRow] = await pool.query(`SELECT is_settled, total, merchant_id, settlement_ref FROM orders WHERE id = ?`, [orderId]);
+  const [settledRow] = await pool.query(
+    `SELECT is_settled, total, merchant_id, settlement_ref, split_model,
+            menu_merchant_id, location_merchant_id,
+            owner_share_percent, menu_share_percent, location_share_percent
+     FROM orders WHERE id = ?`,
+    [orderId]
+  );
   eq("settled === 1", Number(settledRow[0].is_settled), 1);
   const [items] = await pool.query(
     `SELECT COUNT(1) AS c, SUM(net_amount) AS net FROM merchant_settlement_items WHERE order_id = ?`,
@@ -95,20 +101,13 @@ module.exports = async function run(ctx) {
   );
   ok("satu credit ledger", Number(credits[0].c) >= 1, credits[0]);
 
-  const [terms] = await pool.query(
-    `SELECT partnership_type, revenue_share_percent, subscription_amount, midtrans_fee_bearer FROM merchants WHERE id = ?`,
-    [fx.merchantId]
-  );
   const feeConfig = await require("../../models/settlement").getFeeConfig();
-  const split = computeOrderSplit({
-    gross: Number(settledRow[0].total),
-    terms: terms[0],
-    midtrans_fee_percent: feeConfig.midtrans_fee_percent,
-  });
+  const money = settlementLines(settledRow[0], feeConfig.midtrans_fee_percent);
+  const expectedNet = money.ok ? money.lines.reduce((sum, line) => sum + Number(line.net || 0), 0) : null;
   ok(
     "ledger = rumus split",
-    Math.abs(Number(items[0].net) - split.net_amount) < 0.02,
-    { net: items[0].net, expected: split.net_amount }
+    money.ok && Math.abs(Number(items[0].net) - expectedNet) < 0.02,
+    { net: items[0].net, expected: expectedNet, model: money.model }
   );
 
   const merchant = await login(ctx, `${TAG}-m1`, PASSWORD);
@@ -152,7 +151,7 @@ module.exports = async function run(ctx) {
 
   const feesPost = await request(ctx, "POST", "/admin/settlement/fees", {
     jar: staff.jar,
-    body: { midtrans_fee_percent: "0.7", owner_fee_percent: "0" },
+    body: { midtrans_fee_percent: "0.7" },
   });
   ok("staff settlement fees (boleh staff di rute ini)", feesPost.status === 200 || feesPost.status === 302 || feesPost.status === 403, feesPost.status);
 

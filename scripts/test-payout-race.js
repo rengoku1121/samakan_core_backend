@@ -48,7 +48,7 @@ async function cleanup() {
 async function freshMerchant(initialBalance) {
   await cleanup();
   const [res] = await pool.query(
-    `INSERT INTO merchants (merchant_code, name, is_active) VALUES (?, ?, 1)`,
+    `INSERT INTO merchants (merchant_code, name, merchant_role, is_active) VALUES (?, ?, 'owner', 1)`,
     [MERCHANT_CODE, `${TAG} MERCHANT`]
   );
   const merchantId = Number(res.insertId);

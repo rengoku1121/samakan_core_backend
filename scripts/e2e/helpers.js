@@ -46,7 +46,7 @@ const { createStubAxios, assertVendorE2eEnv } = require("../../../vendor/e2e/hel
 const { createApp: createVendorApp } = require("../../../vendor/app");
 const userModel = require("../../models/user");
 const payoutModel = require("../../models/payout");
-const { computeOrderSplit } = require("../../helper-function/partnership");
+const { settlementLines } = require("../../helper-function/partnership");
 const midtransSignature = require("../../../vendor/midtrans-signature");
 const attempts = require("../../helper-function/login-attempts");
 const mailer = require("../../services/mailer");
@@ -329,8 +329,8 @@ async function seedUsersAndCatalog() {
   const machineCode = `${TAG}-MAC-A`.slice(0, 32);
   const [mac] = await pool.query(
     `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_mode,
-                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 1)`,
+                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 'plus', 1)`,
     [machineCode, `${TAG} machine A`, locationId, merchantId]
   );
   const machineId = Number(mac.insertId);
@@ -376,8 +376,8 @@ async function extraMachine(fx, suffix, stock = 1) {
   const code = `${TAG}-${suffix}-M`.slice(0, 32);
   const [mac] = await pool.query(
     `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_mode,
-                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 1)`,
+                           total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), 'auto', 0, 0, ?, ?, 'plus', 1)`,
     [code, `${TAG} ${suffix}`, fx.locationId, fx.merchantId]
   );
   const machineId = Number(mac.insertId);
@@ -470,7 +470,7 @@ module.exports = {
   midtransPayload,
   irisSignature,
   signAccessToken,
-  computeOrderSplit,
+  settlementLines,
   auditInvariants,
   CORE_ROUTES,
   VENDOR_ROUTES,

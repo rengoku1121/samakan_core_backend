@@ -362,13 +362,16 @@ exports.createMachineOrder = async (req, res, next) => {
       return jsonErr(res, 503, "VENDOR_PAYMENT_BASE_URL belum diset di Core");
     }
 
+    const split = cruiseSnapshotFromMachine(machine);
+    if (!split) return jsonErr(res, 400, "Model kerja sama mesin belum diatur.");
+
     const created = await orderModel.createPendingOrderWithStockHold({
       order: {
         order_code_prefix: "KIOSK",
         merchant_id: machine.merchant_id,
         machine_id: machine.id,
         location_id: machine.location_id || null,
-        ...cruiseSnapshotFromMachine(machine),
+        ...split,
         status: "PENDING",
         currency: "IDR",
         subtotal,

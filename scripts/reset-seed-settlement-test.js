@@ -40,7 +40,7 @@ async function wipeData(conn) {
 
 async function createMerchantWithUser(conn, { name, username, email, password }) {
   const { id: merchantId, merchant_code } = await merchantModel.createWithAutoCode(
-    { name, is_active: 1 },
+    { name, is_active: 1, merchant_role: "owner" },
     conn
   );
   const password_hash = await bcrypt.hash(password, 10);
@@ -67,8 +67,8 @@ async function createMachineProductSlot(conn, { merchantId, merchantCode, label,
 
   const machineCode = `${merchantCode}-M1`;
   const [macRes] = await conn.query(
-    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 1)`,
+    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 'plus', 1)`,
     [machineCode, `Machine ${label}`, locationId, merchantId]
   );
   const machineId = Number(macRes.insertId);
@@ -98,8 +98,8 @@ async function createOrders(conn, { merchantId, machineId, slotId, productId, me
     const paidAt = new Date(Date.now() - (i + 1) * 3600 * 1000);
 
     const [orderRes] = await conn.query(
-      `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency, subtotal, total, payment_provider, payment_ref, paid_at, expires_at, is_settled, settled_at, settlement_ref, midtrans_fee_amount, owner_fee_amount, net_amount)
-       VALUES (?, ?, ?, NULL, 'DISPENSED', 'IDR', ?, ?, 'MIDTRANS', ?, ?, NULL, 0, NULL, NULL, 0, 0, 0)`,
+      `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency, subtotal, total, payment_provider, payment_ref, paid_at, expires_at, is_settled, settled_at, settlement_ref, midtrans_fee_amount, owner_fee_amount, net_amount, split_model)
+       VALUES (?, ?, ?, NULL, 'DISPENSED', 'IDR', ?, ?, 'MIDTRANS', ?, ?, NULL, 0, NULL, NULL, 0, 0, 0, 'owner')`,
       [orderCode, merchantId, machineId, total, total, orderCode, paidAt]
     );
     const orderId = Number(orderRes.insertId);

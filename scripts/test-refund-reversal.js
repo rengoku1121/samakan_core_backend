@@ -38,11 +38,7 @@ async function main() {
       }
 
       {
-        const mid = await makeMerchant(TAG, "B", {
-          partnership_type: "revenue_share",
-          revenue_share_percent: 30,
-          midtrans_fee_bearer: "platform",
-        });
+        const mid = await makeMerchant(TAG, "B");
         const order = await makeDispensedOrder(TAG, "B", mid, 1000000);
         await settlementModel.executeSettlement({
           orders: [order],
@@ -50,7 +46,7 @@ async function main() {
           source: "force",
           notes: TAG,
         });
-        assert("B: saldo 700rb", (await balanceOf(mid)) === 700000);
+        assert("B: saldo 995rb", (await balanceOf(mid)) === 995000);
         const r = await orderModel.markRefunded({ id: order.id, refund_reference: "R2" });
         assert("B: reversal terjadi", r.ok && r.reversed, r);
         assert("B: saldo kembali 0", (await balanceOf(mid)) === 0);
@@ -61,11 +57,7 @@ async function main() {
       }
 
       {
-        const mid = await makeMerchant(TAG, "C", {
-          partnership_type: "revenue_share",
-          revenue_share_percent: 30,
-          midtrans_fee_bearer: "platform",
-        });
+        const mid = await makeMerchant(TAG, "C");
         const order = await makeDispensedOrder(TAG, "C", mid, 1000000);
         await settlementModel.executeSettlement({
           orders: [order],
@@ -77,22 +69,18 @@ async function main() {
           `INSERT INTO merchant_balance_ledger
             (merchant_id, settlement_ref, entry_type, tx_count, gross_amount,
              midtrans_fee_amount, owner_fee_amount, net_amount, source, notes)
-           VALUES (?, 'TRF-PAYOUT', 'PAYOUT_DEBIT', 0, 0, 0, 0, -700000, 'payout', 'seed debit')`,
+           VALUES (?, 'TRF-PAYOUT', 'PAYOUT_DEBIT', 0, 0, 0, 0, -995000, 'payout', 'seed debit')`,
           [mid]
         );
         assert("C: saldo 0 setelah payout", (await balanceOf(mid)) === 0);
         const r = await orderModel.markRefunded({ id: order.id });
         assert("C: reversal tetap jalan", r.ok && r.reversed, r);
-        assert("C: saldo boleh negatif", (await balanceOf(mid)) === -700000);
+        assert("C: saldo boleh negatif", (await balanceOf(mid)) === -995000);
         pass("C_reversal_allows_negative");
       }
 
       {
-        const mid = await makeMerchant(TAG, "D", {
-          partnership_type: "revenue_share",
-          revenue_share_percent: 0,
-          midtrans_fee_bearer: "platform",
-        });
+        const mid = await makeMerchant(TAG, "D");
         const order = await makeDispensedOrder(TAG, "D", mid, 50000);
         const [s1, s2, rf] = await Promise.all([
           settlementModel.executeSettlement({ orders: [order], feeConfig: FEE, source: "force", notes: TAG }),

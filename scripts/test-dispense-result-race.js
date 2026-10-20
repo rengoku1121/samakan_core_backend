@@ -62,7 +62,7 @@ async function setup(conn) {
     }
   } else {
     const [merRes] = await conn.query(
-      `INSERT INTO merchants (merchant_code, name, is_active) VALUES (?, ?, 1)`,
+      `INSERT INTO merchants (merchant_code, name, merchant_role, is_active) VALUES (?, ?, 'owner', 1)`,
       [`TEST-RACE`, `${TAG}-MERCHANT`]
     );
     merchantId = Number(merRes.insertId);
@@ -74,8 +74,8 @@ async function setup(conn) {
   }
 
   const [macRes] = await conn.query(
-    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 1)`,
+    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 'plus', 1)`,
     [MACHINE_CODE, `${TAG} machine`, locationId, merchantId]
   );
   const machineId = Number(macRes.insertId);
@@ -94,8 +94,8 @@ async function setup(conn) {
   const slotId = Number(slotRes.insertId);
 
   const [ordRes] = await conn.query(
-    `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency, subtotal, total, payment_provider, payment_ref, paid_at, expires_at)
-     VALUES (?, ?, ?, ?, 'PAID', 'IDR', 10000, 10000, 'MIDTRANS', ?, NOW(3), NULL)`,
+    `INSERT INTO orders (order_code, merchant_id, machine_id, location_id, status, currency, subtotal, total, payment_provider, payment_ref, paid_at, expires_at, split_model)
+     VALUES (?, ?, ?, ?, 'PAID', 'IDR', 10000, 10000, 'MIDTRANS', ?, NOW(3), NULL, 'owner')`,
     [ORDER_CODE, merchantId, machineId, locationId, ORDER_CODE]
   );
   const orderId = Number(ordRes.insertId);

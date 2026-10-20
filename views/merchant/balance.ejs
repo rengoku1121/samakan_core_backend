@@ -242,21 +242,19 @@
       <div class="balance-card">
         <div class="balance-card-k">Fee Midtrans</div>
         <div class="balance-card-v" style="font-size:20px;"><%= balance.total_midtrans_fee_fmt %></div>
-        <div class="balance-card-sub">
-          <%= partnership.midtrans_fee_bearer === 'merchant' ? 'Total potongan PG' : 'Ditanggung platform' %>
-        </div>
+        <div class="balance-card-sub">Tercatat di saldo</div>
       </div>
-      <% if (partnership.partnership_type === 'revenue_share') { %>
+      <% if (Number(balance.total_owner_fee) > 0) { %>
       <div class="balance-card">
-        <div class="balance-card-k">Bagi hasil platform</div>
+        <div class="balance-card-k">Catatan order lama</div>
         <div class="balance-card-v" style="font-size:20px;"><%= balance.total_owner_fee_fmt %></div>
-        <div class="balance-card-sub"><%= partnership.revenue_share_percent %>% dari penjualan</div>
+        <div class="balance-card-sub">Tidak dihitung ulang</div>
       </div>
       <% } %>
     </div>
 
     <p class="terms-note">
-      <b>Skema kerja sama:</b> <%= partnership.summary %>.
+      <b>Peran:</b> <%= partnership.summary %>.
       Saldo tersedia sudah bersih bagian Anda<% if (payoutUiEnabled) { %>, jadi seluruhnya bisa ditarik<% } %>.
     </p>
 

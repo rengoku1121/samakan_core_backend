@@ -27,7 +27,7 @@ function assert(name, cond, extra) {
 // Paket.
 assert("cruise", modelOf("cruise") === "cruise");
 assert("PLUS huruf besar", modelOf("PLUS") === "plus");
-assert("kosong = legacy", modelOf(null) === "legacy" && modelOf("aneh") === "legacy");
+assert("kosong bukan paket", modelOf(null) === "" && modelOf("aneh") === "" && modelOf("legacy") === "");
 
 // Urutan bawaan sesuai brief Cruise.
 assert(

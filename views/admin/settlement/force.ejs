@@ -27,7 +27,7 @@
   <div class="topbar">Samakan Admin • Force Settlement</div>
   <div class="wrap">
     <h1>Force Settlement</h1>
-    <div class="muted">Settle semua order yang sudah <b>DISPENSED</b> dan belum settle. Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>; bagi hasil mengikuti syarat kerja sama tiap merchant.</div>
+    <div class="muted">Settle semua order yang sudah <b>DISPENSED</b> dan belum settle. Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b>. Cruise membagi harga jual ke pemilik, mitra menu, dan mitra lokasi. Plus dan Basic masuk ke pemilik setelah biaya pembayaran.</div>
 
     <% if (!groups.length) { %>
     <div class="card"><div class="muted">Tidak ada order yang eligible untuk di-settle saat ini.</div></div>

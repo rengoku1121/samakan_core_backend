@@ -1,9 +1,6 @@
 <%
   const terms = value || {};
-  const merchantRole = String(terms.merchant_role || 'legacy');
-  const isLegacyRole = merchantRole === 'legacy';
-  const isSubscription = String(terms.partnership_type) === 'subscription';
-  const midtransBearer = String(terms.midtrans_fee_bearer || 'merchant');
+  const merchantRole = String(terms.merchant_role || 'owner');
   const payoutBearer = String(terms.payout_fee_bearer || 'inherit');
   const globalBearerLabel = String(payoutFeeBearerGlobal) === 'merchant' ? 'Merchant' : 'Platform';
   const moneyLocked = !['admin', 'superadmin'].includes(String(user && user.role).toLowerCase());
@@ -14,19 +11,12 @@
     <div class="hint">Syarat kerja sama dan fee hanya bisa diubah admin.</div>
   <% } %>
   <label for="merchant_role">Peran</label>
-  <select id="merchant_role" name="merchant_role" data-merchant-role <%= lockAttr %>>
-    <% if (isLegacyRole) { %>
-      <option value="" selected>Pilih peran</option>
-    <% } %>
+  <select id="merchant_role" name="merchant_role" data-merchant-role required <%= lockAttr %>>
     <option value="owner" <%= merchantRole === 'owner' ? 'selected' : '' %>>Pemilik mesin</option>
     <option value="menu" <%= merchantRole === 'menu' ? 'selected' : '' %>>Mitra menu</option>
     <option value="location" <%= merchantRole === 'location' ? 'selected' : '' %>>Mitra lokasi</option>
   </select>
   <div class="hint">Pemilik mesin, mitra menu, dan mitra lokasi. Persen Cruise diisi di halaman mesin.</div>
-  <input type="hidden" name="partnership_type" value="<%= isSubscription ? 'subscription' : 'revenue_share' %>" />
-  <input type="hidden" name="revenue_share_percent" value="<%= terms.revenue_share_percent ?? 0 %>" />
-  <input type="hidden" name="subscription_amount" value="<%= Math.round(Number(terms.subscription_amount || 0)) %>" />
-  <input type="hidden" name="midtrans_fee_bearer" value="<%= midtransBearer %>" />
 
   <% if (typeof payoutUiEnabled !== 'undefined' && payoutUiEnabled) { %>
   <label for="payout_fee_bearer">Penanggung Fee Payout (per penarikan)</label>

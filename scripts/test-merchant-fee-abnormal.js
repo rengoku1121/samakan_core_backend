@@ -13,7 +13,7 @@ const {
 } = require("../helper-function/test-harness");
 const settlementModel = require("../models/settlement");
 const payoutModel = require("../models/payout");
-const { computeOrderSplit } = require("../helper-function/partnership");
+const { computeOwnerOperatedSplit } = require("../helper-function/partnership");
 
 const TAG = "TMF";
 const FEE = { midtrans_fee_percent: 0.5 };
@@ -23,21 +23,13 @@ async function main() {
   try {
     await runSuite("merchant-fee", async ({ pass }) => {
       {
-        const split = computeOrderSplit({
-          gross: 1000000,
-          terms: { partnership_type: "revenue_share", revenue_share_percent: 99.99, midtrans_fee_bearer: "platform" },
-          midtrans_fee_percent: 0.5,
-        });
-        assert("A: 99.99% tidak minus", split.net_amount >= 0, split);
+        const split = computeOwnerOperatedSplit({ gross: 1000000, midtrans_fee_percent: 0.5 });
+        assert("A: pemilik tidak minus", split.owner_net_amount >= 0, split);
         pass("A_percent_cap", split);
       }
 
       {
-        const mid = await makeMerchant(TAG, "B", {
-          partnership_type: "revenue_share",
-          revenue_share_percent: 10,
-          midtrans_fee_bearer: "merchant",
-        });
+        const mid = await makeMerchant(TAG, "B");
         const o1 = await makeDispensedOrder(TAG, "B1", mid, 100000);
         await settlementModel.executeSettlement({
           orders: [o1],
@@ -46,10 +38,6 @@ async function main() {
           notes: TAG,
         });
         const first = money((await settlementModel.getMerchantBalance(mid)).balance);
-        await pool.query(
-          `UPDATE merchants SET revenue_share_percent = 50, midtrans_fee_bearer = 'platform' WHERE id = ?`,
-          [mid]
-        );
         const o2 = await makeDispensedOrder(TAG, "B2", mid, 100000);
         await settlementModel.executeSettlement({
           orders: [o2],
@@ -58,7 +46,7 @@ async function main() {
           notes: TAG,
         });
         const after = await settlementModel.getMerchantBalance(mid);
-        assert("B: saldo lama tidak dihitung ulang", money(after.balance) !== money(first * 2), after);
+        assert("B: order kedua menambah saldo yang sama", money(after.balance) === money(first * 2), after);
         pass("B_terms_snapshot_not_retroactive", { first, later: money(after.balance) });
       }
 

@@ -1,23 +1,12 @@
 /**
- * Aturan kerja sama merchant: bagi hasil vs subscription.
+ * Aturan uang Cruise, Plus, dan Basic.
  *
- * Satu-satunya tempat rumus pembagian uang ditulis. Settlement, preview Excel,
- * dan UI semuanya memanggil `computeOrderSplit` supaya angka yang dilihat
- * merchant, yang masuk ledger, dan yang bisa ditarik selalu identik.
- *
- * Bagi hasil dipotong SAAT SETTLEMENT, bukan saat tampil. Jadi saldo di ledger
- * sudah bersih milik merchant dan payout tidak perlu tahu apa-apa soal skema
- * kerja sama — merchant memang hanya bisa menarik bagiannya.
+ * Satu-satunya tempat rumus pembagian ditulis. Settlement dan preview memakai
+ * fungsi yang sama supaya angka di saldo dan di ledger identik.
+ * Order model lama (split_model = legacy) tidak dihitung ulang di sini.
  */
 
-const PARTNERSHIP = Object.freeze({
-  REVENUE_SHARE: "revenue_share",
-  SUBSCRIPTION: "subscription",
-});
-
-const PARTNERSHIP_TYPES = Object.freeze(new Set([PARTNERSHIP.REVENUE_SHARE, PARTNERSHIP.SUBSCRIPTION]));
-
-/** Siapa yang menanggung fee Midtrans 0,5% per transaksi. */
+/** Siapa yang menanggung fee payout. Fee QRIS Plus/Basic selalu mengurangi pemilik. */
 const FEE_BEARERS = Object.freeze(new Set(["platform", "merchant"]));
 
 /** Fee payout boleh ikut setting global ('inherit') atau dikunci per merchant. */
@@ -31,67 +20,13 @@ const clampPercent = (v) => {
   return Math.min(100, Math.round(n * 100) / 100);
 };
 
-/**
- * Baca kolom kerja sama dari baris merchant dan isi default yang aman.
- * Merchant yang belum dimigrasi diperlakukan sebagai bagi hasil 0% dengan fee
- * Midtrans di merchant — persis perilaku sistem sebelum fitur ini ada.
- */
+/** Penanggung fee payout. Nilai lain ikut setting global. */
 function normalizeTerms(merchant) {
   const row = merchant || {};
-  const type = PARTNERSHIP_TYPES.has(String(row.partnership_type))
-    ? String(row.partnership_type)
-    : PARTNERSHIP.REVENUE_SHARE;
-
-  const midtransBearer = FEE_BEARERS.has(String(row.midtrans_fee_bearer))
-    ? String(row.midtrans_fee_bearer)
-    : "merchant";
-
   const payoutBearer = PAYOUT_FEE_BEARERS.has(String(row.payout_fee_bearer))
     ? String(row.payout_fee_bearer)
     : "inherit";
-
-  return {
-    partnership_type: type,
-    // Subscription tidak kenal bagi hasil: merchant sudah bayar di muka.
-    revenue_share_percent: type === PARTNERSHIP.REVENUE_SHARE ? clampPercent(row.revenue_share_percent) : 0,
-    subscription_amount: type === PARTNERSHIP.SUBSCRIPTION ? Math.max(0, round2(row.subscription_amount)) : 0,
-    midtrans_fee_bearer: midtransBearer,
-    payout_fee_bearer: payoutBearer,
-  };
-}
-
-/**
- * Pecah satu order jadi bagian merchant, bagi hasil platform, dan fee Midtrans.
- *
- * Invariant yang dipegang seluruh sistem:
- *   net_amount = gross - midtrans_fee_amount - owner_fee_amount
- * dengan `midtrans_fee_amount` = porsi fee yang benar-benar dipotong dari
- * merchant. Fee yang ditanggung platform dicatat terpisah di
- * `platform_midtrans_fee_amount` supaya laba platform tidak terlihat lebih
- * besar dari kenyataan.
- */
-function computeOrderSplit({ gross, terms, midtrans_fee_percent }) {
-  const grossAmount = round2(gross);
-  const t = normalizeTerms(terms);
-
-  const midtransTotal = round2((grossAmount * clampPercent(midtrans_fee_percent)) / 100);
-  const merchantMidtransFee = t.midtrans_fee_bearer === "merchant" ? midtransTotal : 0;
-  const platformMidtransFee = round2(midtransTotal - merchantMidtransFee);
-
-  let ownerFee = round2((grossAmount * t.revenue_share_percent) / 100);
-
-  // Konfigurasi ekstrem tidak boleh membuat saldo merchant minus.
-  const maxOwnerFee = round2(Math.max(0, grossAmount - merchantMidtransFee));
-  if (ownerFee > maxOwnerFee) ownerFee = maxOwnerFee;
-
-  return {
-    gross_amount: grossAmount,
-    midtrans_fee_total: midtransTotal,
-    midtrans_fee_amount: merchantMidtransFee,
-    platform_midtrans_fee_amount: platformMidtransFee,
-    owner_fee_amount: ownerFee,
-    net_amount: round2(grossAmount - merchantMidtransFee - ownerFee),
-  };
+  return { payout_fee_bearer: payoutBearer };
 }
 
 /** Setting payout global hanya berlaku kalau merchant memilih 'inherit'. */
@@ -101,13 +36,6 @@ function resolvePayoutFeeBearer(terms, globalBearer) {
   return FEE_BEARERS.has(String(globalBearer)) ? String(globalBearer) : "platform";
 }
 
-const PARTNERSHIP_LABELS = {
-  [PARTNERSHIP.REVENUE_SHARE]: "Bagi Hasil",
-  [PARTNERSHIP.SUBSCRIPTION]: "Subscription",
-};
-
-const partnershipLabel = (type) => PARTNERSHIP_LABELS[String(type)] || "Bagi Hasil";
-
 const feeBearerLabel = (bearer) => (String(bearer) === "merchant" ? "Merchant" : "Platform");
 
 const payoutFeeBearerLabel = (bearer, globalBearer) =>
@@ -115,28 +43,9 @@ const payoutFeeBearerLabel = (bearer, globalBearer) =>
     ? `Ikut Setting (${feeBearerLabel(globalBearer)})`
     : feeBearerLabel(bearer);
 
-/** Bagi hasil 100% berarti merchant tidak pernah dapat apa-apa. */
-function validateTerms(terms) {
-  const t = normalizeTerms(terms);
-  if (t.partnership_type === PARTNERSHIP.REVENUE_SHARE && t.revenue_share_percent >= 100) {
-    return "Bagi hasil platform harus di bawah 100%, jika tidak merchant tidak menerima apa pun.";
-  }
-  return null;
-}
-
-/** Ringkasan satu baris untuk ditampilkan di tabel admin / halaman merchant. */
-function termsSummary(terms) {
-  const t = normalizeTerms(terms);
-  if (t.partnership_type === PARTNERSHIP.SUBSCRIPTION) {
-    return "Subscription — merchant terima 100% penjualan";
-  }
-  return `Bagi hasil — platform ${t.revenue_share_percent}%, merchant ${round2(100 - t.revenue_share_percent)}%`;
-}
-
-const MERCHANT_ROLES = Object.freeze(new Set(["legacy", "owner", "menu", "location"]));
+const MERCHANT_ROLES = Object.freeze(new Set(["owner", "menu", "location"]));
 
 const MERCHANT_ROLE_LABELS = {
-  legacy: "Merchant lama",
   owner: "Pemilik mesin",
   menu: "Mitra menu",
   location: "Mitra lokasi",
@@ -144,19 +53,18 @@ const MERCHANT_ROLE_LABELS = {
 
 function normalizeMerchantRole(value) {
   const role = String(value || "").toLowerCase();
-  return MERCHANT_ROLES.has(role) ? role : "legacy";
+  return MERCHANT_ROLES.has(role) ? role : "";
 }
 
 function merchantRoleLabel(role) {
-  return MERCHANT_ROLE_LABELS[normalizeMerchantRole(role)] || MERCHANT_ROLE_LABELS.legacy;
+  return MERCHANT_ROLE_LABELS[normalizeMerchantRole(role)] || "Belum dipilih";
 }
 
-const COMMERCIAL_MODELS = Object.freeze(new Set(["legacy", "cruise", "plus", "basic"]));
-const SPLIT_MODELS = Object.freeze(new Set(["legacy", "cruise", "owner"]));
+const COMMERCIAL_MODELS = Object.freeze(new Set(["cruise", "plus", "basic"]));
+const ACTIVE_SPLIT_MODELS = Object.freeze(new Set(["cruise", "owner"]));
 const SERVICE_FEE_AMOUNT = Object.freeze({ plus: 3000000, basic: 1250000 });
 
 const COMMERCIAL_MODEL_LABELS = {
-  legacy: "Model lama",
   cruise: "Cruise",
   plus: "Plus",
   basic: "Basic",
@@ -164,12 +72,15 @@ const COMMERCIAL_MODEL_LABELS = {
 
 function normalizeCommercialModel(value) {
   const model = String(value || "").toLowerCase();
-  return COMMERCIAL_MODELS.has(model) ? model : "legacy";
+  return COMMERCIAL_MODELS.has(model) ? model : "";
 }
 
-function normalizeSplitModel(value) {
+function assertActiveSplitModel(value) {
   const model = String(value || "").toLowerCase();
-  return SPLIT_MODELS.has(model) ? model : "legacy";
+  if (!ACTIVE_SPLIT_MODELS.has(model)) {
+    throw new Error("Split model wajib cruise atau owner.");
+  }
+  return model;
 }
 
 function serviceFeeForModel(model) {
@@ -182,7 +93,7 @@ function isOwnerOperatedModel(model) {
 }
 
 function commercialModelLabel(model) {
-  return COMMERCIAL_MODEL_LABELS[normalizeCommercialModel(model)] || COMMERCIAL_MODEL_LABELS.legacy;
+  return COMMERCIAL_MODEL_LABELS[normalizeCommercialModel(model)] || "Belum dipilih";
 }
 
 /**
@@ -250,16 +161,7 @@ function cruiseSnapshotFromMachine(machine) {
       location_share_percent: 0,
     };
   }
-  if (model !== "cruise") {
-    return {
-      split_model: "legacy",
-      menu_merchant_id: null,
-      location_merchant_id: null,
-      owner_share_percent: 0,
-      menu_share_percent: 0,
-      location_share_percent: 0,
-    };
-  }
+  if (model !== "cruise") return null;
   const locationId = row.location_merchant_id ? Number(row.location_merchant_id) : null;
   return {
     split_model: "cruise",
@@ -355,27 +257,7 @@ function settlementLines(order, midtransPercent) {
       ],
     };
   }
-  const split = computeOrderSplit({
-    gross,
-    terms: row,
-    midtrans_fee_percent: midtransPercent,
-  });
-  return {
-    ok: true,
-    model: "legacy",
-    split,
-    lines: [
-      {
-        merchant_id: Number(row.merchant_id),
-        party_role: "merchant",
-        net: split.net_amount,
-        gross: split.gross_amount,
-        midFee: split.midtrans_fee_amount,
-        platformMidFee: split.platform_midtrans_fee_amount,
-        ownFee: split.owner_fee_amount,
-      },
-    ],
-  };
+  return { ok: false, model: "legacy", lines: [] };
 }
 
 /** Bagian satu pihak. Sebelum settlement dihitung ulang; sesudahnya angka tersimpan. */
@@ -423,10 +305,6 @@ function ownerOperatedAmount(order, merchantId, midtransFeePercent) {
 function slotProductError(machine, product) {
   const model = normalizeCommercialModel(machine && machine.commercial_model);
   const productOwner = product && product.merchant_id ? Number(product.merchant_id) : null;
-  if (model === "legacy") {
-    if (productOwner) return "Mesin lama hanya memakai katalog bersama, tanpa pemilik menu.";
-    return null;
-  }
   if (model === "cruise") {
     if (!machine.menu_merchant_id) return "Mesin Cruise belum punya mitra menu.";
     if (productOwner !== Number(machine.menu_merchant_id)) {
@@ -441,7 +319,7 @@ function slotProductError(machine, product) {
     }
     return null;
   }
-  return null;
+  return "Model kerja sama mesin belum diatur.";
 }
 
 /**
@@ -464,8 +342,6 @@ function placeOwnershipError({ commercialModel, locationMerchantId, placeOwnerId
 }
 
 module.exports = {
-  PARTNERSHIP,
-  PARTNERSHIP_TYPES,
   FEE_BEARERS,
   PAYOUT_FEE_BEARERS,
   MERCHANT_ROLES,
@@ -473,11 +349,10 @@ module.exports = {
   normalizeMerchantRole,
   merchantRoleLabel,
   normalizeCommercialModel,
-  normalizeSplitModel,
+  assertActiveSplitModel,
   serviceFeeForModel,
   isOwnerOperatedModel,
   commercialModelLabel,
-  computeOrderSplit,
   computeCruiseSplit,
   computeOwnerOperatedSplit,
   cruiseSnapshotFromMachine,
@@ -489,10 +364,7 @@ module.exports = {
   placeOwnershipError,
   validateCruiseAssignment,
   resolvePayoutFeeBearer,
-  partnershipLabel,
   feeBearerLabel,
   payoutFeeBearerLabel,
-  termsSummary,
-  validateTerms,
   clampPercent,
 };

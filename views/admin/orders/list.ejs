@@ -132,11 +132,11 @@
 
           <button class="btn btn-primary" type="submit">Terapkan</button>
           <a class="btn btn-ghost" href="/admin/orders">Reset</a>
-          <button class="btn btn-ghost" type="submit" formaction="/admin/orders/export">Unduh Excel</button>
-          <div>
+          <div class="filter-month">
             <label for="f-month">Bulan laporan</label>
             <input id="f-month" type="month" name="month" value="<%= monthInput %>" />
           </div>
+          <button class="btn btn-ghost" type="submit" formaction="/admin/orders/export">Unduh Excel</button>
           <button class="btn btn-ghost" type="submit" formaction="/admin/orders/export/monthly">Laporan bulan</button>
         </form>
       </div>

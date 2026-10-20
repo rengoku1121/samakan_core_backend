@@ -48,7 +48,7 @@ async function boot() {
     if (merchants[0]) merchantId = Number(merchants[0].id);
     else {
       const [merRes] = await conn.query(
-        `INSERT INTO merchants (merchant_code, name, is_active) VALUES ('TEST-EXP', ?, 1)`,
+        `INSERT INTO merchants (merchant_code, name, merchant_role, is_active) VALUES ('TEST-EXP', ?, 'owner', 1)`,
         [`${TAG}-MERCHANT`]
       );
       merchantId = Number(merRes.insertId);
@@ -64,8 +64,8 @@ async function boot() {
       locationId = Number(locRes.insertId);
     }
     const [macRes] = await conn.query(
-      `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-       VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 1)`,
+      `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+       VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 'plus', 1)`,
       [MACHINE_CODE, TAG, locationId, merchantId]
     );
     const machineId = Number(macRes.insertId);
@@ -121,6 +121,7 @@ async function main() {
       currency: "IDR",
       subtotal: PRICE,
       total: PRICE,
+      split_model: "owner",
     },
     item: {
       slot_id: ids.slotId,

@@ -32,7 +32,7 @@
   <div class="wrap">
     <h1>Upload Excel Midtrans</h1>
     <div class="muted">Upload daftar order dari Midtrans. Excel hanya untuk mencocokkan <code>order_id</code>; fee dihitung dari Settings, bukan dari kolom fee Excel.</div>
-    <div class="muted" style="margin-top:4px;">Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b> (Settings). Bagi hasil mengikuti syarat kerja sama tiap merchant.</div>
+    <div class="muted" style="margin-top:4px;">Fee Midtrans <b><%= feeConfig.midtrans_fee_percent %>%</b> (Settings). Cruise memakai persen di mesin. Plus dan Basic memberi pemilik harga jual setelah fee.</div>
 
     <% if (error) { %><div class="alert alert-danger"><%= error %></div><% } %>
 

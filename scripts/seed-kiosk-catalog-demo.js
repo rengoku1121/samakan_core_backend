@@ -312,9 +312,9 @@ async function ensureKioskMachine(conn) {
   const [ins] = await conn.query(
     `
     INSERT INTO machines (
-      code, name, category, location_id, merchant_id, is_active,
+      code, name, category, location_id, merchant_id, commercial_model, is_active,
       total_runtime_hours, total_downtime_hours
-    ) VALUES (?, ?, ?, ?, ?, 1, 0, 0)
+    ) VALUES (?, ?, ?, ?, ?, 'plus', 1, 0, 0)
     `,
     [MACHINE_CODE, "Mesin Kiosk Samakan M1", "Vending", locationId, merchantId]
   );

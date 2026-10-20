@@ -135,8 +135,7 @@ async function main() {
 
     await conn.query(`
       INSERT INTO system_settings (setting_key, setting_value) VALUES
-        ('midtrans_fee_percent', '0.5'),
-        ('owner_fee_percent', '0')
+        ('midtrans_fee_percent', '0.5')
       ON DUPLICATE KEY UPDATE setting_key = setting_key
     `);
     console.log("Ensured default fee settings");

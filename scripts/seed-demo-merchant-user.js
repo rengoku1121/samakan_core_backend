@@ -89,6 +89,7 @@ async function ensureMachine(merchantId, locationId) {
     total_downtime_hours: 0,
     location_id: locationId,
     merchant_id: merchantId,
+    commercial_model: "plus",
     is_active: 1,
   });
   console.log(`Mesin dibuat: ${MACHINE_CODE} id=${id}`);
@@ -209,6 +210,7 @@ async function main() {
     const created = await merchantModel.createWithAutoCode({
       name: MERCHANT_NAME,
       is_active: 1,
+      merchant_role: "owner",
     });
     merchant = { id: created.id, merchant_code: created.merchant_code };
     console.log(`Merchant dibuat: id=${merchant.id} code=${merchant.merchant_code}`);

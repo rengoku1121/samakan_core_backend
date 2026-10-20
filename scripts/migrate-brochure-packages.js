@@ -91,7 +91,7 @@ async function main() {
       conn,
       "machines",
       "commercial_model",
-      "commercial_model ENUM('legacy','cruise','plus','basic') NOT NULL DEFAULT 'legacy'",
+      "commercial_model ENUM('legacy','cruise','plus','basic') NOT NULL DEFAULT 'plus'",
       "'plus'"
     );
     await addColumn(
@@ -104,7 +104,7 @@ async function main() {
       conn,
       "orders",
       "split_model",
-      "split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'legacy'",
+      "split_model ENUM('legacy','cruise','owner') NOT NULL DEFAULT 'owner'",
       "'owner'"
     );
     await addColumn(

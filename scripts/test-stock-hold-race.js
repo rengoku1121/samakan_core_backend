@@ -50,7 +50,7 @@ async function setup(conn, stock) {
     merchantId = Number(merchants[0].id);
   } else {
     const [merRes] = await conn.query(
-      `INSERT INTO merchants (merchant_code, name, is_active) VALUES ('TEST-HOLD', ?, 1)`,
+      `INSERT INTO merchants (merchant_code, name, merchant_role, is_active) VALUES ('TEST-HOLD', ?, 'owner', 1)`,
       [`${TAG}-MERCHANT`]
     );
     merchantId = Number(merRes.insertId);
@@ -69,8 +69,8 @@ async function setup(conn, stock) {
   }
 
   const [macRes] = await conn.query(
-    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, is_active)
-     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 1)`,
+    `INSERT INTO machines (code, name, category, manufactured_at, installed_at, maintenance_at, maintenance_mode, purchase_date, lifespan_months, last_maintenance_at, total_runtime_hours, total_downtime_hours, location_id, merchant_id, commercial_model, is_active)
+     VALUES (?, ?, 'Vending', CURDATE(), CURDATE(), NULL, 'auto', NULL, NULL, NULL, 0, 0, ?, ?, 'plus', 1)`,
     [MACHINE_CODE, `${TAG} machine`, locationId, merchantId]
   );
   const machineId = Number(macRes.insertId);
@@ -116,6 +116,7 @@ async function holdOne(ids, suffix) {
       payment_ref: null,
       paid_at: null,
       expires_at: null,
+      split_model: "owner",
     },
     item: {
       slot_id: ids.slotId,
@@ -318,7 +319,7 @@ async function main() {
     conn.release();
 
     const orderId = await orderModel.create({
-      order_code: orderCode("F-legacy"),
+      order_code: orderCode("F-nohold"),
       merchant_id: ids.merchantId,
       machine_id: ids.machineId,
       location_id: ids.locationId,
@@ -327,10 +328,11 @@ async function main() {
       subtotal: PRICE,
       total: PRICE,
       payment_provider: "MIDTRANS",
-      payment_ref: orderCode("F-legacy"),
+      payment_ref: orderCode("F-nohold"),
       paid_at: null,
       expires_at: null,
       stock_reserved: 0,
+      split_model: "owner",
     });
     await orderModel.createItem({
       order_id: orderId,
@@ -344,10 +346,10 @@ async function main() {
       slot_code: SLOT_CODE,
     });
     assert("F: stok masih 1 sebelum webhook", (await readStock(ids.slotId)) === 1);
-    const paid = await pay(orderCode("F-legacy"));
+    const paid = await pay(orderCode("F-nohold"));
     assert("F: paid", paid.body?.data?.status === "PAID", paid.body);
-    assert("F: stok 0 (legacy decrement)", (await readStock(ids.slotId)) === 0);
-    cases.push({ name: "F_legacy_webhook_still_decrements", pass: true });
+    assert("F: stok 0", (await readStock(ids.slotId)) === 0);
+    cases.push({ name: "F_nohold_webhook_still_decrements", pass: true });
   }
 
   const cleaner = await pool.getConnection();

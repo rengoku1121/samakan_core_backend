@@ -5,17 +5,13 @@ const { normalizeTerms, normalizeMerchantRole } = require("../helper-function/pa
 const activeClause = "deleted_at IS NULL";
 const deletedClause = "deleted_at IS NOT NULL";
 
-/** Kolom syarat kerja sama; dipakai bersama supaya select tidak pernah beda. */
+/** Kolom syarat yang masih dipakai bersama supaya select tidak pernah beda. */
 const TERM_COLUMNS = `
   merchant_role,
-  partnership_type,
-  revenue_share_percent,
-  subscription_amount,
-  midtrans_fee_bearer,
   payout_fee_bearer
 `;
 
-const ROLE_FILTERS = new Set(["legacy", "owner", "menu", "location"]);
+const ROLE_FILTERS = new Set(["owner", "menu", "location"]);
 
 function listFilter({ archivedOnly = false, q = "", role = "", machineId = 0 } = {}) {
   const where = [archivedOnly ? deletedClause : activeClause];
@@ -178,17 +174,12 @@ exports.findTermsByIds = async (ids, conn, { forUpdate = false } = {}) => {
 };
 
 exports.createWithAutoCode = async (
-  { name, is_active, merchant_role, partnership_type, revenue_share_percent, subscription_amount, midtrans_fee_bearer, payout_fee_bearer },
+  { name, is_active, merchant_role, payout_fee_bearer },
   conn
 ) => {
-  const terms = normalizeTerms({
-    partnership_type,
-    revenue_share_percent,
-    subscription_amount,
-    midtrans_fee_bearer,
-    payout_fee_bearer,
-  });
+  const terms = normalizeTerms({ payout_fee_bearer });
   const role = normalizeMerchantRole(merchant_role);
+  if (!role) throw new Error("Peran merchant wajib owner, menu, atau location.");
   const ownConn = !conn;
   const executor = conn || (await pool.getConnection());
   try {
@@ -218,22 +209,14 @@ exports.createWithAutoCode = async (
         merchant_code,
         name,
         merchant_role,
-        partnership_type,
-        revenue_share_percent,
-        subscription_amount,
-        midtrans_fee_bearer,
         payout_fee_bearer,
         is_active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?)
       `,
       [
         merchant_code,
         name,
         role,
-        terms.partnership_type,
-        terms.revenue_share_percent,
-        terms.subscription_amount,
-        terms.midtrans_fee_bearer,
         terms.payout_fee_bearer,
         is_active,
       ]
@@ -253,29 +236,16 @@ exports.updateById = async ({
   name,
   is_active,
   merchant_role,
-  partnership_type,
-  revenue_share_percent,
-  subscription_amount,
-  midtrans_fee_bearer,
   payout_fee_bearer,
 }) => {
-  const terms = normalizeTerms({
-    partnership_type,
-    revenue_share_percent,
-    subscription_amount,
-    midtrans_fee_bearer,
-    payout_fee_bearer,
-  });
+  const terms = normalizeTerms({ payout_fee_bearer });
   const role = normalizeMerchantRole(merchant_role);
+  if (!role) throw new Error("Peran merchant wajib owner, menu, atau location.");
   const sql = `
     UPDATE merchants
     SET
       name = ?,
       merchant_role = ?,
-      partnership_type = ?,
-      revenue_share_percent = ?,
-      subscription_amount = ?,
-      midtrans_fee_bearer = ?,
       payout_fee_bearer = ?,
       is_active = ?
     WHERE id = ?
@@ -285,10 +255,6 @@ exports.updateById = async ({
   const [result] = await pool.query(sql, [
     name,
     role,
-    terms.partnership_type,
-    terms.revenue_share_percent,
-    terms.subscription_amount,
-    terms.midtrans_fee_bearer,
     terms.payout_fee_bearer,
     is_active,
     id,
