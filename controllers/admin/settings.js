@@ -3,11 +3,13 @@ const systemSettings = require("../../models/system-settings");
 const payoutModel = require("../../models/payout");
 
 async function renderSettings(req, res, { error = null, success = null, status = 200 } = {}) {
-  const [feeConfig, kioskUi, payoutConfig, loginOtpEnabled] = await Promise.all([
+  const [feeConfig, kioskUi, payoutConfig, loginOtpEnabled, healthIntervalMs, healthRetentionDays] = await Promise.all([
     settlementModel.getFeeConfig(),
     systemSettings.getKioskUiConfig(),
     payoutModel.getConfig(),
     systemSettings.getLoginOtpEnabled(),
+    systemSettings.getSetting("machine_health_report_interval_ms", "900000"),
+    systemSettings.getSetting("machine_health_retention_days", "90"),
   ]);
   return res.status(status).render("admin/settings/index", {
     title: "Settings",
@@ -16,6 +18,8 @@ async function renderSettings(req, res, { error = null, success = null, status =
     kioskUi,
     payoutConfig,
     loginOtpEnabled,
+    healthIntervalMs: Number(healthIntervalMs) || 900000,
+    healthRetentionDays: Number(healthRetentionDays) || 90,
     error,
     success,
   });
@@ -101,6 +105,32 @@ exports.updatePayout = async (req, res, next) => {
       min_amount: min,
       max_amount: max,
     });
+    return res.redirect("/admin/settings?ok=1");
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateHealth = async (req, res, next) => {
+  try {
+    const intervalMin = parseFloat(req.body.health_interval_minutes);
+    const retDays = parseInt(String(req.body.health_retention_days || ""), 10);
+
+    if (!Number.isFinite(intervalMin) || intervalMin < 5 || intervalMin > 1440) {
+      return await renderSettings(req, res, {
+        error: "Interval laporan kesehatan harus antara 5 dan 1440 menit.",
+        status: 400,
+      });
+    }
+    if (!Number.isInteger(retDays) || retDays < 7 || retDays > 365) {
+      return await renderSettings(req, res, {
+        error: "Retensi riwayat harus antara 7 dan 365 hari.",
+        status: 400,
+      });
+    }
+
+    await systemSettings.setSetting("machine_health_report_interval_ms", String(Math.round(intervalMin * 60000)));
+    await systemSettings.setSetting("machine_health_retention_days", String(retDays));
     return res.redirect("/admin/settings?ok=1");
   } catch (err) {
     return next(err);

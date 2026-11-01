@@ -8,5 +8,6 @@ router.post("/kiosk-ui", requireAuth, requireRole("admin", "staff"), settings.up
 // Menyangkut uang keluar: staff tidak boleh mengubah aturan payout.
 router.post("/payout", requireAuth, requireRole("admin"), settings.updatePayout);
 router.post("/login-otp", requireAuth, requireRole("superadmin"), settings.updateLoginOtp);
+router.post("/health", requireAuth, requireRole("admin"), settings.updateHealth);
 
 module.exports = router;

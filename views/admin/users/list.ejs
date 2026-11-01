@@ -10,8 +10,8 @@
   <div class="wrap">
     <div class="header">
       <div>
-        <h1>Akun Admin</h1>
-        <div class="meta">Hanya akun admin dan staff. Superadmin tidak dibuat dari halaman ini.</div>
+        <h1>Akun Panel</h1>
+        <div class="meta">Akun admin, staff, dan technician. Superadmin tidak dibuat dari halaman ini.</div>
       </div>
       <a class="btn btn-primary" href="/admin/users/new">+ Akun baru</a>
     </div>
@@ -21,7 +21,7 @@
 
     <div class="card flush">
       <% if (!rows.length) { %>
-        <div class="empty">Belum ada akun admin atau staff.</div>
+        <div class="empty">Belum ada akun admin, staff, atau technician.</div>
       <% } else { %>
         <table>
           <thead>
@@ -40,7 +40,7 @@
                   <b><%= row.username %></b>
                   <div class="meta"><%= row.email %></div>
                 </td>
-                <td><%= row.role === "admin" ? "Admin" : "Staff" %></td>
+                <td><%= row.role === "admin" ? "Admin" : row.role === "technician" ? "Technician" : "Staff" %></td>
                 <td>
                   <% if (Number(row.is_active)) { %><span class="badge on">Aktif</span>
                   <% } else { %><span class="badge off">Nonaktif</span><% } %>

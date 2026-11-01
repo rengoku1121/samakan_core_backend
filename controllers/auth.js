@@ -18,6 +18,7 @@ const BAD_LOGIN = "Identifier atau password salah";
 const PENDING_COOKIE = "login_pending";
 
 function homeFor(role) {
+  if (role === "technician") return "/technician";
   return ADMIN_HOME_ROLES.has(role) ? "/dashboard" : "/merchant";
 }
 

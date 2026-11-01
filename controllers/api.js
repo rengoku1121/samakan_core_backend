@@ -27,6 +27,8 @@ const { withPlayerSettings } = require("../helper-function/screensaver-settings"
 const { parseInstalledVersion, parseVersionCode, publicUpdate } = require("../helper-function/kiosk-ota");
 const { storedFilePath } = require("../helper-function/kiosk-apk");
 const { resolveKioskUi } = require("../helper-function/kiosk-ui");
+const healthReportModel = require("../models/machine-health-report");
+const { classifyDiagnostics, summarize, validatePayload, normalizeSource, VMC_MODES, reportFingerprint } = require("../helper-function/health-classification");
 const sequenceModel = require("../models/screensaver-sequence");
 const {
   modelOf,
@@ -226,6 +228,14 @@ exports.postHeartbeat = async (req, res, next) => {
     const offered = versionCode == null ? null : await kioskOtaModel.pickForMachine(machine.id, versionCode);
     const update = publicUpdate(offered);
 
+    let hardware_report_interval_ms = null;
+    if (machine.health_report_interval_ms != null) {
+      hardware_report_interval_ms = Number(machine.health_report_interval_ms);
+    } else {
+      const globalMs = await systemSettings.getSetting("machine_health_report_interval_ms", "");
+      if (globalMs) hardware_report_interval_ms = Number(globalMs) || null;
+    }
+
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({
       success: true,
@@ -233,6 +243,7 @@ exports.postHeartbeat = async (req, res, next) => {
         machine_code: machine.code,
         received_at: new Date().toISOString(),
         update,
+        hardware_report_interval_ms,
       },
     });
   } catch (err) {
@@ -760,6 +771,72 @@ exports.reportDispenseResult = async (req, res, next) => {
         order_id: result.order_code,
         status: result.status,
         stock_restored: result.stock_restored,
+      },
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+/** POST /api/v1/machines/:machineCode/health-report — laporan diagnostik hardware berkala. */
+exports.postHealthReport = async (req, res, next) => {
+  try {
+    const machineCode = clean(req.params.machineCode);
+    if (!machineCode) return jsonErr(res, 400, "machineCode is required");
+
+    const machine = await machineModel.findActiveByCode(machineCode);
+    if (!machine) return jsonErr(res, 404, "Machine not found or inactive");
+
+    const validationErr = validatePayload(req.body);
+    if (validationErr) return jsonErr(res, 400, validationErr);
+
+    const source = normalizeSource(req.body.source);
+    const reportedRaw = req.body.collected_at || req.body.reported_at;
+    let reported_at;
+    if (reportedRaw) {
+      const d = new Date(reportedRaw);
+      const age = Date.now() - d.getTime();
+      if (isNaN(d.getTime()) || age < -60_000 || age > 86_400_000) {
+        reported_at = new Date();
+      } else {
+        reported_at = d;
+      }
+    } else {
+      reported_at = new Date();
+    }
+
+    const diagnostics = req.body.diagnostics || {};
+    const meta = { uart_connected: req.body.uart_connected };
+    req.body.vmc_mode = VMC_MODES.has(req.body.vmc_mode) ? req.body.vmc_mode : null;
+    const overall_status = classifyDiagnostics(diagnostics, meta);
+    const summary = summarize(diagnostics, overall_status, meta);
+    const fingerprint = reportFingerprint(diagnostics, {
+      overall_status,
+      uart_connected: req.body.uart_connected,
+      vmc_mode: req.body.vmc_mode,
+    });
+    const hasDriveErrors = Array.isArray(req.body.recent_drive_errors) && req.body.recent_drive_errors.length > 0;
+
+    const saved = await healthReportModel.insertAndUpdateLatest({
+      machine_id: machine.id,
+      reported_at,
+      source,
+      overall_status,
+      summary,
+      payload: req.body,
+      fingerprint,
+      hasDriveErrors,
+    });
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).json({
+      success: true,
+      data: {
+        machine_code: machine.code,
+        overall_status,
+        summary,
+        action: saved.action,
+        received_at: new Date().toISOString(),
       },
     });
   } catch (err) {

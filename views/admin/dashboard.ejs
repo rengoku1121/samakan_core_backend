@@ -82,6 +82,14 @@
       min-height:220px; background:#fffaf7;
     }
     .dash-placeholder { margin:8px 0 0; }
+    .hw-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin:0 0 16px; padding:12px 14px; border:1px solid #f4e2d9; border-radius:14px; background:#fff; font-size:13px; color:#5c463f; }
+    .hw-strip.is-warning { border-color:#fde68a; background:#fffbeb; }
+    .hw-strip.is-critical { border-color:#fecaca; background:#fef2f2; }
+    .hw-strip-title { font-weight:700; color:#2a1a16; margin-right:4px; }
+    .hw-strip a { color:#5c463f; text-decoration:none; white-space:nowrap; }
+    .hw-strip a:hover { text-decoration:underline; }
+    .hw-strip a b { font-variant-numeric:tabular-nums; color:#2a1a16; }
+    .hw-strip-ok { color:#059669; font-weight:600; }
     @media (max-width: 1100px) { .stats-owner{grid-template-columns:repeat(3, minmax(140px, 1fr));} }
     @media (max-width: 900px) {
       .stats, .charts { grid-template-columns:1fr; }
@@ -102,6 +110,17 @@
         <p>Rentang tanggal menampilkan omzet, bagian Samakan, dan pembayaran yang masih terbuka. Semua waktu menghitung sejak awal, tanpa filter tanggal.</p>
       </details>
     </div>
+    <% if (typeof health !== 'undefined' && health) { %>
+      <% const hwIssues = (health.critical || 0) + (health.warning || 0); %>
+      <div class="hw-strip<%= health.critical ? ' is-critical' : (health.warning ? ' is-warning' : '') %>">
+        <span class="hw-strip-title">Kesehatan hardware mesin aktif</span>
+        <a href="/admin/machines?health=critical">Kritis <b><%= health.critical %></b></a>
+        <a href="/admin/machines?health=warning">Perlu dicek <b><%= health.warning %></b></a>
+        <a href="/admin/machines?health=healthy">Sehat <b><%= health.healthy %></b></a>
+        <a href="/admin/machines?health=unknown">Belum ada data <b><%= health.unknown %></b></a>
+        <% if (!hwIssues) { %><span class="hw-strip-ok">Tidak ada mesin bermasalah</span><% } %>
+      </div>
+    <% } %>
     <div class="dash-tabs" role="tablist" aria-label="Jenis ringkasan">
       <button type="button" class="dash-tab is-active" role="tab" id="tab-range" data-tab="range" aria-selected="true" aria-controls="panel-range">Rentang tanggal</button>
       <button type="button" class="dash-tab" role="tab" id="tab-all" data-tab="all" aria-selected="false" aria-controls="panel-all">Semua waktu</button>

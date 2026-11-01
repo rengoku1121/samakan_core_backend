@@ -27,11 +27,11 @@
   @media(max-width:900px){
     .header{flex-direction:column;align-items:stretch}
     .header > .btn{width:100%;box-sizing:border-box}
-    .account-actions{flex-direction:column;align-items:stretch;align-self:stretch;width:100%}
+    .account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-self:stretch;width:100%}
     .account-actions > .btn,
     .account-actions > form,
     .account-actions .btn{width:100%;box-sizing:border-box}
-    .account-actions form{display:block}
+    .account-actions form{display:block;margin:0;padding:0}
   }
   @media(max-width:700px){.grid2{grid-template-columns:1fr}}
 </style>

@@ -11,7 +11,7 @@
     <div class="header">
       <div>
         <h1><%= mode === "edit" ? "Ubah akun" : "Tambah akun" %></h1>
-        <div class="meta">Role yang bisa dipilih hanya admin dan staff. Password minimal 8 karakter.</div>
+        <div class="meta">Role: admin, staff, atau technician. Password minimal 8 karakter.</div>
       </div>
       <a class="btn btn-ghost" href="/admin/users">Kembali</a>
     </div>
@@ -21,42 +21,64 @@
     <div class="card">
       <form method="POST" action="<%= mode === 'edit' ? '/admin/users/' + accountId : '/admin/users' %>">
         <div class="pad">
-          <div class="grid2">
-            <div>
+          <div class="grid2 fgrid">
+            <div class="f">
               <label for="username">Username</label>
               <input id="username" name="username" type="text" required maxlength="64" value="<%= value.username %>" autocomplete="off" />
             </div>
-            <div>
+            <div class="f">
               <label for="email">Email</label>
               <input id="email" name="email" type="email" required maxlength="190" value="<%= value.email %>" autocomplete="off" />
             </div>
-          </div>
-          <div class="grid2">
-            <div>
+            <div class="f">
               <label for="role">Role</label>
               <select id="role" name="role">
                 <option value="staff" <%= value.role === "staff" ? "selected" : "" %>>Staff</option>
                 <option value="admin" <%= value.role === "admin" ? "selected" : "" %>>Admin</option>
+                <option value="technician" <%= value.role === "technician" ? "selected" : "" %>>Technician</option>
               </select>
             </div>
-            <div>
+            <div class="f">
               <label for="is_active">Status</label>
               <select id="is_active" name="is_active">
                 <option value="1" <%= Number(value.is_active) ? "selected" : "" %>>Aktif</option>
                 <option value="0" <%= Number(value.is_active) ? "" : "selected" %>>Nonaktif</option>
               </select>
             </div>
-          </div>
-          <div class="grid2">
-            <div>
+            <div class="f">
               <label for="password">Password</label>
               <input id="password" name="password" type="password" <%= mode === "new" ? "required minlength=\"8\"" : "" %> autocomplete="new-password" />
               <% if (mode === "edit") { %><div class="meta">Kosongkan bila password tidak diganti.</div><% } %>
             </div>
-            <div>
+            <div class="f">
               <label for="password_confirm">Konfirmasi password</label>
               <input id="password_confirm" name="password_confirm" type="password" <%= mode === "new" ? "required minlength=\"8\"" : "" %> autocomplete="new-password" />
             </div>
+          </div>
+          <div id="tech-fields" style="<%= value.role === 'technician' ? '' : 'display:none' %>">
+            <div class="grid2">
+              <div>
+                <label for="monitor_all">Akses mesin</label>
+                <select id="monitor_all" name="monitor_all_machines">
+                  <option value="0" <%= !Number(value.monitor_all_machines) ? "selected" : "" %>>Hanya mesin terpilih</option>
+                  <option value="1" <%= Number(value.monitor_all_machines) ? "selected" : "" %>>Semua mesin</option>
+                </select>
+              </div>
+            </div>
+            <% if (typeof allMachines !== 'undefined' && allMachines && allMachines.length) { %>
+              <div id="machine-assign" style="<%= Number(value.monitor_all_machines) ? 'display:none' : '' %>">
+                <label>Mesin yang dipantau</label>
+                <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;margin-top:4px">
+                  <% allMachines.forEach(function(m){ %>
+                    <label style="display:block;padding:4px 0;font-size:13px;cursor:pointer">
+                      <input type="checkbox" name="assigned_machines" value="<%= m.id %>"
+                        <%= (assignedIds || []).includes(Number(m.id)) ? "checked" : "" %> />
+                      <b><%= m.code %></b> — <%= m.name || '—' %>
+                    </label>
+                  <% }) %>
+                </div>
+              </div>
+            <% } %>
           </div>
           <div class="row" style="margin-top:16px">
             <button class="btn btn-primary" type="submit"><%= mode === "edit" ? "Simpan" : "Buat akun" %></button>
@@ -65,5 +87,6 @@
       </form>
     </div>
   </div>
+  <script src="/public/js/user-tech-fields.js?v=20261022a" defer></script>
 </body>
 </html>

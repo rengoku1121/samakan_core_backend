@@ -19,6 +19,7 @@ const SUITES = [
   "test-kiosk-cancel.js",
   "test-expire-pending-holds.js",
   "test-order-code-unique.js",
+  "test-health-report-periods.js",
 ];
 
 let failed = 0;

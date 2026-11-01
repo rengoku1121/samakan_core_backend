@@ -91,11 +91,15 @@
           <a class="btn btn-secondary" href="/admin/locations">Lokasi aktif</a>
         </form>
       </div>
-      <div class="card">
-        <label>Nama (baca saja)</label>
-        <input value="<%= location.name %>" disabled />
-        <label>Induk (baca saja)</label>
-        <input value="<%= location.parent_name || '— (master)' %>" disabled />
+      <div class="card fgrid">
+        <div class="f">
+          <label>Nama (baca saja)</label>
+          <input value="<%= location.name %>" disabled />
+        </div>
+        <div class="f">
+          <label>Induk (baca saja)</label>
+          <input value="<%= location.parent_name || '— (master)' %>" disabled />
+        </div>
       </div>
     <% } else { %>
 
@@ -105,6 +109,8 @@
       <% } %>
 
       <form method="POST" action="/admin/locations/<%= location.id %>">
+        <div class="fgrid">
+        <div class="f">
         <label for="parent_id">Induk</label>
         <% if (typeof childCount !== 'undefined' && childCount > 0) { %>
           <input type="hidden" name="parent_id" value="<%= location.parent_id || '' %>" />
@@ -133,30 +139,40 @@
             Pilih master untuk menjadikan ini sub-lokasi, atau kosongkan untuk master.
           <% } %>
         </div>
+        </div>
 
-        <label for="name">Nama lokasi</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" required />
+        <div class="f">
+          <label for="name">Nama lokasi</label>
+          <input id="name" name="name" value="<%= value?.name || '' %>" required />
+        </div>
+        <div class="f">
+          <label for="is_active">Status</label>
+          <select id="is_active" name="is_active">
+            <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
+            <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+          </select>
+        </div>
 
-        <label for="address">Alamat (opsional)</label>
-        <input id="address" name="address" value="<%= value?.address || '' %>" />
+        <div class="f f-wide">
+          <label for="address">Alamat (opsional)</label>
+          <input id="address" name="address" value="<%= value?.address || '' %>" />
+        </div>
+        <div class="f">
+          <label for="owner_merchant_id">Pemilik tempat</label>
+          <select id="owner_merchant_id" name="owner_merchant_id">
+            <option value="">Milik Samakan</option>
+            <% (placePartners || []).forEach(function (m) { %>
+              <option value="<%= m.id %>" <%= String(value?.owner_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+            <% }) %>
+          </select>
+          <div class="hint">Kosong berarti tempat Samakan. Cruise yang memakai mitra lokasi hanya bisa dipasang di tempat miliknya.</div>
+        </div>
 
-        <label for="notes">Catatan (opsional)</label>
-        <textarea id="notes" name="notes"><%= value?.notes || '' %></textarea>
-
-        <label for="owner_merchant_id">Pemilik tempat</label>
-        <select id="owner_merchant_id" name="owner_merchant_id">
-          <option value="">Milik Samakan</option>
-          <% (placePartners || []).forEach(function (m) { %>
-            <option value="<%= m.id %>" <%= String(value?.owner_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Kosong berarti tempat Samakan. Cruise yang memakai mitra lokasi hanya bisa dipasang di tempat miliknya.</div>
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
-        </select>
+        <div class="f f-full">
+          <label for="notes">Catatan (opsional)</label>
+          <textarea id="notes" name="notes"><%= value?.notes || '' %></textarea>
+        </div>
+        </div>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Simpan</button>

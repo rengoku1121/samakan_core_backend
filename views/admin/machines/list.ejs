@@ -45,7 +45,28 @@
     .pager{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
     .select{padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:900;font-size:13px;color:#374151;outline:none;}
     .select:focus{border-color:var(--orange);box-shadow:0 0 0 4px rgba(255,138,0,.16)}
-    .act{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+    .act{display:flex;gap:6px;flex-wrap:nowrap;align-items:center;}
+    .ell{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+    .ell-name{max-width:110px}
+    .ell-loc{max-width:150px}
+    .ell-mer{max-width:140px}
+    @media (min-width:901px){
+      .shell .machines-table th,
+      .shell .machines-table tbody td{white-space:nowrap}
+      .shell .machines-table .col-act{width:1%}
+    }
+    @media (min-width:901px) and (max-width:1439px){
+      .ell-name{display:none}
+    }
+    .hw-healthy{background:#ecfdf5;color:#065f46;border-color:#bbf7d0}.hw-healthy .dot{background:#10b981}
+    .hw-warning{background:#fffbeb;color:#92400e;border-color:#fde68a}.hw-warning .dot{background:#f59e0b}
+    .hw-critical{background:#fef2f2;color:#991b1b;border-color:#fecaca}.hw-critical .dot{background:#ef4444}
+    .hw-unknown{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}.hw-unknown .dot{background:#9ca3af}
+    .health-filter{display:flex;flex-wrap:wrap;gap:6px}
+    .hf{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:#fff;font-size:12px;font-weight:800;color:#374151}
+    .hf b{font-variant-numeric:tabular-nums}
+    .hf.is-active{background:#fff2e5;border-color:var(--orange);color:#7c2d12}
+    .hf-critical b{color:#dc2626}.hf-warning b{color:#d97706}.hf-healthy b{color:#059669}
     .machine-toast{
       margin:0 0 14px;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:14px;
       padding:12px 16px;font-size:14px;font-weight:800;line-height:1.4;
@@ -77,41 +98,50 @@
 
     <div class="card">
       <div class="toolbar">
-        <div class="muted">Klik <b>Detail</b> untuk lihat tanggal, MT, runtime, dll.</div>
+        <div class="health-filter" role="group" aria-label="Filter kesehatan hardware">
+          <a class="hf<%= !health ? ' is-active' : '' %>" href="/admin/machines">Semua</a>
+          <% ['critical', 'warning', 'healthy', 'unknown'].forEach(function (s) { %>
+            <a class="hf hf-<%= s %><%= health === s ? ' is-active' : '' %>" href="/admin/machines?health=<%= s %>"><%= healthLabels[s] %> <b><%= healthSummary[s] || 0 %></b></a>
+          <% }) %>
+        </div>
       </div>
 
       <% if (!rows || rows.length === 0) { %>
-        <div class="empty">Belum ada machine. Klik <b>New Machine</b> untuk menambahkan.</div>
+        <div class="empty"><%= health ? 'Tidak ada mesin dengan status ini.' : 'Belum ada machine. Klik Pasang mesin untuk menambahkan.' %></div>
       <% } else { %>
-        <table>
+        <table class="machines-table">
           <thead>
             <tr>
-              <th style="width:72px;">ID</th>
-              <th style="width:140px;">Code</th>
-              <th>Name</th>
-              <th style="width:120px;">Kategori</th>
-              <th>Location</th>
+              <th>Mesin</th>
+              <th>Lokasi</th>
               <th>Merchant</th>
-              <th style="width:120px;">Status</th>
-              <th style="width:200px;">Aksi</th>
+              <th>Koneksi</th>
+              <th>Hardware</th>
+              <th class="col-act">Aksi</th>
             </tr>
           </thead>
           <tbody>
             <% rows.forEach(function(m){ %>
+              <%
+                const pkg = { cruise: 'Cruise', plus: 'Plus', basic: 'Basic' }[m.commercial_model] || '';
+                const merchantText = [m.merchant_code || '—', pkg].filter(Boolean).join(' · ');
+                const merchantTitle = m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) + (pkg ? ' · ' + pkg : '') : merchantText;
+                const hbTitle = (m.last_heartbeat_at_fmt || '') + (m.last_heartbeat_app_version ? ' · APK v' + m.last_heartbeat_app_version : '');
+              %>
               <tr>
-                <td class="mono"><%= m.id %></td>
-                <td class="mono"><b><%= m.code %></b></td>
-                <td><%= m.name || '-' %></td>
-                <td class="mono"><%= m.category || '-' %></td>
-                <td><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(arsip)</span><% } %></td>
-                <td class="muted"><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %><%= m.commercial_model === 'cruise' ? ' · Cruise' : (m.commercial_model === 'plus' ? ' · Plus' : (m.commercial_model === 'basic' ? ' · Basic' : '')) %></td>
-                <td>
-                  <% if (m.is_active) { %>
-                    <span class="badge on"><span class="dot"></span> Active</span>
+                <td title="<%= m.name || '' %>"><b class="mono"><%= m.code %></b><% if (m.name && m.name !== m.code) { %> <span class="muted ell ell-name"><%= m.name %></span><% } %></td>
+                <td><span class="ell ell-loc" title="<%= m.location_name || '' %>"><%= m.location_name || ('ID #' + m.location_id) %></span><% if (m.location_deleted_at) { %> <span class="muted">(arsip)</span><% } %></td>
+                <td><span class="muted ell ell-mer" title="<%= merchantTitle %>"><%= merchantText %></span></td>
+                <td title="<%= hbTitle %>">
+                  <% if (!m.is_active) { %>
+                    <span class="badge hw-unknown"><span class="dot"></span> Nonaktif</span>
+                  <% } else if (m.heartbeat_online) { %>
+                    <span class="badge on"><span class="dot"></span> Online</span> <span class="muted"><%= m.heartbeat_age_label %></span>
                   <% } else { %>
-                    <span class="badge off"><span class="dot"></span> Inactive</span>
+                    <span class="badge off"><span class="dot"></span> Offline</span> <span class="muted"><%= m.heartbeat_age_label %></span>
                   <% } %>
                 </td>
+                <td><span class="badge hw-<%= m.health_status %>" title="<%= m.last_health_summary || '' %>"><span class="dot"></span> <%= m.health_label %></span></td>
                 <td class="act">
                   <a class="btn btn-primary btn-sm" href="/admin/machines/<%= m.id %>/detail">Detail</a>
                   <a class="btn btn-ghost btn-sm" href="/admin/machines/<%= m.id %>/edit">Edit</a>
@@ -122,7 +152,7 @@
         </table>
       <% } %>
 
-      <%- include('../../partials/table-pager', { basePath: '/admin/machines', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: '' }) %>
+      <%- include('../../partials/table-pager', { basePath: '/admin/machines', page: page, limit: limit, total: total, totalPages: totalPages, shown: rows ? rows.length : 0, keepQs: health ? 'health=' + health : '' }) %>
     </div>
   </div>
 </body>

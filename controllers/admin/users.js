@@ -1,6 +1,8 @@
 const bcrypt = require("bcryptjs");
 const userModel = require("../../models/user");
 const sessions = require("../../models/auth-session");
+const machineModel = require("../../models/machine");
+const assignModel = require("../../models/technician-assignment");
 const { clean, toNonNegInt } = require("../../helper-function/http");
 const { slicePage } = require("../../helper-function/table-page");
 const { formatDateId } = require("../../helper-function/format-date");
@@ -60,20 +62,34 @@ exports.list = async (req, res, next) => {
   }
 };
 
-exports.renderNew = async (req, res) => {
-  return res.render("admin/users/form", {
-    title: "Tambah akun",
-    user: req.user,
-    error: null,
-    mode: "new",
-    value: { username: "", email: "", role: "staff", is_active: 1 },
-  });
+exports.renderNew = async (req, res, next) => {
+  try {
+    const allMachines = await machineModel.listAllForSelect();
+    return res.render("admin/users/form", {
+      title: "Tambah akun",
+      user: req.user,
+      error: null,
+      mode: "new",
+      value: { username: "", email: "", role: "staff", is_active: 1, monitor_all_machines: 0 },
+      allMachines,
+      assignedIds: [],
+    });
+  } catch (err) {
+    return next(err);
+  }
 };
 
 exports.create = async (req, res, next) => {
   const value = formValue(req.body);
   const password = String((req.body && req.body.password) || "");
   const passwordConfirm = String((req.body && req.body.password_confirm) || "");
+  const monitorAll = req.body && req.body.monitor_all_machines === "1" ? 1 : 0;
+  const assignedRaw = req.body && req.body.assigned_machines;
+  const assignedIds = (Array.isArray(assignedRaw) ? assignedRaw : assignedRaw ? [assignedRaw] : [])
+    .map(Number).filter(Number.isFinite);
+  value.monitor_all_machines = monitorAll;
+
+  const allMachines = await machineModel.listAllForSelect().catch(() => []);
   const fail = (status, error) =>
     res.status(status).render("admin/users/form", {
       title: "Tambah akun",
@@ -81,6 +97,8 @@ exports.create = async (req, res, next) => {
       error,
       mode: "new",
       value,
+      allMachines,
+      assignedIds,
     });
 
   try {
@@ -96,7 +114,7 @@ exports.create = async (req, res, next) => {
     const clash = await takenByOther(value.username, value.email, 0);
     if (clash) return fail(409, clash);
 
-    await userModel.insertUser({
+    const newId = await userModel.insertUser({
       username: value.username,
       email: value.email,
       password_hash: await bcrypt.hash(password, 10),
@@ -104,6 +122,14 @@ exports.create = async (req, res, next) => {
       merchant_id: null,
       is_active: value.is_active,
     });
+
+    if (value.role === "technician") {
+      await userModel.updateMonitorAllMachines(newId, monitorAll);
+      if (!monitorAll && assignedIds.length > 0) {
+        await assignModel.setForUser(newId, assignedIds);
+      }
+    }
+
     return res.redirect("/admin/users?ok=created");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") return fail(409, "Username atau email sudah dipakai akun lain.");
@@ -115,6 +141,10 @@ exports.renderEdit = async (req, res, next) => {
   try {
     const row = await userModel.findPanelAccount(toNonNegInt(req.params.id, 0));
     if (!row) return renderMissing(res, req);
+    const allMachines = await machineModel.listAllForSelect();
+    const assignments = row.role === "technician"
+      ? await assignModel.listByUser(row.id)
+      : [];
     return res.render("admin/users/form", {
       title: "Ubah akun",
       user: req.user,
@@ -126,7 +156,10 @@ exports.renderEdit = async (req, res, next) => {
         email: row.email,
         role: row.role,
         is_active: Number(row.is_active) ? 1 : 0,
+        monitor_all_machines: Number(row.monitor_all_machines) || 0,
       },
+      allMachines,
+      assignedIds: assignments.map((a) => Number(a.machine_id)),
     });
   } catch (err) {
     return next(err);
@@ -138,6 +171,13 @@ exports.update = async (req, res, next) => {
   const value = formValue(req.body);
   const password = String((req.body && req.body.password) || "");
   const passwordConfirm = String((req.body && req.body.password_confirm) || "");
+  const monitorAll = req.body && req.body.monitor_all_machines === "1" ? 1 : 0;
+  const assignedRaw = req.body && req.body.assigned_machines;
+  const assignedIds = (Array.isArray(assignedRaw) ? assignedRaw : assignedRaw ? [assignedRaw] : [])
+    .map(Number).filter(Number.isFinite);
+  value.monitor_all_machines = monitorAll;
+
+  const allMachines = await machineModel.listAllForSelect().catch(() => []);
   const fail = (status, error) =>
     res.status(status).render("admin/users/form", {
       title: "Ubah akun",
@@ -146,6 +186,8 @@ exports.update = async (req, res, next) => {
       mode: "edit",
       accountId: id,
       value,
+      allMachines,
+      assignedIds,
     });
 
   try {
@@ -172,6 +214,15 @@ exports.update = async (req, res, next) => {
     if (password.trim()) {
       await userModel.updatePasswordHash(row.id, await bcrypt.hash(password, 10));
     }
+
+    if (value.role === "technician") {
+      await userModel.updateMonitorAllMachines(row.id, monitorAll);
+      await assignModel.setForUser(row.id, monitorAll ? [] : assignedIds);
+    } else if (row.role === "technician" && value.role !== "technician") {
+      await userModel.updateMonitorAllMachines(row.id, 0).catch(() => {});
+      await assignModel.setForUser(row.id, []).catch(() => {});
+    }
+
     return res.redirect("/admin/users?ok=saved");
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") return fail(409, "Username atau email sudah dipakai akun lain.");

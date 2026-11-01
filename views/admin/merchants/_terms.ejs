@@ -6,26 +6,30 @@
   const moneyLocked = !['admin', 'superadmin'].includes(String(user && user.role).toLowerCase());
   const lockAttr = moneyLocked ? 'disabled' : '';
 %>
-<div class="terms-block" data-merchant-terms>
+<div class="terms-block fgrid" data-merchant-terms>
   <% if (moneyLocked) { %>
-    <div class="hint">Syarat kerja sama dan fee hanya bisa diubah admin.</div>
+    <div class="f f-full"><div class="hint">Syarat kerja sama dan fee hanya bisa diubah admin.</div></div>
   <% } %>
-  <label for="merchant_role">Peran</label>
-  <select id="merchant_role" name="merchant_role" data-merchant-role required <%= lockAttr %>>
-    <option value="owner" <%= merchantRole === 'owner' ? 'selected' : '' %>>Pemilik mesin</option>
-    <option value="menu" <%= merchantRole === 'menu' ? 'selected' : '' %>>Mitra menu</option>
-    <option value="location" <%= merchantRole === 'location' ? 'selected' : '' %>>Mitra lokasi</option>
-  </select>
-  <div class="hint">Pemilik mesin, mitra menu, dan mitra lokasi. Persen Cruise diisi di halaman mesin.</div>
+  <div class="f">
+    <label for="merchant_role">Peran</label>
+    <select id="merchant_role" name="merchant_role" data-merchant-role required <%= lockAttr %>>
+      <option value="owner" <%= merchantRole === 'owner' ? 'selected' : '' %>>Pemilik mesin</option>
+      <option value="menu" <%= merchantRole === 'menu' ? 'selected' : '' %>>Mitra menu</option>
+      <option value="location" <%= merchantRole === 'location' ? 'selected' : '' %>>Mitra lokasi</option>
+    </select>
+    <div class="hint">Pemilik mesin, mitra menu, dan mitra lokasi. Persen Cruise diisi di halaman mesin.</div>
+  </div>
 
   <% if (typeof payoutUiEnabled !== 'undefined' && payoutUiEnabled) { %>
-  <label for="payout_fee_bearer">Penanggung Fee Payout (per penarikan)</label>
-  <select id="payout_fee_bearer" name="payout_fee_bearer" <%= lockAttr %>>
-    <option value="inherit" <%= payoutBearer === 'inherit' ? 'selected' : '' %>>Ikut Setting Global (<%= globalBearerLabel %>)</option>
-    <option value="merchant" <%= payoutBearer === 'merchant' ? 'selected' : '' %>>Merchant (dipotong dari saldo)</option>
-    <option value="platform" <%= payoutBearer === 'platform' ? 'selected' : '' %>>Platform (saya yang tanggung)</option>
-  </select>
-  <div class="hint">Nominal fee-nya diatur di Settings &rsaquo; Payout Merchant.</div>
+  <div class="f">
+    <label for="payout_fee_bearer">Penanggung Fee Payout (per penarikan)</label>
+    <select id="payout_fee_bearer" name="payout_fee_bearer" <%= lockAttr %>>
+      <option value="inherit" <%= payoutBearer === 'inherit' ? 'selected' : '' %>>Ikut Setting Global (<%= globalBearerLabel %>)</option>
+      <option value="merchant" <%= payoutBearer === 'merchant' ? 'selected' : '' %>>Merchant (dipotong dari saldo)</option>
+      <option value="platform" <%= payoutBearer === 'platform' ? 'selected' : '' %>>Platform (saya yang tanggung)</option>
+    </select>
+    <div class="hint">Nominal fee-nya diatur di Settings &rsaquo; Payout Merchant.</div>
+  </div>
   <% } else { %>
   <input type="hidden" name="payout_fee_bearer" value="<%= payoutBearer %>" />
   <% } %>

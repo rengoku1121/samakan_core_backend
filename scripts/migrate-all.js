@@ -39,6 +39,8 @@ const MIGRATIONS = [
   "migrate-machine-kiosk-ui.js",
   "migrate-screensaver-sequence.js",
   "migrate-drop-legacy-partnership.js",
+  "migrate-machine-health-monitoring.js",
+  "migrate-health-report-periods.js",
 ];
 
 let failed = 0;

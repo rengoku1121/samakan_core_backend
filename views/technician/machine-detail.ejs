@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title %></title>
+  <style>
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#fff6ec;color:#111827;}
+    .wrap{max-width:900px;margin:0 auto;padding:22px;}
+    h1{margin:0;font-size:22px}
+    .meta{color:#6b7280;font-size:13px;margin-top:6px}
+    .back{display:inline-block;margin-bottom:14px;padding:8px 10px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;color:#7c2d12;font-weight:900;font-size:12px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/technician">← Kembali</a>
+    <h1>Mesin <%= machine.code %></h1>
+    <div class="meta"><%= machine.name || '' %><% if (machine.location_name) { %> · <%= machine.location_name %><% } %></div>
+
+    <%- include('../partials/machine-health', { health: health, intervalAction: '' }) %>
+  </div>
+</body>
+</html>

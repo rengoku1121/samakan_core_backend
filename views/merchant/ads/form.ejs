@@ -60,16 +60,16 @@
 
       <section class="card ads-sec">
         <div class="ads-sec-head"><span class="ads-sec-n">1</span><h2>Iklan</h2></div>
-        <div class="ads-field">
-          <label for="name">Nama iklan</label>
-          <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
-        </div>
-        <div class="ads-dates">
-          <div class="ads-field">
+        <div class="ads-dates fgrid">
+          <div class="ads-field f">
+            <label for="name">Nama iklan</label>
+            <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
+          </div>
+          <div class="ads-field f">
             <label for="start_date">Mulai tayang</label>
             <input type="date" id="start_date" name="start_date" required value="<%= value.start_date %>" />
           </div>
-          <div class="ads-field">
+          <div class="ads-field f">
             <label for="end_date">Selesai tayang</label>
             <input type="date" id="end_date" name="end_date" required value="<%= value.end_date %>" />
           </div>

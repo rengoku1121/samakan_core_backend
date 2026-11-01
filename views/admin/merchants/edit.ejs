@@ -99,11 +99,15 @@
           <a class="btn btn-secondary" href="/admin/merchants">Merchant aktif</a>
         </form>
       </div>
-      <div class="card">
-        <label>Nama (baca saja)</label>
-        <input value="<%= merchant.name %>" disabled />
-        <label>Status (baca saja)</label>
-        <input value="<%= merchant.is_active ? 'Active' : 'Inactive' %>" disabled />
+      <div class="card fgrid">
+        <div class="f">
+          <label>Nama (baca saja)</label>
+          <input value="<%= merchant.name %>" disabled />
+        </div>
+        <div class="f">
+          <label>Status (baca saja)</label>
+          <input value="<%= merchant.is_active ? 'Active' : 'Inactive' %>" disabled />
+        </div>
       </div>
     <% } else { %>
     <div class="card">
@@ -112,23 +116,27 @@
       <% } %>
 
       <form method="POST" action="/admin/merchants/<%= merchant.id %>">
-        <label for="name">Merchant Name</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" required />
-        <div class="hint">Kode merchant tidak bisa diubah. Perubahan nama berdampak ke tampilan laporan.</div>
+        <div class="fgrid">
+          <div class="f f-wide">
+            <label for="name">Merchant Name</label>
+            <input id="name" name="name" value="<%= value?.name || '' %>" required />
+            <div class="hint">Kode merchant tidak bisa diubah. Perubahan nama berdampak ke tampilan laporan.</div>
+          </div>
+          <div class="f">
+            <label for="is_active">Status</label>
+            <select id="is_active" name="is_active">
+              <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
+              <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+            </select>
+            <div class="hint">Inactive = merchant tidak bisa dipakai untuk transaksi baru. Soft delete lebih kuat (arsip + matikan user merchant).</div>
+          </div>
+        </div>
 
         <hr class="sep" />
         <%- include('_terms', { value, payoutFeeBearerGlobal }) %>
         <div class="hint" style="margin-top:10px;">
           Perubahan syarat berlaku untuk penjualan berikutnya. Order yang sudah tercatat tidak dihitung ulang.
         </div>
-        <hr class="sep" />
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
-        </select>
-        <div class="hint">Inactive = merchant tidak bisa dipakai untuk transaksi baru. Soft delete lebih kuat (arsip + matikan user merchant).</div>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>

@@ -16,6 +16,7 @@ const activityRoutes = require("./admin/activity");
 const screensaverRoutes = require("./admin/screensaver");
 const kioskOtaRoutes = require("./admin/kiosk-ota");
 const userRoutes = require("./admin/users");
+const healthRoutes = require("./admin/health");
 
 router.get("/", requireAuth, requireRole("admin", "staff"), (req, res) => {
   const qIndex = String(req.originalUrl || "").indexOf("?");
@@ -37,6 +38,7 @@ router.use("/activity", activityRoutes);
 router.use("/screensaver", screensaverRoutes);
 router.use("/kiosk-ota", kioskOtaRoutes);
 router.use("/users", userRoutes);
+router.use("/health", healthRoutes);
 router.use("/xy", xyRoutes);
 
 module.exports = router;

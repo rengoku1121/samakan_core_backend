@@ -139,11 +139,11 @@ exports.reactivateByMerchantId = async (merchantId, conn) => {
   return result.affectedRows;
 };
 
-const PANEL_ROLE_SQL = "('admin', 'staff')";
+const PANEL_ROLE_SQL = "('admin', 'staff', 'technician')";
 
 exports.listPanelAccounts = async () => {
   const [rows] = await pool.query(
-    `SELECT id, username, email, role, is_active, last_login_at
+    `SELECT id, username, email, role, is_active, last_login_at, monitor_all_machines
      FROM users
      WHERE role IN ${PANEL_ROLE_SQL}
      ORDER BY is_active DESC, role ASC, username ASC`
@@ -153,7 +153,7 @@ exports.listPanelAccounts = async () => {
 
 exports.findPanelAccount = async (userId) => {
   const [rows] = await pool.query(
-    `SELECT id, username, email, role, is_active
+    `SELECT id, username, email, role, is_active, monitor_all_machines
      FROM users
      WHERE id = ? AND role IN ${PANEL_ROLE_SQL}
      LIMIT 1`,
@@ -170,6 +170,14 @@ exports.updatePanelAccount = async (userId, { username, email, role, is_active, 
      WHERE id = ? AND role IN ${PANEL_ROLE_SQL}
      LIMIT 1`,
     [username, email, role, is_active ? 1 : 0, bumpAuth ? 1 : 0, userId]
+  );
+  return result.affectedRows === 1;
+};
+
+exports.updateMonitorAllMachines = async (userId, flag) => {
+  const [result] = await pool.query(
+    `UPDATE users SET monitor_all_machines = ? WHERE id = ? AND role = 'technician' LIMIT 1`,
+    [flag ? 1 : 0, userId]
   );
   return result.affectedRows === 1;
 };

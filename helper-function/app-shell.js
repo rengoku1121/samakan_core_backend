@@ -3,7 +3,7 @@ const { escapeHtml } = require("../utils/escape-html");
 const { payoutUiEnabled } = require("./feature-flags");
 
 const SHELL_ASSET_VER = "20261016b";
-const THEME_VER = "20261019c";
+const THEME_VER = "20261022a";
 const PWA_BUILD = `${THEME_VER}-${SHELL_ASSET_VER}`;
 const THEME_COLOR = "#d91f26";
 
@@ -72,9 +72,18 @@ const ADMIN_NAV = [
     group: "Sistem",
     items: [
       { href: "/admin/kiosk-ota", label: "Pembaruan APK", icon: "download", roles: ["superadmin"] },
-      { href: "/admin/users", label: "Akun Admin", icon: "users", roles: ["superadmin"] },
+      { href: "/admin/users", label: "Akun Panel", icon: "users", roles: ["superadmin"] },
       { href: "/admin/activity", label: "Riwayat Aktivitas", icon: "history" },
       { href: "/admin/settings", label: "Settings", icon: "cog" },
+    ],
+  },
+];
+
+const TECHNICIAN_NAV = [
+  {
+    group: "Monitoring",
+    items: [
+      { href: "/technician", label: "Kesehatan Armada", icon: "machine", exact: true },
     ],
   },
 ];
@@ -112,7 +121,8 @@ const PAGE_TITLES = [
   ["/admin/screensaver/house", "Materi Samakan"],
   ["/admin/screensaver/settings", "Pengaturan Screensaver"],
   ["/admin/screensaver", "Iklan Screensaver"],
-  ["/admin/users", "Akun Admin"],
+  ["/admin/users", "Akun Panel"],
+  ["/technician", "Kesehatan Armada"],
   ["/admin/settings", "Settings"],
   ["/orders/qris", "Generate QRIS"],
   ["/orders", "Orders"],
@@ -132,7 +142,7 @@ function matchesPrefix(pathFull, prefix) {
 /** Halaman yang datanya berubah dan aman dimuat ulang. Form dan detail order tidak ikut. */
 function pullRefreshForPath(rawPath) {
   const pathFull = stripTrailingSlash(rawPath);
-  if (pathFull === "/dashboard" || pathFull === "/admin" || pathFull === "/merchant") return true;
+  if (pathFull === "/dashboard" || pathFull === "/admin" || pathFull === "/merchant" || pathFull === "/technician") return true;
   if (pathFull === "/admin/orders" || pathFull === "/admin/orders/reconciliation") return true;
   if (pathFull === "/orders") return true;
   if (pathFull === "/admin/machines") return true;
@@ -148,6 +158,7 @@ function headerTitleForPath(rawPath) {
   const pathFull = stripTrailingSlash(rawPath);
   if (pathFull === "/dashboard" || pathFull === "/admin") return "Dashboard";
   if (pathFull === "/merchant") return "Dashboard";
+  if (pathFull === "/technician") return "Kesehatan Armada";
   if (!payoutUiEnabled && matchesPrefix(pathFull, "/merchant/balance")) return "Saldo";
   const hit = PAGE_TITLES.find(([prefix]) => matchesPrefix(pathFull, prefix));
   return hit ? hit[1] : "Samakan Core";
@@ -169,7 +180,7 @@ function activeHref(groups, rawPath) {
 function navForRole(userRole, opts = {}) {
   const role = String(userRole || "").toLowerCase();
   const canRequestAds = Boolean(opts.canRequestAds);
-  const groups = (role === "merchant" ? MERCHANT_NAV : ADMIN_NAV)
+  const groups = (role === "merchant" ? MERCHANT_NAV : role === "technician" ? TECHNICIAN_NAV : ADMIN_NAV)
     .map((g) => ({ ...g, items: g.items.filter((it) => !it.roles || it.roles.includes(role)) }))
     .filter((g) => g.items.length);
   return groups
@@ -216,15 +227,17 @@ function wrapHtmlWithShell(html, req) {
   const userRole = req.user?.role || "";
   const navHtml = navHtmlForRole(userRole, pathFull, { canRequestAds: Boolean(req.user && req.user.canRequestAds) });
 
-  const brandHref = userRole === "merchant" ? "/merchant" : "/dashboard";
+  const brandHref = userRole === "merchant" ? "/merchant" : userRole === "technician" ? "/technician" : "/dashboard";
   const workspaceBadge =
     userRole === "merchant"
       ? "Merchant"
-      : userRole === "staff"
-        ? "Staff"
-        : userRole === "superadmin"
-          ? "Superadmin"
-          : "Admin";
+      : userRole === "technician"
+        ? "Teknisi"
+        : userRole === "staff"
+          ? "Staff"
+          : userRole === "superadmin"
+            ? "Superadmin"
+            : "Admin";
   const headerTitle = headerTitleForPath(pathFull);
 
   const safeHeaderTitle = escapeHtml(headerTitle);

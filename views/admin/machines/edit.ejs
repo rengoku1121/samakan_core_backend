@@ -85,88 +85,102 @@
       <% } %>
 
       <form method="POST" action="/admin/machines/<%= machine.id %>">
-        <label for="code">Machine Code (unique)</label>
-        <input id="code" name="code" value="<%= value?.code || '' %>" required />
-
-        <label for="name">Machine Name (optional)</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" />
-
-        <label for="category">Kategori</label>
-        <input id="category" name="category" value="<%= value?.category || '' %>" placeholder="contoh: Dispenser" maxlength="128" />
-
-        <label for="purchase_date">Tanggal pembelian</label>
-        <div class="date-wrap">
-          <input id="purchase_date" type="date" name="purchase_date" value="<%= value?.purchase_date || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="purchase_date" aria-label="Kalender tanggal pembelian" title="Pilih tanggal">📅</button>
+        <div class="fgrid">
+        <div class="f">
+          <label for="code">Machine Code (unique)</label>
+          <input id="code" name="code" value="<%= value?.code || '' %>" required />
+        </div>
+        <div class="f">
+          <label for="name">Machine Name (optional)</label>
+          <input id="name" name="name" value="<%= value?.name || '' %>" />
+        </div>
+        <div class="f">
+          <label for="category">Kategori</label>
+          <input id="category" name="category" value="<%= value?.category || '' %>" placeholder="contoh: Dispenser" maxlength="128" />
         </div>
 
-        <label for="manufactured_at">Tanggal dibuat pabrik</label>
-        <div class="date-wrap">
-          <input id="manufactured_at" type="date" name="manufactured_at" value="<%= value?.manufactured_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="manufactured_at" aria-label="Buka kalender tanggal dibuat pabrik" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Umur (pabrik) di daftar dihitung dari tanggal ini.</div>
-
-        <label for="installed_at">Tanggal dipasang</label>
-        <div class="date-wrap">
-          <input id="installed_at" type="date" name="installed_at" value="<%= value?.installed_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="installed_at" aria-label="Buka kalender tanggal dipasang" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Perkiraan umur sampai hari ini: <b>Pabrik</b> <%= lifespan_since_factory_preview %> · <b>Pasang</b> <%= lifespan_since_install_preview %>.</div>
-
-        <label for="last_maintenance_at">Last MT (maintenance terakhir)</label>
-        <div class="date-wrap">
-          <input id="last_maintenance_at" type="date" name="last_maintenance_at" value="<%= value?.last_maintenance_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="last_maintenance_at" aria-label="Kalender last MT" title="Pilih tanggal">📅</button>
-        </div>
-
-        <label for="maintenance_at">Next MT (jadwal maintenance berikutnya)</label>
-        <div class="segment">
-          <label class="opt">
-            <input type="radio" name="maintenance_mode" value="auto" <%= (value?.maintenance_mode || 'auto') === 'auto' ? 'checked' : '' %> />
-            Auto (+3 bulan dari tanggal pabrik)
-          </label>
-          <label class="opt">
-            <input type="radio" name="maintenance_mode" value="manual" <%= (value?.maintenance_mode || 'auto') === 'manual' ? 'checked' : '' %> />
-            Manual
-          </label>
-        </div>
-        <div class="date-wrap" style="margin-top:8px;">
-          <input id="maintenance_at" type="date" name="maintenance_at" value="<%= value?.maintenance_at || '' %>" />
-          <button type="button" class="date-btn js-date-btn" data-target="maintenance_at" aria-label="Kalender next MT" title="Pilih tanggal">📅</button>
-        </div>
-        <div class="hint">Mode auto mengisi next MT = 3 bulan setelah tanggal pabrik.</div>
-
-        <div class="grid2">
-          <div>
-            <label for="total_runtime_hours">Total runtime (jam)</label>
-            <input id="total_runtime_hours" name="total_runtime_hours" inputmode="decimal" value="<%= value?.total_runtime_hours || '' %>" placeholder="0" />
-          </div>
-          <div>
-            <label for="total_downtime_hours">Total downtime (jam)</label>
-            <input id="total_downtime_hours" name="total_downtime_hours" inputmode="decimal" value="<%= value?.total_downtime_hours || '' %>" placeholder="0" />
+        <div class="f">
+          <label for="purchase_date">Tanggal pembelian</label>
+          <div class="date-wrap">
+            <input id="purchase_date" type="date" name="purchase_date" value="<%= value?.purchase_date || '' %>" />
+            <button type="button" class="date-btn js-date-btn" data-target="purchase_date" aria-label="Kalender tanggal pembelian" title="Pilih tanggal">📅</button>
           </div>
         </div>
+        <div class="f">
+          <label for="manufactured_at">Tanggal dibuat pabrik</label>
+          <div class="date-wrap">
+            <input id="manufactured_at" type="date" name="manufactured_at" value="<%= value?.manufactured_at || '' %>" />
+            <button type="button" class="date-btn js-date-btn" data-target="manufactured_at" aria-label="Buka kalender tanggal dibuat pabrik" title="Pilih tanggal">📅</button>
+          </div>
+          <div class="hint">Umur (pabrik) di daftar dihitung dari tanggal ini.</div>
+        </div>
+        <div class="f">
+          <label for="installed_at">Tanggal dipasang</label>
+          <div class="date-wrap">
+            <input id="installed_at" type="date" name="installed_at" value="<%= value?.installed_at || '' %>" />
+            <button type="button" class="date-btn js-date-btn" data-target="installed_at" aria-label="Buka kalender tanggal dipasang" title="Pilih tanggal">📅</button>
+          </div>
+          <div class="hint">Perkiraan umur sampai hari ini: <b>Pabrik</b> <%= lifespan_since_factory_preview %> · <b>Pasang</b> <%= lifespan_since_install_preview %>.</div>
+        </div>
 
-        <label for="location_id">Location</label>
-        <select id="location_id" name="location_id" required>
-          <option value="">-- pilih lokasi --</option>
-          <% (locations || []).forEach(function(l){ %>
-            <option value="<%= l.id %>"
-              <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>>
-              <%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %><%= l.is_active ? '' : ' (inactive)' %>
-            </option>
-          <% }) %>
-        </select>
-        <div class="hint">Kamu masih bisa pilih lokasi inactive (untuk data historis), tapi idealnya aktif.</div>
+        <div class="f">
+          <label for="last_maintenance_at">Last MT (maintenance terakhir)</label>
+          <div class="date-wrap">
+            <input id="last_maintenance_at" type="date" name="last_maintenance_at" value="<%= value?.last_maintenance_at || '' %>" />
+            <button type="button" class="date-btn js-date-btn" data-target="last_maintenance_at" aria-label="Kalender last MT" title="Pilih tanggal">📅</button>
+          </div>
+        </div>
+        <div class="f f-wide">
+          <label for="maintenance_at">Next MT (jadwal maintenance berikutnya)</label>
+          <div class="segment">
+            <label class="opt">
+              <input type="radio" name="maintenance_mode" value="auto" <%= (value?.maintenance_mode || 'auto') === 'auto' ? 'checked' : '' %> />
+              Auto (+3 bulan dari tanggal pabrik)
+            </label>
+            <label class="opt">
+              <input type="radio" name="maintenance_mode" value="manual" <%= (value?.maintenance_mode || 'auto') === 'manual' ? 'checked' : '' %> />
+              Manual
+            </label>
+          </div>
+          <div class="date-wrap" style="margin-top:8px;">
+            <input id="maintenance_at" type="date" name="maintenance_at" value="<%= value?.maintenance_at || '' %>" />
+            <button type="button" class="date-btn js-date-btn" data-target="maintenance_at" aria-label="Kalender next MT" title="Pilih tanggal">📅</button>
+          </div>
+          <div class="hint">Mode auto mengisi next MT = 3 bulan setelah tanggal pabrik.</div>
+        </div>
+
+        <div class="f">
+          <label for="total_runtime_hours">Total runtime (jam)</label>
+          <input id="total_runtime_hours" name="total_runtime_hours" inputmode="decimal" value="<%= value?.total_runtime_hours || '' %>" placeholder="0" />
+        </div>
+        <div class="f">
+          <label for="total_downtime_hours">Total downtime (jam)</label>
+          <input id="total_downtime_hours" name="total_downtime_hours" inputmode="decimal" value="<%= value?.total_downtime_hours || '' %>" placeholder="0" />
+        </div>
+        <div class="f">
+          <label for="is_active">Status</label>
+          <select id="is_active" name="is_active">
+            <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
+            <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+          </select>
+        </div>
+
+        <div class="f f-full">
+          <label for="location_id">Location</label>
+          <select id="location_id" name="location_id" required>
+            <option value="">-- pilih lokasi --</option>
+            <% (locations || []).forEach(function(l){ %>
+              <option value="<%= l.id %>"
+                <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>>
+                <%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %><%= l.is_active ? '' : ' (inactive)' %>
+              </option>
+            <% }) %>
+          </select>
+          <div class="hint">Kamu masih bisa pilih lokasi inactive (untuk data historis), tapi idealnya aktif.</div>
+        </div>
+        </div>
 
         <%- include('_parties') %>
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
-        </select>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>

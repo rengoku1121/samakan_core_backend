@@ -43,6 +43,8 @@ if (!run("activity-log", core, [path.join(__dirname, "test-activity-log.js")])) 
 if (!run("date-range", core, [path.join(__dirname, "test-date-range.js")])) failed += 1;
 if (!run("panel-account", core, [path.join(__dirname, "test-panel-account.js")])) failed += 1;
 if (!run("screensaver", core, [path.join(__dirname, "test-screensaver.js")])) failed += 1;
+if (!run("health-classification", core, [path.join(__dirname, "test-health-classification.js")])) failed += 1;
+if (!run("health-rbac", core, [path.join(__dirname, "test-health-rbac.js")])) failed += 1;
 if (!run("kiosk-ota", core, [path.join(__dirname, "test-kiosk-ota.js")])) failed += 1;
 if (!run("core db suites", core, [path.join(__dirname, "test-all-db.js")])) failed += 1;
 if (!npmRun("core e2e", core, "test:e2e")) failed += 1;

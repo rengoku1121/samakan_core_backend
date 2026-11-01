@@ -55,7 +55,7 @@
       <% } %>
 
       <form method="POST" action="/admin/slots/<%= slot.id %>">
-        <div class="grid">
+        <div class="grid fgrid">
           <div>
             <label for="machine_id">Machine</label>
             <select id="machine_id" name="machine_id" required>
@@ -83,7 +83,7 @@
             <div class="hint"><%= slotCodeHint %></div>
           </div>
 
-          <div>
+          <div class="f f-wide">
             <label for="product_id">Product</label>
             <select id="product_id" name="product_id" required>
               <option value="">-- pilih product --</option>

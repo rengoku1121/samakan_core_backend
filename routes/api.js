@@ -12,6 +12,7 @@ router.get("/v1/machines/:machineCode/screensaver", api.getScreensaver);
 router.post("/v1/machines/:machineCode/heartbeat", api.postHeartbeat);
 router.get("/v1/machines/:machineCode/apk", api.getKioskApk);
 router.post("/v1/machines/:machineCode/crash-report", api.reportCrash);
+router.post("/v1/machines/:machineCode/health-report", api.postHealthReport);
 router.post("/v1/machines/:machineCode/orders", api.createMachineOrder);
 router.get("/v1/orders/:orderCode/status", api.getOrderStatus);
 router.post("/v1/orders/:orderCode/cancel", api.cancelKioskOrder);

@@ -2,13 +2,27 @@
 const { pool } = require("../utils/db");
 const { normalizeCommercialModel, serviceFeeForModel } = require("../helper-function/partnership");
 
-exports.countAll = async () => {
+const HEALTH_STATUSES = ["healthy", "warning", "critical", "unknown"];
+
+/** Filter status hardware; NULL dihitung unknown. */
+function healthWhere(health, alias = "") {
+  const col = `${alias}last_health_status`;
+  if (!HEALTH_STATUSES.includes(health)) return { sql: "", params: [] };
+  if (health === "unknown") return { sql: `WHERE (${col} IS NULL OR ${col} = 'unknown')`, params: [] };
+  return { sql: `WHERE ${col} = ?`, params: [health] };
+}
+
+exports.HEALTH_STATUSES = HEALTH_STATUSES;
+
+exports.countAll = async ({ health } = {}) => {
+  const where = healthWhere(health);
   const sql = `
     SELECT
       COUNT(1) AS total
     FROM machines
+    ${where.sql}
   `;
-  const [rows] = await pool.query(sql);
+  const [rows] = await pool.query(sql, where.params);
   return Number(rows[0]?.total || 0);
 };
 
@@ -51,7 +65,8 @@ exports.listActiveByMerchantId = async (merchantId) => {
 };
 
 
-exports.listPaginated = async ({ limit, offset }) => {
+exports.listPaginated = async ({ limit, offset, health }) => {
+  const where = healthWhere(health, "m.");
   const sql = `
     SELECT
       m.id,
@@ -75,15 +90,30 @@ exports.listPaginated = async ({ limit, offset }) => {
       l.name AS location_name,
       l.deleted_at AS location_deleted_at,
       m.is_active,
+      m.last_heartbeat_at,
+      m.last_heartbeat_app_version,
+      TIMESTAMPDIFF(SECOND, m.last_heartbeat_at, CURRENT_TIMESTAMP(3)) AS heartbeat_age_seconds,
+      m.last_health_status,
+      m.last_health_at,
+      m.last_health_summary,
       m.updated_at
     FROM machines m
     LEFT JOIN locations l ON l.id = m.location_id
     LEFT JOIN merchants mer ON mer.id = m.merchant_id AND mer.deleted_at IS NULL
+    ${where.sql}
     ORDER BY m.id DESC
     LIMIT ? OFFSET ?
   `;
-  const [rows] = await pool.query(sql, [limit, offset]);
+  const [rows] = await pool.query(sql, [...where.params, limit, offset]);
   return rows;
+};
+
+exports.setHealthReportInterval = async (id, intervalMs) => {
+  const [result] = await pool.query(
+    `UPDATE machines SET health_report_interval_ms = ? WHERE id = ? LIMIT 1`,
+    [intervalMs, id]
+  );
+  return result.affectedRows === 1;
 };
 
 exports.findById = async (id) => {
@@ -119,6 +149,11 @@ exports.findById = async (id) => {
       m.menu_share_percent,
       m.location_share_percent,
       m.service_fee_amount,
+      m.last_health_at,
+      m.last_health_status,
+      m.last_health_summary,
+      m.last_health_payload,
+      m.health_report_interval_ms,
       mer.name AS merchant_name,
       mer.merchant_code AS merchant_code,
       menuMer.name AS menu_merchant_name,
@@ -173,6 +208,7 @@ exports.findActiveByCode = async (code) => {
       m.menu_share_percent,
       m.location_share_percent,
       m.is_active,
+      m.health_report_interval_ms,
       l.name AS location_name,
       mer.merchant_code AS merchant_code,
       mer.name AS merchant_name
@@ -413,6 +449,41 @@ exports.updateById = async ({
     1,
   ]);
   return result.affectedRows === 1;
+};
+
+/**
+ * Daftar mesin dengan snapshot kesehatan terbaru.
+ * @param {number[]|null} machineIds null = semua mesin
+ */
+exports.listWithHealth = async (machineIds) => {
+  let where = "";
+  let params = [];
+  if (machineIds !== null) {
+    if (machineIds.length === 0) return [];
+    where = `WHERE m.id IN (${machineIds.map(() => "?").join(",")})`;
+    params = machineIds.map(Number);
+  }
+  const sql = `
+    SELECT
+      m.id,
+      m.code AS machine_code,
+      m.name AS machine_name,
+      m.is_active,
+      m.last_heartbeat_at,
+      m.last_health_at,
+      m.last_health_status,
+      m.last_health_summary,
+      l.name AS location_name
+    FROM machines m
+    LEFT JOIN locations l ON l.id = m.location_id
+    ${where}
+    ORDER BY
+      FIELD(m.last_health_status, 'critical', 'warning', 'unknown', 'healthy') ASC,
+      m.code ASC
+    LIMIT 1000
+  `;
+  const [rows] = await pool.query(sql, params);
+  return rows;
 };
 
 exports.countByLocationId = async (locationId) => {

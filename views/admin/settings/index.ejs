@@ -125,6 +125,28 @@
     <% } %>
 
     <div class="card">
+      <h2>Monitoring Kesehatan Mesin</h2>
+      <div class="muted" style="margin-bottom:12px;">Interval laporan hardware dari kiosk dan retensi riwayat. Override per mesin di kartu Kesehatan hardware pada detail mesin.</div>
+      <form method="POST" action="/admin/settings/health">
+        <div class="row">
+          <div>
+            <label>Interval laporan (menit)</label>
+            <input name="health_interval_minutes" type="number" step="1" min="5" max="1440" value="<%= Math.round(healthIntervalMs / 60000) %>" required style="max-width:280px" />
+          </div>
+          <div>
+            <label>Retensi riwayat (hari)</label>
+            <input name="health_retention_days" type="number" step="1" min="7" max="365" value="<%= healthRetentionDays %>" required style="max-width:280px" />
+          </div>
+        </div>
+        <p class="hint">Interval: seberapa sering kiosk mengirim diagnostik hardware. Override per mesin lebih prioritas. Retensi: berapa hari riwayat disimpan sebelum dihapus otomatis.</p>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Update Monitoring</button>
+          <a class="btn btn-ghost" href="/admin/machines?health=critical">Mesin bermasalah</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
       <h2>Kiosk UI (pengaturan umum)</h2>
       <div class="muted" style="margin-bottom:12px;">Cara menampilkan katalog di layar kiosk. Berlaku untuk semua mesin yang tidak punya pengaturan sendiri. Atur per mesin di halaman detail mesin.</div>
       <% const globalSlot = kioskUi.catalog_mode === 'slot'; %>

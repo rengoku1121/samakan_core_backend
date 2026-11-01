@@ -81,13 +81,25 @@
       <% } %>
 
       <form method="POST" action="/admin/machines" data-install-form data-fee="<%= feeValue %>">
-        <label for="code">Kode mesin</label>
-        <input id="code" name="code" value="<%= value?.code || '' %>" placeholder="contoh: nomor seri panel" required />
-        <div class="hint">Kode ini yang dikenali panel. Harus unik.</div>
-
-        <label for="name">Nama mesin</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Kantin Gedung A 1" />
-        <div class="hint">Boleh kosong. Dipakai supaya tim mudah mengenali mesin.</div>
+        <div class="fgrid">
+          <div class="f">
+            <label for="code">Kode mesin</label>
+            <input id="code" name="code" value="<%= value?.code || '' %>" placeholder="contoh: nomor seri panel" required />
+            <div class="hint">Kode ini yang dikenali panel. Harus unik.</div>
+          </div>
+          <div class="f">
+            <label for="name">Nama mesin</label>
+            <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Kantin Gedung A 1" />
+            <div class="hint">Boleh kosong. Dipakai supaya tim mudah mengenali mesin.</div>
+          </div>
+          <div class="f">
+            <label for="is_active">Status</label>
+            <select id="is_active" name="is_active">
+              <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
+              <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Nonaktif</option>
+            </select>
+          </div>
+        </div>
 
         <div class="section">
           <h2>Model kerja sama</h2>
@@ -109,71 +121,85 @@
 
         <div class="section">
           <h2>Tempat</h2>
-          <label for="place_mode">Cara mengisi tempat</label>
-          <select id="place_mode" name="place_mode" data-install-switch="place_mode">
-            <option value="existing" <%= placeMode === 'existing' ? 'selected' : '' %>>Pilih tempat yang ada</option>
-            <option value="new" <%= placeMode === 'new' ? 'selected' : '' %>>Buat tempat baru</option>
-          </select>
-          <div data-install-for="place_mode" data-install-when="existing" <%= placeMode === 'existing' ? '' : 'hidden' %>>
-            <label for="location_id">Tempat</label>
-            <select id="location_id" name="location_id">
-              <option value="">-- pilih tempat --</option>
-              <% (locations || []).forEach(function (l) { %>
-                <option value="<%= l.id %>" data-owner="<%= l.owner_merchant_id || '' %>" <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>><%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %></option>
-              <% }) %>
-            </select>
-            <div class="hint">Ini alamat fisik mesin. Sub-tempat yang sudah ada tetap bisa dipilih.</div>
-          </div>
-          <div data-install-for="place_mode" data-install-when="new" <%= placeMode === 'new' ? '' : 'hidden' %>>
-            <label for="new_location_name">Nama tempat</label>
-            <input id="new_location_name" name="new_location_name" value="<%= value?.new_location_name || '' %>" placeholder="contoh: Kantin Gedung A" />
-            <label for="new_location_address">Alamat</label>
-            <input id="new_location_address" name="new_location_address" value="<%= value?.new_location_address || '' %>" placeholder="boleh kosong" />
-            <div class="hint">Tempat baru ini berdiri sendiri, tanpa induk. Sub-tempat tetap dibuat di halaman Locations.</div>
+          <div class="fgrid">
+            <div class="f">
+              <label for="place_mode">Cara mengisi tempat</label>
+              <select id="place_mode" name="place_mode" data-install-switch="place_mode">
+                <option value="existing" <%= placeMode === 'existing' ? 'selected' : '' %>>Pilih tempat yang ada</option>
+                <option value="new" <%= placeMode === 'new' ? 'selected' : '' %>>Buat tempat baru</option>
+              </select>
+            </div>
+            <div class="f f-wide" data-install-for="place_mode" data-install-when="existing" <%= placeMode === 'existing' ? '' : 'hidden' %>>
+              <label for="location_id">Tempat</label>
+              <select id="location_id" name="location_id">
+                <option value="">-- pilih tempat --</option>
+                <% (locations || []).forEach(function (l) { %>
+                  <option value="<%= l.id %>" data-owner="<%= l.owner_merchant_id || '' %>" <%= String(value?.location_id || '') === String(l.id) ? 'selected' : '' %>><%= l.parent_name ? (l.parent_name + ' › ' + l.name) : l.name %></option>
+                <% }) %>
+              </select>
+              <div class="hint">Ini alamat fisik mesin. Sub-tempat yang sudah ada tetap bisa dipilih.</div>
+            </div>
+            <div class="f f-wide fgrid fgrid-2" data-install-for="place_mode" data-install-when="new" <%= placeMode === 'new' ? '' : 'hidden' %>>
+              <div class="f">
+                <label for="new_location_name">Nama tempat</label>
+                <input id="new_location_name" name="new_location_name" value="<%= value?.new_location_name || '' %>" placeholder="contoh: Kantin Gedung A" />
+              </div>
+              <div class="f">
+                <label for="new_location_address">Alamat</label>
+                <input id="new_location_address" name="new_location_address" value="<%= value?.new_location_address || '' %>" placeholder="boleh kosong" />
+              </div>
+              <div class="f f-full">
+                <div class="hint">Tempat baru ini berdiri sendiri, tanpa induk. Sub-tempat tetap dibuat di halaman Locations.</div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div data-owner-block <%= ownerOn ? '' : 'hidden' %>>
           <div class="section">
             <h2>Pemilik mesin</h2>
-            <label for="owner_mode">Cara mengisi pemilik</label>
-            <select id="owner_mode" name="owner_mode" data-install-switch="owner_mode">
-              <option value="existing" <%= ownerMode === 'existing' ? 'selected' : '' %>>Pilih pemilik yang ada</option>
-              <option value="new" <%= ownerMode === 'new' ? 'selected' : '' %>>Buat pemilik baru</option>
-            </select>
-            <div data-install-for="owner_mode" data-install-when="existing" <%= ownerMode === 'existing' ? '' : 'hidden' %>>
-              <label for="merchant_id">Pemilik</label>
-              <select id="merchant_id" name="merchant_id">
-                <option value="">-- pilih pemilik --</option>
-                <% owners.forEach(function (m) { %>
-                  <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div data-install-for="owner_mode" data-install-when="new" <%= ownerMode === 'new' ? '' : 'hidden' %>>
-              <label for="new_owner_name">Nama pemilik</label>
-              <input id="new_owner_name" name="new_owner_name" value="<%= value?.new_owner_name || '' %>" data-party-name="owner" />
-              <div class="grid2">
-                <div>
+            <div class="fgrid">
+              <div class="f">
+                <label for="owner_mode">Cara mengisi pemilik</label>
+                <select id="owner_mode" name="owner_mode" data-install-switch="owner_mode">
+                  <option value="existing" <%= ownerMode === 'existing' ? 'selected' : '' %>>Pilih pemilik yang ada</option>
+                  <option value="new" <%= ownerMode === 'new' ? 'selected' : '' %>>Buat pemilik baru</option>
+                </select>
+              </div>
+              <div class="f f-wide" data-install-for="owner_mode" data-install-when="existing" <%= ownerMode === 'existing' ? '' : 'hidden' %>>
+                <label for="merchant_id">Pemilik</label>
+                <select id="merchant_id" name="merchant_id">
+                  <option value="">-- pilih pemilik --</option>
+                  <% owners.forEach(function (m) { %>
+                    <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="f f-full fgrid" data-install-for="owner_mode" data-install-when="new" <%= ownerMode === 'new' ? '' : 'hidden' %>>
+                <div class="f">
+                  <label for="new_owner_name">Nama pemilik</label>
+                  <input id="new_owner_name" name="new_owner_name" value="<%= value?.new_owner_name || '' %>" data-party-name="owner" />
+                </div>
+                <div class="f">
                   <label for="new_owner_username">Username</label>
                   <input id="new_owner_username" name="new_owner_username" value="<%= value?.new_owner_username || '' %>" autocomplete="off" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_owner_email">Email</label>
                   <input id="new_owner_email" name="new_owner_email" type="email" value="<%= value?.new_owner_email || '' %>" autocomplete="off" />
                 </div>
-              </div>
-              <div class="grid2">
-                <div>
+                <div class="f">
                   <label for="new_owner_password">Kata sandi</label>
                   <input id="new_owner_password" name="new_owner_password" type="password" autocomplete="new-password" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_owner_password_confirm">Konfirmasi kata sandi</label>
                   <input id="new_owner_password_confirm" name="new_owner_password_confirm" type="password" autocomplete="new-password" />
                 </div>
+                <div class="f f-full">
+                  <div class="hint">Perannya pemilik mesin. Kode merchant diisi otomatis. Akun ini bisa masuk portal.</div>
+                </div>
               </div>
-              <div class="hint">Perannya pemilik mesin. Kode merchant diisi otomatis. Akun ini bisa masuk portal.</div>
             </div>
           </div>
         </div>
@@ -181,40 +207,42 @@
         <div data-cruise-block <%= cruiseOn ? '' : 'hidden' %>>
           <div class="section">
             <h2>Mitra menu</h2>
-            <label for="menu_mode">Cara mengisi mitra menu</label>
-            <select id="menu_mode" name="menu_mode" data-install-switch="menu_mode">
-              <option value="existing" <%= menuMode === 'existing' ? 'selected' : '' %>>Pilih mitra menu yang ada</option>
-              <option value="new" <%= menuMode === 'new' ? 'selected' : '' %>>Buat mitra menu baru</option>
-            </select>
-            <div data-install-for="menu_mode" data-install-when="existing" <%= menuMode === 'existing' ? '' : 'hidden' %>>
-              <label for="menu_merchant_id">Mitra menu</label>
-              <select id="menu_merchant_id" name="menu_merchant_id">
-                <option value="">-- pilih mitra menu --</option>
-                <% menus.forEach(function (m) { %>
-                  <option value="<%= m.id %>" <%= String(value?.menu_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-                <% }) %>
-              </select>
-              <div class="hint">Wajib. Tanpa mitra menu, mesin Cruise tidak bisa menerima pesanan.</div>
-            </div>
-            <div data-install-for="menu_mode" data-install-when="new" <%= menuMode === 'new' ? '' : 'hidden' %>>
-              <label for="new_menu_name">Nama mitra menu</label>
-              <input id="new_menu_name" name="new_menu_name" value="<%= value?.new_menu_name || '' %>" data-party-name="menu" />
-              <div class="grid2">
-                <div>
+            <div class="fgrid">
+              <div class="f">
+                <label for="menu_mode">Cara mengisi mitra menu</label>
+                <select id="menu_mode" name="menu_mode" data-install-switch="menu_mode">
+                  <option value="existing" <%= menuMode === 'existing' ? 'selected' : '' %>>Pilih mitra menu yang ada</option>
+                  <option value="new" <%= menuMode === 'new' ? 'selected' : '' %>>Buat mitra menu baru</option>
+                </select>
+              </div>
+              <div class="f f-wide" data-install-for="menu_mode" data-install-when="existing" <%= menuMode === 'existing' ? '' : 'hidden' %>>
+                <label for="menu_merchant_id">Mitra menu</label>
+                <select id="menu_merchant_id" name="menu_merchant_id">
+                  <option value="">-- pilih mitra menu --</option>
+                  <% menus.forEach(function (m) { %>
+                    <option value="<%= m.id %>" <%= String(value?.menu_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                  <% }) %>
+                </select>
+                <div class="hint">Wajib. Tanpa mitra menu, mesin Cruise tidak bisa menerima pesanan.</div>
+              </div>
+              <div class="f f-full fgrid" data-install-for="menu_mode" data-install-when="new" <%= menuMode === 'new' ? '' : 'hidden' %>>
+                <div class="f">
+                  <label for="new_menu_name">Nama mitra menu</label>
+                  <input id="new_menu_name" name="new_menu_name" value="<%= value?.new_menu_name || '' %>" data-party-name="menu" />
+                </div>
+                <div class="f">
                   <label for="new_menu_username">Username</label>
                   <input id="new_menu_username" name="new_menu_username" value="<%= value?.new_menu_username || '' %>" autocomplete="off" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_menu_email">Email</label>
                   <input id="new_menu_email" name="new_menu_email" type="email" value="<%= value?.new_menu_email || '' %>" autocomplete="off" />
                 </div>
-              </div>
-              <div class="grid2">
-                <div>
+                <div class="f">
                   <label for="new_menu_password">Kata sandi</label>
                   <input id="new_menu_password" name="new_menu_password" type="password" autocomplete="new-password" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_menu_password_confirm">Konfirmasi kata sandi</label>
                   <input id="new_menu_password_confirm" name="new_menu_password_confirm" type="password" autocomplete="new-password" />
                 </div>
@@ -224,41 +252,45 @@
 
           <div class="section">
             <h2>Mitra lokasi</h2>
-            <label for="location_party_mode">Cara mengisi mitra lokasi</label>
-            <select id="location_party_mode" name="location_party_mode" data-install-switch="location_party_mode">
-              <option value="none" <%= locationMode === 'none' ? 'selected' : '' %>>Lewati, tanpa bagi hasil lokasi</option>
-              <option value="existing" <%= locationMode === 'existing' ? 'selected' : '' %>>Pilih mitra lokasi yang ada</option>
-              <option value="new" <%= locationMode === 'new' ? 'selected' : '' %>>Buat mitra lokasi baru</option>
-            </select>
-            <div class="hint">Tempat fisik tetap wajib. Mitra lokasi adalah orang yang dibayar karena menyediakan tempat. Kalau tempat yang dipilih belum punya pemilik, menyimpan mesin akan mencatat tempat itu miliknya.</div>
-            <div data-install-for="location_party_mode" data-install-when="existing" <%= locationMode === 'existing' ? '' : 'hidden' %>>
-              <label for="location_merchant_id">Mitra lokasi</label>
-              <select id="location_merchant_id" name="location_merchant_id">
-                <option value="">-- pilih mitra lokasi --</option>
-                <% placePartners.forEach(function (m) { %>
-                  <option value="<%= m.id %>" <%= String(value?.location_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div data-install-for="location_party_mode" data-install-when="new" <%= locationMode === 'new' ? '' : 'hidden' %>>
-              <label for="new_location_party_name">Nama mitra lokasi</label>
-              <input id="new_location_party_name" name="new_location_party_name" value="<%= value?.new_location_party_name || '' %>" data-party-name="location" />
-              <div class="grid2">
-                <div>
+            <div class="fgrid">
+              <div class="f">
+                <label for="location_party_mode">Cara mengisi mitra lokasi</label>
+                <select id="location_party_mode" name="location_party_mode" data-install-switch="location_party_mode">
+                  <option value="none" <%= locationMode === 'none' ? 'selected' : '' %>>Lewati, tanpa bagi hasil lokasi</option>
+                  <option value="existing" <%= locationMode === 'existing' ? 'selected' : '' %>>Pilih mitra lokasi yang ada</option>
+                  <option value="new" <%= locationMode === 'new' ? 'selected' : '' %>>Buat mitra lokasi baru</option>
+                </select>
+              </div>
+              <div class="f f-wide" data-install-for="location_party_mode" data-install-when="existing" <%= locationMode === 'existing' ? '' : 'hidden' %>>
+                <label for="location_merchant_id">Mitra lokasi</label>
+                <select id="location_merchant_id" name="location_merchant_id">
+                  <option value="">-- pilih mitra lokasi --</option>
+                  <% placePartners.forEach(function (m) { %>
+                    <option value="<%= m.id %>" <%= String(value?.location_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <div class="f f-full">
+                <div class="hint">Tempat fisik tetap wajib. Mitra lokasi adalah orang yang dibayar karena menyediakan tempat. Kalau tempat yang dipilih belum punya pemilik, menyimpan mesin akan mencatat tempat itu miliknya.</div>
+              </div>
+              <div class="f f-full fgrid" data-install-for="location_party_mode" data-install-when="new" <%= locationMode === 'new' ? '' : 'hidden' %>>
+                <div class="f">
+                  <label for="new_location_party_name">Nama mitra lokasi</label>
+                  <input id="new_location_party_name" name="new_location_party_name" value="<%= value?.new_location_party_name || '' %>" data-party-name="location" />
+                </div>
+                <div class="f">
                   <label for="new_location_party_username">Username</label>
                   <input id="new_location_party_username" name="new_location_party_username" value="<%= value?.new_location_party_username || '' %>" autocomplete="off" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_location_party_email">Email</label>
                   <input id="new_location_party_email" name="new_location_party_email" type="email" value="<%= value?.new_location_party_email || '' %>" autocomplete="off" />
                 </div>
-              </div>
-              <div class="grid2">
-                <div>
+                <div class="f">
                   <label for="new_location_party_password">Kata sandi</label>
                   <input id="new_location_party_password" name="new_location_party_password" type="password" autocomplete="new-password" />
                 </div>
-                <div>
+                <div class="f">
                   <label for="new_location_party_password_confirm">Konfirmasi kata sandi</label>
                   <input id="new_location_party_password_confirm" name="new_location_party_password_confirm" type="password" autocomplete="new-password" />
                 </div>
@@ -268,17 +300,17 @@
 
           <div class="section">
             <h2>Bagi hasil</h2>
-            <div class="grid2">
-              <div>
+            <div class="grid2 fgrid">
+              <div class="f">
                 <label for="owner_share_percent">Bagian pemilik (%)</label>
                 <input id="owner_share_percent" name="owner_share_percent" type="number" min="0.01" max="99.99" step="0.01" value="<%= value?.owner_share_percent ?? 20 %>" />
                 <div class="hint">Dari harga jual. Di atas 0 dan di bawah 100.</div>
               </div>
-              <div>
+              <div class="f">
                 <label for="menu_share_percent">Bagian mitra menu dari sisa (%)</label>
                 <input id="menu_share_percent" name="menu_share_percent" type="number" min="0" max="100" step="0.01" value="<%= value?.menu_share_percent ?? 0 %>" />
               </div>
-              <div data-location-percent <%= locationMode === 'none' ? 'hidden' : '' %>>
+              <div class="f" data-location-percent <%= locationMode === 'none' ? 'hidden' : '' %>>
                 <label for="location_share_percent">Bagian lokasi dari sisa Samakan (%)</label>
                 <input id="location_share_percent" name="location_share_percent" type="number" min="0" max="100" step="0.01" value="<%= value?.location_share_percent ?? 0 %>" />
               </div>
@@ -298,12 +330,6 @@
             </div>
           </div>
         </div>
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Nonaktif</option>
-        </select>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Simpan mesin</button>

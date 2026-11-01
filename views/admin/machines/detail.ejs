@@ -12,14 +12,18 @@
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
     .topbar{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;padding:16px 22px;font-weight:900;}
-    .wrap{max-width:720px;margin:0 auto;padding:22px;}
+    .wrap{max-width:1040px;margin:0 auto;padding:22px;}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;}
     h1{margin:0 0 6px;font-size:22px}
     .muted{color:#64748b;font-size:13px}
     .idpill{display:inline-flex;margin-top:10px;padding:6px 12px;border-radius:999px;border:1px solid var(--border);font-size:12px;font-weight:800;color:#374151}
-    dl{margin:18px 0 0;padding:0}
-    dt{margin:14px 0 4px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#7c2d12}
-    dd{margin:0;padding:12px 14px;background:#fffdf9;border:1px solid #f1e7dc;border-radius:12px;font-size:14px;line-height:1.45;color:#0f172a}
+    dl.kv-grid{margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row dense;gap:12px 14px}
+    .kv{min-width:0}
+    .kv-wide{grid-column:span 2}
+    dt{margin:0 0 4px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#7c2d12}
+    dd{margin:0;padding:9px 12px;background:#fffdf9;border:1px solid #f1e7dc;border-radius:10px;font-size:14px;line-height:1.4;color:#0f172a;overflow-wrap:anywhere}
+    @media (max-width:900px){dl.kv-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (max-width:560px){dl.kv-grid{grid-template-columns:minmax(0,1fr)}.kv-wide{grid-column:auto}}
     .mono{font-variant-numeric:tabular-nums}
     .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid var(--border);}
     .dot{width:8px;height:8px;border-radius:999px}
@@ -30,6 +34,16 @@
     .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange2));color:#fff;box-shadow:0 14px 28px rgba(255,138,0,.28)}
     .btn-secondary{background:#fff;border:1px solid var(--border);color:#7c2d12}
     .btn-secondary:hover{background:#fff7ed}
+    .mtabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));position:relative;margin:18px 0 16px;border-bottom:1px solid #f4e2d9}
+    .mtab{appearance:none;margin:0;border:0;background:transparent;cursor:pointer;padding:12px 8px 14px;font:inherit;font-weight:700;font-size:14px;color:#8e7269;line-height:1.3;display:flex;align-items:center;justify-content:center;gap:8px}
+    .mtab.is-active{color:#d91f26;background:#fff6f6}
+    .mtab-dot{width:8px;height:8px;border-radius:999px;background:#9ca3af;flex:0 0 auto}
+    .mtab-dot.hw-healthy{background:#10b981}.mtab-dot.hw-warning{background:#f59e0b}.mtab-dot.hw-critical{background:#ef4444}
+    .mtab-ink{position:absolute;left:0;bottom:0;width:33.3333%;height:2px;background:#d91f26;transition:transform .32s ease}
+    .mtabs[data-active="1"] .mtab-ink{transform:translateX(100%)}
+    .mtabs[data-active="2"] .mtab-ink{transform:translateX(200%)}
+    .mtab-panel > .card,.mtab-panel > .mh-card{margin-top:0 !important}
+    @media (prefers-reduced-motion:reduce){.mtab-ink{transition:none}}
   </style>
 </head>
 <body>
@@ -40,89 +54,131 @@
     <div class="muted"><%= m.name || 'Tanpa nama' %></div>
     <div class="idpill">ID #<%= m.id %></div>
 
-    <div class="card" style="margin-top:18px;">
-      <dl>
-        <dt>Status</dt>
-        <dd>
-          <% if (m.is_active) { %>
-            <span class="badge on"><span class="dot"></span> Active</span>
-          <% } else { %>
-            <span class="badge off"><span class="dot"></span> Inactive</span>
-          <% } %>
-        </dd>
+    <div class="mtabs" role="tablist" aria-label="Bagian detail mesin" data-machine-tabs data-active="0">
+      <button type="button" class="mtab is-active" role="tab" id="mtab-info" data-tab="info" aria-selected="true" aria-controls="mpanel-info">Info mesin</button>
+      <button type="button" class="mtab" role="tab" id="mtab-hw" data-tab="hw" aria-selected="false" aria-controls="mpanel-hw">
+        <span class="mtab-dot hw-<%= health.status %>" aria-hidden="true"></span>Kesehatan hardware
+      </button>
+      <button type="button" class="mtab" role="tab" id="mtab-ui" data-tab="ui" aria-selected="false" aria-controls="mpanel-ui">Tampilan katalog</button>
+      <span class="mtab-ink" aria-hidden="true"></span>
+    </div>
 
-        <dt>Kategori</dt>
-        <dd class="mono"><%= m.category || '-' %></dd>
+    <section class="mtab-panel" id="mpanel-info" role="tabpanel" aria-labelledby="mtab-info" data-panel="info">
+    <div class="card">
+      <dl class="kv-grid">
+        <div class="kv">
+          <dt>Status</dt>
+          <dd>
+            <% if (m.is_active) { %>
+              <span class="badge on"><span class="dot"></span> Active</span>
+            <% } else { %>
+              <span class="badge off"><span class="dot"></span> Inactive</span>
+            <% } %>
+          </dd>
+        </div>
+        <div class="kv">
+          <dt>Kategori</dt>
+          <dd class="mono"><%= m.category || '-' %></dd>
+        </div>
+        <div class="kv">
+          <dt>Lokasi</dt>
+          <dd><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(lokasi arsip)</span><% } %></dd>
+        </div>
 
-        <dt>Lokasi</dt>
-        <dd><b><%= m.location_name || ('ID #' + m.location_id) %></b><% if (m.location_deleted_at) { %> <span class="muted">(lokasi arsip)</span><% } %></dd>
-
-        <dt>Merchant</dt>
-        <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %> · <%= m.package_label || 'Paket belum diatur' %></dd>
+        <div class="kv kv-wide">
+          <dt>Merchant</dt>
+          <dd><%= m.merchant_code ? (m.merchant_code + ' — ' + (m.merchant_name || '')) : '—' %> · <%= m.package_label || 'Paket belum diatur' %></dd>
+        </div>
         <% if (m.commercial_model === 'plus' || m.commercial_model === 'basic') { %>
-          <dt>Biaya layanan</dt>
-          <dd>Rp <%= m.service_fee_fmt %> per bulan, dicatat dan tidak dipotong saldo</dd>
+          <div class="kv">
+            <dt>Biaya layanan</dt>
+            <dd>Rp <%= m.service_fee_fmt %>/bulan <span class="muted">(dicatat, tidak dipotong saldo)</span></dd>
+          </div>
         <% } %>
         <% if (m.commercial_model === 'cruise') { %>
-          <dt>Mitra menu</dt>
-          <dd><%= m.menu_merchant_code ? (m.menu_merchant_code + ' — ' + (m.menu_merchant_name || '')) : '—' %> · <%= m.menu_share_percent %>%</dd>
-          <dt>Mitra lokasi</dt>
-          <dd><%= m.location_merchant_code ? (m.location_merchant_code + ' — ' + (m.location_merchant_name || '')) : 'Tanpa bagi hasil' %> · <%= m.location_share_percent %>%</dd>
-          <dt>Bagian pemilik</dt>
-          <dd><%= m.owner_share_percent %>% dari harga jual</dd>
+          <div class="kv">
+            <dt>Bagian pemilik</dt>
+            <dd><%= m.owner_share_percent %>% dari harga jual</dd>
+          </div>
+          <div class="kv">
+            <dt>Mitra menu</dt>
+            <dd><%= m.menu_merchant_code ? (m.menu_merchant_code + ' — ' + (m.menu_merchant_name || '')) : '—' %> · <%= m.menu_share_percent %>%</dd>
+          </div>
+          <div class="kv kv-wide">
+            <dt>Mitra lokasi</dt>
+            <dd><%= m.location_merchant_code ? (m.location_merchant_code + ' — ' + (m.location_merchant_name || '')) : 'Tanpa bagi hasil' %> · <%= m.location_share_percent %>%</dd>
+          </div>
         <% } %>
 
-        <dt>Tanggal dibuat pabrik</dt>
-        <dd class="mono"><%= m.manufactured_at_fmt %></dd>
+        <div class="kv">
+          <dt>Dibuat pabrik</dt>
+          <dd class="mono"><%= m.manufactured_at_fmt %></dd>
+        </div>
+        <div class="kv">
+          <dt>Umur sejak pabrik</dt>
+          <dd class="mono"><%= m.lifespan_since_factory_fmt %></dd>
+        </div>
+        <div class="kv">
+          <dt>Tanggal pembelian</dt>
+          <dd class="mono"><%= m.purchase_date_fmt %></dd>
+        </div>
 
-        <dt>Umur sejak pabrik</dt>
-        <dd class="mono"><%= m.lifespan_since_factory_fmt %></dd>
+        <div class="kv">
+          <dt>Tanggal dipasang</dt>
+          <dd class="mono"><%= m.installed_at_fmt %></dd>
+        </div>
+        <div class="kv">
+          <dt>Umur sejak pasang</dt>
+          <dd class="mono"><%= m.lifespan_since_install_fmt %></dd>
+        </div>
+        <div class="kv">
+          <dt>Last MT</dt>
+          <dd class="mono"><%= m.last_maintenance_at_fmt %></dd>
+        </div>
 
-        <dt>Tanggal dipasang</dt>
-        <dd class="mono"><%= m.installed_at_fmt %></dd>
+        <div class="kv">
+          <dt>Next MT</dt>
+          <dd class="mono"><%= m.next_maintenance_at_fmt %> <span class="muted">(<%= m.maintenance_mode === 'manual' ? 'manual' : 'auto' %>)</span></dd>
+        </div>
+        <div class="kv">
+          <dt>Total runtime</dt>
+          <dd class="mono"><%= m.total_runtime_hours_fmt %></dd>
+        </div>
+        <div class="kv">
+          <dt>Total downtime</dt>
+          <dd class="mono"><%= m.total_downtime_hours_fmt %></dd>
+        </div>
 
-        <dt>Umur sejak pasang</dt>
-        <dd class="mono"><%= m.lifespan_since_install_fmt %></dd>
+        <div class="kv kv-wide">
+          <dt>Heartbeat terakhir</dt>
+          <dd class="mono">
+            <%= m.last_heartbeat_at_fmt %>
+            <% if (m.last_heartbeat_app_version) { %> <span class="muted">· APK v<%= m.last_heartbeat_app_version %></span><% } %>
+            <% if (m.last_heartbeat_version_code) { %> <span class="muted">· code <%= m.last_heartbeat_version_code %></span><% } %>
+            <% if (m.last_ota_error) { %><div style="margin-top:6px;font-weight:400;">OTA: <%= m.last_ota_error %></div><% } %>
+          </dd>
+        </div>
+        <div class="kv">
+          <dt>Dibuat (record)</dt>
+          <dd class="mono"><%= m.created_at %></dd>
+        </div>
 
-        <dt>Tanggal pembelian</dt>
-        <dd class="mono"><%= m.purchase_date_fmt %></dd>
-
-        <dt>Last MT</dt>
-        <dd class="mono"><%= m.last_maintenance_at_fmt %></dd>
-
-        <dt>Next MT</dt>
-        <dd class="mono"><%= m.next_maintenance_at_fmt %> <span class="muted">(<%= m.maintenance_mode === 'manual' ? 'manual' : 'auto' %>)</span></dd>
-
-        <dt>Total runtime</dt>
-        <dd class="mono"><%= m.total_runtime_hours_fmt %></dd>
-
-        <dt>Total downtime</dt>
-        <dd class="mono"><%= m.total_downtime_hours_fmt %></dd>
-
-        <dt>Heartbeat terakhir (Kiosk API)</dt>
-        <dd class="mono">
-          <%= m.last_heartbeat_at_fmt %>
-          <% if (m.last_heartbeat_app_version) { %> <span class="muted">· APK v<%= m.last_heartbeat_app_version %></span><% } %>
-          <% if (m.last_heartbeat_version_code) { %> <span class="muted">· code <%= m.last_heartbeat_version_code %></span><% } %>
-          <% if (m.last_ota_error) { %><div style="margin-top:6px;font-weight:400;">OTA: <%= m.last_ota_error %></div><% } %>
-        </dd>
-
-        <dt>Crash terakhir (kiosk hardening Fase 7)</dt>
-        <dd class="mono">
-          <% if (m.last_crash_at) { %>
-            <span class="badge off"><span class="dot"></span> <%= m.last_crash_at_fmt %></span>
-            <span class="muted">· <%= m.last_crash_source || 'unknown' %></span>
-            <% if (m.last_crash_message) { %><div style="margin-top:6px;font-weight:400;"><%= m.last_crash_message %></div><% } %>
-          <% } else { %>
-            <span class="badge on"><span class="dot"></span> Belum ada crash tercatat</span>
-          <% } %>
-        </dd>
-
-        <dt>Dibuat (record)</dt>
-        <dd class="mono"><%= m.created_at %></dd>
-
-        <dt>Diperbarui</dt>
-        <dd class="mono"><%= m.updated_at %></dd>
+        <div class="kv kv-wide">
+          <dt>Crash terakhir</dt>
+          <dd class="mono">
+            <% if (m.last_crash_at) { %>
+              <span class="badge off"><span class="dot"></span> <%= m.last_crash_at_fmt %></span>
+              <span class="muted">· <%= m.last_crash_source || 'unknown' %></span>
+              <% if (m.last_crash_message) { %><div style="margin-top:6px;font-weight:400;"><%= m.last_crash_message %></div><% } %>
+            <% } else { %>
+              <span class="badge on"><span class="dot"></span> Belum ada crash tercatat</span>
+            <% } %>
+          </dd>
+        </div>
+        <div class="kv">
+          <dt>Diperbarui</dt>
+          <dd class="mono"><%= m.updated_at %></dd>
+        </div>
       </dl>
 
       <div class="row">
@@ -131,10 +187,16 @@
         <a class="btn btn-secondary" href="/dashboard">Dashboard</a>
       </div>
     </div>
+    </section>
 
+    <section class="mtab-panel" id="mpanel-hw" role="tabpanel" aria-labelledby="mtab-hw" data-panel="hw">
+      <%- include('../../partials/machine-health', { health: health, intervalAction: '/admin/machines/' + m.id + '/health-interval' }) %>
+    </section>
+
+    <section class="mtab-panel" id="mpanel-ui" role="tabpanel" aria-labelledby="mtab-ui" data-panel="ui">
     <% if (typeof kioskUi !== 'undefined' && kioskUi) { %>
       <% const g = kioskUi.global; const eff = kioskUi.effective; %>
-      <div class="card" id="kiosk-ui" style="margin-top:18px;">
+      <div class="card" id="kiosk-ui">
         <h2 style="margin:0 0 4px;font-size:17px;">Tampilan katalog kiosk</h2>
         <div class="muted">Kosongkan pilihan agar mesin ini ikut pengaturan umum di Settings.</div>
 
@@ -176,6 +238,8 @@
       </div>
       <script src="/public/js/kiosk-ui-form.js?v=20261017a" defer></script>
     <% } %>
+    </section>
   </div>
+  <script src="/public/js/machine-detail-tabs.js?v=20261023a" defer></script>
 </body>
 </html>

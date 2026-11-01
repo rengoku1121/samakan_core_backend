@@ -70,6 +70,7 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
 
   const authRoutes = require("./routes/auth");
   const adminRoutes = require("./routes/admin");
+  const technicianRoutes = require("./routes/technician");
   const merchantRoutes = require("./routes/merchant");
   const ordersRoutes = require("./routes/merchant/orders");
   const vendor = require("./routes/vendor");
@@ -90,6 +91,7 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
 
   app.use("/auth", authRoutes);
   app.use("/admin", adminRoutes);
+  app.use("/technician", technicianRoutes);
   app.use("/merchant", merchantRoutes);
   app.use("/orders", ordersRoutes);
   app.use("/vendor", vendor);
@@ -137,6 +139,24 @@ function createApp({ skipTimers = false, quiet = false } = {}) {
       );
       timers[timers.length - 1].unref();
     }
+
+    const healthReportModel = require("./models/machine-health-report");
+    const systemSettingsForPurge = require("./models/system-settings");
+    const HEALTH_PURGE_INTERVAL_MS = 6 * 3600_000;
+    timers.push(
+      setInterval(() => {
+        systemSettingsForPurge
+          .getSetting("machine_health_retention_days", "90")
+          .then((raw) => healthReportModel.purgeOld(Number(raw) || 90))
+          .then((n) => { if (n) console.log(`[health-purge] deleted ${n} old reports`); })
+          .catch((err) => console.error("[health-purge]", err.message));
+        healthReportModel
+          .markStaleAsUnknown()
+          .then((n) => { if (n) console.log(`[health-stale] marked ${n} machines unknown`); })
+          .catch((err) => console.error("[health-stale]", err.message));
+      }, HEALTH_PURGE_INTERVAL_MS)
+    );
+    timers[timers.length - 1].unref();
   }
 
   app._e2eTimers = timers;

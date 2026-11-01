@@ -52,38 +52,41 @@
       <% } %>
 
       <form method="POST" action="/admin/merchants">
-        <label for="name">Merchant Name</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Soto Haji Mamat" required />
-        <div class="hint">Gunakan nama yang konsisten agar laporan tidak membingungkan.</div>
-
-        <label for="username">Username Login Merchant</label>
-        <input id="username" name="username" value="<%= value?.username || '' %>" placeholder="contoh: merchant.soto.mamat" required />
-        <div class="hint">Dipakai merchant untuk login ke dashboard merchant.</div>
-
-        <label for="email">Email Login Merchant</label>
-        <input id="email" name="email" type="email" value="<%= value?.email || '' %>" placeholder="contoh: owner@sotomamat.com" required />
-
-        <div class="row" style="margin-top:0;">
-          <div style="flex:1;min-width:220px;">
+        <div class="fgrid">
+          <div class="f">
+            <label for="name">Merchant Name</label>
+            <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="contoh: Soto Haji Mamat" required />
+            <div class="hint">Gunakan nama yang konsisten agar laporan tidak membingungkan.</div>
+          </div>
+          <div class="f">
+            <label for="username">Username Login Merchant</label>
+            <input id="username" name="username" value="<%= value?.username || '' %>" placeholder="contoh: merchant.soto.mamat" required />
+            <div class="hint">Dipakai merchant untuk login ke dashboard merchant.</div>
+          </div>
+          <div class="f">
+            <label for="email">Email Login Merchant</label>
+            <input id="email" name="email" type="email" value="<%= value?.email || '' %>" placeholder="contoh: owner@sotomamat.com" required />
+          </div>
+          <div class="f">
             <label for="password">Password</label>
             <input id="password" name="password" type="password" value="<%= value?.password || '' %>" placeholder="minimal 6 karakter" required />
           </div>
-          <div style="flex:1;min-width:220px;">
+          <div class="f">
             <label for="password_confirm">Konfirmasi Password</label>
             <input id="password_confirm" name="password_confirm" type="password" value="<%= value?.password_confirm || '' %>" required />
+          </div>
+          <div class="f">
+            <label for="is_active">Status</label>
+            <select id="is_active" name="is_active">
+              <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
+              <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+            </select>
+            <div class="hint">Inactive = tidak bisa dipakai untuk operasi / report (nanti).</div>
           </div>
         </div>
 
         <hr class="sep" />
         <%- include('_terms', { value, payoutFeeBearerGlobal }) %>
-        <hr class="sep" />
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
-        </select>
-        <div class="hint">Inactive = tidak bisa dipakai untuk operasi / report (nanti).</div>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Create Merchant</button>

@@ -37,7 +37,7 @@ assert(
 assert(
   "role lain ditolak",
   accountFieldError({ ...base, role: "superadmin", password: "rahasia12", passwordRequired: true }) ===
-    "Role hanya admin atau staff."
+    "Role hanya admin, staff, atau technician."
 );
 
 const hrefs = (role) => navForRole(role).flatMap((group) => group.items.map((item) => item.href));

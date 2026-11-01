@@ -17,6 +17,7 @@ function roleAllowed(user, roles) {
   const allowed = (roles || []).map((r) => String(r || "").toLowerCase());
   const isSuperAdmin = role === "superadmin";
   const adminRouteRequested = allowed.includes("admin") || allowed.includes("staff");
+  // superadmin bypasses admin/staff routes but NOT technician-only routes
   return Boolean(user) && (allowed.includes(role) || (isSuperAdmin && adminRouteRequested));
 }
 

@@ -12,6 +12,8 @@ const { pool } = require("../../utils/db");
 const { clean, lower, toNonNegInt: toInt, cleanDate } = require("../../helper-function/http");
 const { canEditMoneySettings } = require("../../helper-function/rbac");
 const systemSettings = require("../../models/system-settings");
+const healthReportModel = require("../../models/machine-health-report");
+const { buildMachineHealth, STATUS_LABELS: HEALTH_LABELS } = require("../../helper-function/machine-health-view");
 const {
   resolveKioskUi,
   parseMachineKioskUiForm,
@@ -690,15 +692,40 @@ const formatMachineForDisplay = (r) => {
   };
 };
 
+/** Kiosk mengirim heartbeat tiap 60 detik; tiga kali terlewat dianggap offline. */
+const HEARTBEAT_OFFLINE_SECONDS = 180;
+
+const heartbeatAgeLabel = (seconds) => {
+  if (seconds < 60) return `${seconds} detik lalu`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} menit lalu`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  return `${Math.floor(hours / 24)} hari lalu`;
+};
+
+const heartbeatStatus = (r) => {
+  if (!r.last_heartbeat_at || r.heartbeat_age_seconds == null) {
+    return { heartbeat_online: false, heartbeat_age_label: "Belum pernah" };
+  }
+  const age = Math.max(0, Number(r.heartbeat_age_seconds) || 0);
+  return {
+    heartbeat_online: age <= HEARTBEAT_OFFLINE_SECONDS,
+    heartbeat_age_label: heartbeatAgeLabel(age),
+  };
+};
+
 exports.list = async (req, res, next) => {
   try {
     const page = Math.max(1, toInt(req.query.page, 1));
     const limit = Math.min(50, Math.max(5, toInt(req.query.limit, 10)));
     const offset = (page - 1) * limit;
+    const health = machineModel.HEALTH_STATUSES.includes(lower(req.query.health)) ? lower(req.query.health) : "";
 
-    const [total, rows] = await Promise.all([
-      machineModel.countAll(),
-      machineModel.listPaginated({ limit, offset }),
+    const [total, rows, healthSummary] = await Promise.all([
+      machineModel.countAll({ health }),
+      machineModel.listPaginated({ limit, offset, health }),
+      healthReportModel.fleetSummary(null, { activeOnly: false }),
     ]);
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -706,11 +733,19 @@ exports.list = async (req, res, next) => {
     return res.render("admin/machines/list", {
       title: "Machines",
       user: req.user,
-      rows: rows.map(formatMachineForDisplay),
+      rows: rows.map((r) => ({
+        ...formatMachineForDisplay(r),
+        ...heartbeatStatus(r),
+        health_status: r.last_health_status || "unknown",
+        health_label: HEALTH_LABELS[r.last_health_status || "unknown"],
+      })),
       page,
       limit,
       total,
       totalPages,
+      health,
+      healthSummary,
+      healthLabels: HEALTH_LABELS,
       notice: req.query.created === "1" ? "Mesin berhasil dibuat." : null,
     });
   } catch (err) {
@@ -727,14 +762,23 @@ exports.detail = async (req, res, next) => {
     if (!machine) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
 
     const m = formatMachineForDisplay(machine);
-    const [globalUi, ownUi] = await Promise.all([
+    const [globalUi, ownUi, globalHealthMs] = await Promise.all([
       systemSettings.getKioskUiConfig(),
       machineModel.getKioskUiOverride(id),
+      systemSettings.getSetting("machine_health_report_interval_ms", "900000"),
     ]);
+    const health = await buildMachineHealth(machine, {
+      page: toInt(req.query.hpage, 1),
+      basePath: `/admin/machines/${id}/detail`,
+      globalIntervalMs: Number(globalHealthMs) || null,
+    });
     return res.render("admin/machines/detail", {
       title: `Machine ${machine.code}`,
       user: req.user,
       m,
+      health,
+      healthNotice: req.query.health === "saved" ? "Interval laporan disimpan. Kiosk memakainya setelah heartbeat berikutnya." : null,
+      healthError: req.query.health_err ? String(req.query.health_err).slice(0, 200) : null,
       kioskUi: {
         global: globalUi,
         own: {
@@ -764,6 +808,29 @@ exports.updateKioskUi = async (req, res, next) => {
     }
     await machineModel.setKioskUiOverride(id, { mode: parsed.mode, columns: parsed.columns });
     return res.redirect(`/admin/machines/${id}/detail?kiosk_ui=saved#kiosk-ui`);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.updateHealthInterval = async (req, res, next) => {
+  try {
+    const id = toInt(req.params.id, 0);
+    const machine = id ? await machineModel.findById(id) : null;
+    if (!machine) return res.status(404).render("errors/404", { title: "Not Found", path: req.originalUrl });
+
+    const raw = String(req.body.health_report_interval_min || "").trim();
+    let intervalMs = null;
+    if (raw !== "") {
+      const minutes = Number(raw);
+      if (!Number.isInteger(minutes) || minutes < 5 || minutes > 1440) {
+        const msg = encodeURIComponent("Interval harus 5–1440 menit, atau kosong untuk ikut Settings.");
+        return res.redirect(`/admin/machines/${id}/detail?health_err=${msg}#kesehatan`);
+      }
+      intervalMs = minutes * 60000;
+    }
+    await machineModel.setHealthReportInterval(id, intervalMs);
+    return res.redirect(`/admin/machines/${id}/detail?health=saved#kesehatan`);
   } catch (err) {
     return next(err);
   }

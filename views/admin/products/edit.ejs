@@ -56,52 +56,67 @@
       <% } %>
 
       <form method="POST" action="/admin/products/<%= product.id %>" enctype="multipart/form-data">
-        <label for="sku">SKU (unique)</label>
-        <input id="sku" name="sku" value="<%= value?.sku || '' %>" required />
+        <div class="fgrid">
+          <div class="f">
+            <label for="sku">SKU (unique)</label>
+            <input id="sku" name="sku" value="<%= value?.sku || '' %>" required />
+          </div>
+          <div class="f f-wide">
+            <label for="name">Product Name</label>
+            <input id="name" name="name" value="<%= value?.name || '' %>" required />
+          </div>
 
-        <label for="merchant_id">Pemilik menu</label>
-        <select id="merchant_id" name="merchant_id">
-          <option value="">Katalog bersama (mesin lama)</option>
-          <% (menuMerchants || []).forEach(function (m) { %>
-            <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Kosong hanya untuk katalog lama. Menu milik mitra menu masuk rak Cruise. Menu milik pemilik masuk rak Plus dan Basic.</div>
+          <div class="f">
+            <label for="price">Price (IDR)</label>
+            <input id="price" name="price" value="<%= value?.price || '' %>" required />
+          </div>
+          <div class="f">
+            <label for="shelf_life_days">Shelf life (hari, opsional)</label>
+            <input id="shelf_life_days" name="shelf_life_days" type="number" min="1" max="3650" value="<%= value?.shelf_life_days || '' %>" placeholder="default umur simpan untuk slot baru" />
+          </div>
+          <div class="f">
+            <label for="requires_heating">Pemanasan (kiosk)</label>
+            <select id="requires_heating" name="requires_heating">
+              <option value="1" <%= (value?.requires_heating ?? 1) ? 'selected' : '' %>>Wajib dipanaskan</option>
+              <option value="0" <%= (value?.requires_heating ?? 1) ? '' : 'selected' %>>Opsional (boleh tidak dipanaskan)</option>
+            </select>
+          </div>
 
-        <label for="name">Product Name</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" required />
+          <div class="f f-wide">
+            <label for="merchant_id">Pemilik menu</label>
+            <select id="merchant_id" name="merchant_id">
+              <option value="">Katalog bersama (mesin lama)</option>
+              <% (menuMerchants || []).forEach(function (m) { %>
+                <option value="<%= m.id %>" <%= String(value?.merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+              <% }) %>
+            </select>
+            <div class="hint">Kosong hanya untuk katalog lama. Menu milik mitra menu masuk rak Cruise. Menu milik pemilik masuk rak Plus dan Basic.</div>
+          </div>
+          <div class="f">
+            <label for="is_active">Status</label>
+            <select id="is_active" name="is_active">
+              <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
+              <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
+            </select>
+          </div>
 
-        <label for="price">Price (IDR)</label>
-        <input id="price" name="price" value="<%= value?.price || '' %>" required />
-
-        <label for="shelf_life_days">Shelf life (hari, opsional)</label>
-        <input id="shelf_life_days" name="shelf_life_days" type="number" min="1" max="3650" value="<%= value?.shelf_life_days || '' %>" placeholder="default umur simpan untuk slot baru" />
-
-        <label for="requires_heating">Pemanasan (kiosk)</label>
-        <select id="requires_heating" name="requires_heating">
-          <option value="1" <%= (value?.requires_heating ?? 1) ? 'selected' : '' %>>Wajib dipanaskan</option>
-          <option value="0" <%= (value?.requires_heating ?? 1) ? '' : 'selected' %>>Opsional (boleh tidak dipanaskan)</option>
-        </select>
-
-        <label for="image_file">Gambar produk</label>
-        <% if (product.image_url) { %>
-          <img class="preview" src="<%= product.image_url %>" alt="Gambar sekarang" />
-        <% } %>
-        <input id="image_file" name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-        <div class="hint">Upload baru mengganti gambar lama. JPG, PNG, WEBP, atau GIF. Maksimal 2 MB.</div>
-
-        <label for="image_url">Atau URL gambar</label>
-        <input id="image_url" name="image_url" value="<%= value?.image_url || '' %>" placeholder="https://..." />
-        <div class="hint">Isi URL kalau tidak upload file. Kosongkan untuk mempertahankan gambar yang sudah ada.</div>
-        <% if (product.image_url) { %>
-          <label class="check"><input type="checkbox" name="clear_image" value="1" /> Hapus gambar</label>
-        <% } %>
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Active</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Inactive</option>
-        </select>
+          <div class="f">
+            <label for="image_file">Gambar produk</label>
+            <% if (product.image_url) { %>
+              <img class="preview" src="<%= product.image_url %>" alt="Gambar sekarang" />
+            <% } %>
+            <input id="image_file" name="image_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+            <div class="hint">Upload baru mengganti gambar lama. JPG, PNG, WEBP, atau GIF. Maksimal 2 MB.</div>
+          </div>
+          <div class="f f-wide">
+            <label for="image_url">Atau URL gambar</label>
+            <input id="image_url" name="image_url" value="<%= value?.image_url || '' %>" placeholder="https://..." />
+            <div class="hint">Isi URL kalau tidak upload file. Kosongkan untuk mempertahankan gambar yang sudah ada.</div>
+            <% if (product.image_url) { %>
+              <label class="check"><input type="checkbox" name="clear_image" value="1" /> Hapus gambar</label>
+            <% } %>
+          </div>
+        </div>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Save Changes</button>

@@ -44,15 +44,17 @@
         <!-- ✅ machine dikunci dari context -->
         <input type="hidden" name="machine_id" value="<%= machine?.id %>" />
 
-        <label>Machine</label>
-        <input
-          value="<%= machine ? (machine.code + (machine.name ? (' • ' + machine.name) : '')) : '' %>"
-          readonly
-        />
-        <div class="hint">Machine dikunci sesuai pilihan sebelumnya.</div>
+        <div class="grid fgrid">
+          <div class="f">
+            <label>Machine</label>
+            <input
+              value="<%= machine ? (machine.code + (machine.name ? (' • ' + machine.name) : '')) : '' %>"
+              readonly
+            />
+            <div class="hint">Machine dikunci sesuai pilihan sebelumnya.</div>
+          </div>
 
-        <div class="grid">
-          <div>
+          <div class="f">
             <label for="slot_code">Slot Code</label>
             <select id="slot_code" name="slot_code" required>
               <option value="">-- pilih nomor slot --</option>
@@ -63,7 +65,7 @@
             <div class="hint"><%= slotCodeHint %> Nomor ini dikirim langsung ke mesin saat dispense.</div>
           </div>
 
-          <div>
+          <div class="f">
             <label for="product_id">Product</label>
             <select id="product_id" name="product_id" required>
               <option value="">-- pilih product --</option>
@@ -75,9 +77,7 @@
             </select>
             <div class="hint"><%= productHint || "Product ini master katalog. Slot menentukan stok dan harga final." %></div>
           </div>
-        </div>
 
-        <div class="grid">
           <div>
             <label for="slot_price">Slot Price (optional)</label>
             <input id="slot_price" name="slot_price" value="<%= value?.slot_price || '' %>" placeholder="kosong = pakai harga product" />
@@ -89,9 +89,7 @@
             <input id="expires_at" type="date" name="expires_at" value="<%= value?.expires_at || '' %>" />
             <div class="hint">Kosongkan = otomatis dari shelf life produk (hari ini + hari), jika produk punya shelf life.</div>
           </div>
-        </div>
 
-        <div class="grid">
           <div>
             <label for="stock">Stock</label>
             <input
@@ -121,9 +119,7 @@
             />
             <div class="hint">Kosong = tidak dibatasi. Diisi = batas maksimal stok di baris ini.</div>
           </div>
-        </div>
 
-        <div class="grid">
           <div>
             <label for="is_active">Status</label>
             <select id="is_active" name="is_active">

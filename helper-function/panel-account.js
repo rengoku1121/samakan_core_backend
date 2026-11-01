@@ -1,9 +1,9 @@
 /**
- * Validasi akun panel (admin / staff) tanpa database.
+ * Validasi akun panel (admin / staff / technician) tanpa database.
  * Superadmin dan merchant tidak dibuat dari halaman ini.
  */
 
-const PANEL_ROLES = new Set(["admin", "staff"]);
+const PANEL_ROLES = new Set(["admin", "staff", "technician"]);
 const USERNAME_RE = /^[A-Za-z0-9._-]{3,64}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -30,7 +30,7 @@ function accountFieldError({ username, email, role, password, passwordConfirm, p
     return "Username 3–64 karakter: huruf, angka, titik, garis bawah, atau strip.";
   }
   if (!mail || mail.length > 190 || !EMAIL_RE.test(mail)) return "Email tidak valid.";
-  if (!panelRole(role)) return "Role hanya admin atau staff.";
+  if (!panelRole(role)) return "Role hanya admin, staff, atau technician.";
   const passwordError = passwordProblem(password, { required: Boolean(passwordRequired) });
   if (passwordError) return passwordError;
   if (String(password ?? "").trim() && String(password) !== String(passwordConfirm ?? "")) {

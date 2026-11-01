@@ -72,30 +72,40 @@
           <p class="muted" style="margin:0 0 8px;font-size:14px;">Tidak ada pemilihan induk — ini selalu lokasi master baru.</p>
         <% } %>
 
-        <label for="name">Nama lokasi</label>
-        <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="<%= (typeof isSubFlow !== 'undefined' && isSubFlow) ? 'mis. Terminal 1A' : 'mis. Bandara Soekarno-Hatta' %>" required />
-        <div class="hint">Nama unik per level: tidak boleh sama dengan lokasi lain di bawah induk yang sama.</div>
+        <div class="fgrid">
+          <div class="f f-wide">
+            <label for="name">Nama lokasi</label>
+            <input id="name" name="name" value="<%= value?.name || '' %>" placeholder="<%= (typeof isSubFlow !== 'undefined' && isSubFlow) ? 'mis. Terminal 1A' : 'mis. Bandara Soekarno-Hatta' %>" required />
+            <div class="hint">Nama unik per level: tidak boleh sama dengan lokasi lain di bawah induk yang sama.</div>
+          </div>
+          <div class="f">
+            <label for="is_active">Status</label>
+            <select id="is_active" name="is_active">
+              <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
+              <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Nonaktif</option>
+            </select>
+          </div>
 
-        <label for="address">Alamat (opsional)</label>
-        <input id="address" name="address" value="<%= value?.address || '' %>" placeholder="Detail alamat / area" />
+          <div class="f f-wide">
+            <label for="address">Alamat (opsional)</label>
+            <input id="address" name="address" value="<%= value?.address || '' %>" placeholder="Detail alamat / area" />
+          </div>
+          <div class="f">
+            <label for="owner_merchant_id">Pemilik tempat</label>
+            <select id="owner_merchant_id" name="owner_merchant_id">
+              <option value="">Milik Samakan</option>
+              <% (placePartners || []).forEach(function (m) { %>
+                <option value="<%= m.id %>" <%= String(value?.owner_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
+              <% }) %>
+            </select>
+            <div class="hint">Kosong berarti tempat Samakan. Mitra lokasi hanya muncul kalau perannya mitra lokasi. Cruise yang memakai mitra lokasi hanya bisa dipasang di tempat miliknya.</div>
+          </div>
 
-        <label for="notes">Catatan (opsional)</label>
-        <textarea id="notes" name="notes" placeholder="Akses, izin security, dll."><%= value?.notes || '' %></textarea>
-
-        <label for="owner_merchant_id">Pemilik tempat</label>
-        <select id="owner_merchant_id" name="owner_merchant_id">
-          <option value="">Milik Samakan</option>
-          <% (placePartners || []).forEach(function (m) { %>
-            <option value="<%= m.id %>" <%= String(value?.owner_merchant_id || '') === String(m.id) ? 'selected' : '' %>><%= m.merchant_code %> — <%= m.name %></option>
-          <% }) %>
-        </select>
-        <div class="hint">Kosong berarti tempat Samakan. Mitra lokasi hanya muncul kalau perannya mitra lokasi. Cruise yang memakai mitra lokasi hanya bisa dipasang di tempat miliknya.</div>
-
-        <label for="is_active">Status</label>
-        <select id="is_active" name="is_active">
-          <option value="1" <%= (value?.is_active ?? 1) ? 'selected' : '' %>>Aktif</option>
-          <option value="0" <%= (value?.is_active ?? 1) ? '' : 'selected' %>>Nonaktif</option>
-        </select>
+          <div class="f f-full">
+            <label for="notes">Catatan (opsional)</label>
+            <textarea id="notes" name="notes" placeholder="Akses, izin security, dll."><%= value?.notes || '' %></textarea>
+          </div>
+        </div>
 
         <div class="row">
           <button class="btn btn-primary" type="submit">Simpan</button>

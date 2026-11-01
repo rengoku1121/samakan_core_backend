@@ -1277,13 +1277,16 @@ body.shell-app.is-pulling .shell-content {
   }
 
   .shell table.fx-table-cards .account-actions {
-    flex-direction: column !important;
-    align-items: stretch !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
     align-self: stretch !important;
   }
 
   .shell table.fx-table-cards .account-actions form {
     display: block !important;
+    margin: 0;
+    padding: 0 !important;
   }
 
   .shell table.fx-table-cards tbody td.action-cell form {
@@ -2269,6 +2272,33 @@ body.shell-app.is-pulling .shell-content {
     padding: 0;
     opacity: 0;
     cursor: pointer;
+  }
+}
+
+/* ========== Form & detail grid ==========
+   Bungkus tiap field dengan .f di dalam .fgrid. Di bawah 1100px tetap satu kolom. */
+@media (min-width: 1100px) {
+  .shell .fgrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 16px;
+    align-items: start;
+  }
+  .shell .fgrid.fgrid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .shell .fgrid > .f {
+    min-width: 0;
+  }
+  .shell .fgrid > .f-wide {
+    grid-column: span 2;
+  }
+  .shell .fgrid > .f-full {
+    grid-column: 1 / -1;
+  }
+  .shell .fgrid[hidden],
+  .shell .fgrid > [hidden] {
+    display: none !important;
   }
 }
 

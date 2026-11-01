@@ -1,0 +1,132 @@
+<%#
+  Kartu Kesehatan Hardware. Locals:
+  - health: hasil buildMachineHealth()
+  - intervalAction: URL POST override interval; kosong = baca-saja (teknisi)
+  - healthNotice / healthError: pesan setelah simpan
+%>
+<%
+  const h = health;
+  const canEdit = typeof intervalAction !== "undefined" && intervalAction;
+  const hNotice = typeof healthNotice !== "undefined" ? healthNotice : null;
+  const hError = typeof healthError !== "undefined" ? healthError : null;
+  const globalMin = h.globalIntervalMs ? Math.round(h.globalIntervalMs / 60000) : null;
+  const ownMin = h.intervalMs ? Math.round(h.intervalMs / 60000) : null;
+%>
+<style>
+  .mh-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.08);padding:20px;margin-top:18px}
+  .mh-card h2{margin:0 0 4px;font-size:17px}
+  .mh-muted{color:#64748b;font-size:13px}
+  .mh-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .mh-badge{display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:900;border:1px solid #e5e7eb}
+  .mh-badge::before{content:"";width:8px;height:8px;border-radius:999px;margin-right:6px;background:currentColor}
+  .mh-healthy{background:#ecfdf5;color:#065f46;border-color:#bbf7d0}
+  .mh-warning{background:#fffbeb;color:#92400e;border-color:#fde68a}
+  .mh-critical{background:#fef2f2;color:#991b1b;border-color:#fecaca}
+  .mh-unknown{background:#f9fafb;color:#6b7280;border-color:#e5e7eb}
+  .mh-sim{background:#eef2ff;color:#3730a3;border-color:#c7d2fe;margin-right:6px}
+  .mh-sim-note{margin-top:12px;padding:10px 12px;border-radius:12px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;font-size:13px;line-height:1.45}
+  .mh-tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:800}
+  .mh-summary{margin:12px 0 0;padding:12px 14px;background:#fffdf9;border:1px solid #f1e7dc;border-radius:12px;font-size:14px;line-height:1.45}
+  .mh-section{margin:18px 0 6px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#7c2d12}
+  .mh-list{list-style:none;margin:0;padding:0}
+  .mh-list li{padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;line-height:1.4}
+  .mh-ok{color:#059669;font-weight:900;margin-right:6px}
+  .mh-fail{color:#dc2626;font-weight:900;margin-right:6px}
+  .mh-table{width:100%;border-collapse:collapse;font-size:13px}
+  .mh-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7c2d12;background:#fff2e5;padding:9px 10px}
+  .mh-table td{padding:8px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+  .mh-pager{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .mh-pager a{display:inline-block;padding:7px 10px;margin-left:6px;border:1px solid #e5e7eb;border-radius:10px;font-size:12px;font-weight:800;color:#7c2d12;text-decoration:none}
+  .mh-form{margin-top:10px}
+  .mh-form input{width:100%;max-width:220px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;font-size:14px}
+  .mh-form button{margin-top:10px;padding:10px 14px;border:0;border-radius:12px;font-weight:900;font-size:13px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#ff8a00,#ffb866)}
+  .mh-alert-ok{margin-top:12px;padding:10px 12px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:13px}
+  .mh-alert-err{margin-top:12px;padding:10px 12px;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px}
+</style>
+
+<div class="mh-card" id="kesehatan">
+  <div class="mh-head">
+    <h2>Kesehatan hardware</h2>
+    <span>
+      <% if (h.simulated) { %><span class="mh-badge mh-sim">Data simulasi</span><% } %>
+      <span class="mh-badge mh-<%= h.status %>"><%= h.statusLabel %></span>
+    </span>
+  </div>
+  <div class="mh-muted">Laporan terakhir dari kiosk: <b><%= h.lastAt %></b></div>
+  <% if (h.simulated) { %>
+    <div class="mh-sim-note">Laporan ini dari simulator VMC (kiosk dijalankan di browser), bukan dari mesin asli. Abaikan untuk keputusan perawatan.</div>
+  <% } %>
+
+  <% if (hNotice) { %><div class="mh-alert-ok"><%= hNotice %></div><% } %>
+  <% if (hError) { %><div class="mh-alert-err"><%= hError %></div><% } %>
+
+  <div class="mh-summary">
+    <% if (h.uartDown) { %><b>Kiosk tidak tersambung ke VMC (UART).</b> <% } %>
+    <%= h.summary || (h.status === "unknown" ? "Kiosk belum mengirim laporan hardware." : "Semua normal") %>
+  </div>
+  <% if (h.linkLine) { %><p class="mh-muted"><%= h.linkLine %></p><% } %>
+
+  <% if (h.diagnostics.length) { %>
+    <p class="mh-section">Diagnostik terakhir</p>
+    <ul class="mh-list">
+      <% h.diagnostics.forEach(function (d) { %>
+        <li>
+          <span class="<%= d.ok ? 'mh-ok' : 'mh-fail' %>"><%= d.ok ? '✓' : '✗' %></span><b><%= d.label %></b>
+          <% if (d.note) { %><span class="mh-muted"> · <%= d.note %></span><% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <% if (h.driveErrors.length) { %>
+    <p class="mh-section">Dispense gagal sejak laporan sebelumnya</p>
+    <ul class="mh-list">
+      <% h.driveErrors.forEach(function (e) { %>
+        <li><span class="mh-fail">✗</span><%= e.label %> <span class="mh-muted">· <%= e.at %></span></li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <p class="mh-section">Riwayat laporan</p>
+  <% if (!h.history.rows.length) { %>
+    <div class="mh-muted">Belum ada riwayat.</div>
+  <% } else { %>
+    <table class="mh-table">
+      <thead><tr><th>Status</th><th>Sejak</th><th>Terakhir</th><th>Laporan</th><th>Keterangan</th><th>Sumber</th></tr></thead>
+      <tbody>
+        <% h.history.rows.forEach(function (r) { %>
+          <tr>
+            <td><span class="mh-badge mh-<%= r.status %>"><%= h.statusLabels[r.status] || r.status %></span></td>
+            <td><%= r.since %></td>
+            <td><%= r.last %></td>
+            <td><%= r.count %></td>
+            <td><%= r.summary || "—" %></td>
+            <td><%= r.source %><% if (r.simulated) { %><span class="mh-tag">simulasi</span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% if (h.history.totalPages > 1) { %>
+      <div class="mh-pager">
+        <span class="mh-muted">Hal. <%= h.history.page %>/<%= h.history.totalPages %> · <%= h.history.total %> periode</span>
+        <span>
+          <% if (h.history.page > 1) { %><a href="<%= h.history.basePath %>?hpage=<%= h.history.page - 1 %>#kesehatan">‹ Lebih baru</a><% } %>
+          <% if (h.history.page < h.history.totalPages) { %><a href="<%= h.history.basePath %>?hpage=<%= h.history.page + 1 %>#kesehatan">Lebih lama ›</a><% } %>
+        </span>
+      </div>
+    <% } %>
+  <% } %>
+
+  <p class="mh-section">Interval laporan</p>
+  <div class="mh-muted">
+    Sekarang: <b><%= ownMin ? ownMin + " menit (khusus mesin ini)" : (globalMin ? globalMin + " menit (ikut Settings)" : "ikut Settings") %></b>
+  </div>
+  <% if (canEdit) { %>
+    <form class="mh-form" method="POST" action="<%= intervalAction %>">
+      <label for="health_interval" class="mh-muted">Override interval (menit, 5–1440)</label><br />
+      <input id="health_interval" name="health_report_interval_min" type="number" step="1" min="5" max="1440"
+        value="<%= ownMin || '' %>" placeholder="Kosongkan = ikut Settings" />
+      <br /><button type="submit">Simpan interval</button>
+    </form>
+  <% } %>
+</div>

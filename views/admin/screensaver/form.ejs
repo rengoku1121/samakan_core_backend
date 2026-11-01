@@ -13,7 +13,7 @@
     merchants.forEach(function (m) { merchantName[String(m.id)] = m.name; });
     const has = function (list, id) { return (list || []).map(Number).indexOf(Number(id)) >= 0; };
   %>
-  <div class="wrap narrow">
+  <div class="wrap">
     <div class="header">
       <div>
         <h1><%= isEdit ? 'Edit campaign' : 'Campaign iklan baru' %></h1>
@@ -30,14 +30,16 @@
     <form method="POST" action="<%= isEdit ? '/admin/screensaver/' + campaign.id : '/admin/screensaver' %>" enctype="multipart/form-data" id="campaign-form">
       <div class="card">
         <h2>Campaign</h2>
-        <label for="name">Nama campaign</label>
-        <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
-
-        <label for="advertiser_name">Pemasang iklan (opsional)</label>
-        <input type="text" id="advertiser_name" name="advertiser_name" maxlength="140" value="<%= value.advertiser_name %>" placeholder="contoh: PT Kopi Nusantara / merchant pemilik mesin" />
-
-        <div class="grid2">
-          <div>
+        <div class="grid2 fgrid">
+          <div class="f">
+            <label for="name">Nama campaign</label>
+            <input type="text" id="name" name="name" maxlength="140" required value="<%= value.name %>" placeholder="contoh: Promo Kopi Oktober" />
+          </div>
+          <div class="f">
+            <label for="advertiser_name">Pemasang iklan (opsional)</label>
+            <input type="text" id="advertiser_name" name="advertiser_name" maxlength="140" value="<%= value.advertiser_name %>" placeholder="contoh: PT Kopi Nusantara / merchant pemilik mesin" />
+          </div>
+          <div class="f">
             <label for="playlist_mode">Mode playlist</label>
             <select id="playlist_mode" name="playlist_mode">
               <option value="merge" <%= value.playlist_mode === 'merge' ? 'selected' : '' %>><%= playlistLabels.merge %></option>
@@ -45,24 +47,21 @@
             </select>
             <div class="hint">Hanya untuk aplikasi kiosk versi lama. Kiosk terbaru memutar iklan di slot Iklan berbayar sesuai <a href="/admin/screensaver/sequence">Urutan tayang</a>.</div>
           </div>
-          <div>
+          <div class="f">
             <label for="priority">Urutan tayang</label>
             <input type="number" id="priority" name="priority" min="1" max="9999" value="<%= value.priority %>" />
             <div class="hint">Angka kecil dapat giliran lebih dulu bila ada beberapa campaign di mesin yang sama. Satu campaign tampil per putaran.</div>
           </div>
-        </div>
-
-        <div class="grid2">
-          <div>
+          <div class="f">
             <label for="start_date">Mulai tayang</label>
             <input type="date" id="start_date" name="start_date" value="<%= value.start_date %>" />
           </div>
-          <div>
+          <div class="f">
             <label for="end_date">Selesai tayang</label>
             <input type="date" id="end_date" name="end_date" value="<%= value.end_date %>" />
+            <div class="hint">Tanggal mengikuti WIB dan termasuk hari terakhir. Kosongkan bila tanpa batas.</div>
           </div>
         </div>
-        <div class="hint">Tanggal mengikuti WIB dan termasuk hari terakhir. Kosongkan bila tanpa batas.</div>
       </div>
 
       <div class="card">

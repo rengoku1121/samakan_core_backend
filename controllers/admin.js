@@ -4,6 +4,7 @@ const locationModel = require("../models/location");
 const machineModel = require("../models/machine");
 const productModel = require("../models/product");
 const slotModel = require("../models/slot");
+const healthReportModel = require("../models/machine-health-report");
 const { resolveDashboardRange, chartDailySeries } = require("../helper-function/date-range");
 
 exports.renderHome = async (req, res, next) => {
@@ -12,11 +13,15 @@ exports.renderHome = async (req, res, next) => {
     const { dateFrom, dateTo } = range;
     const query = { dateFrom, dateTo };
 
-    const [summary, dailyRaw, statusBreakdown, topProducts] = await Promise.all([
+    const [summary, dailyRaw, statusBreakdown, topProducts, health] = await Promise.all([
       orderModel.getAdminDashboardSummary(query),
       orderModel.getAdminDashboardDailySeries(query),
       orderModel.getAdminDashboardStatusBreakdown(query),
       orderModel.getAdminDashboardTopProducts({ ...query, limit: 8 }),
+      healthReportModel.fleetSummary(null).catch((err) => {
+        if (err && err.code === "ER_BAD_FIELD_ERROR") return null;
+        throw err;
+      }),
     ]);
 
     const idr = new Intl.NumberFormat("id-ID");
@@ -27,6 +32,7 @@ exports.renderHome = async (req, res, next) => {
       dateFrom,
       dateTo,
       rangeError: range.error,
+      health,
       summary: {
         turnover: summary.turnover,
         turnoverFmt: idr.format(summary.turnover),

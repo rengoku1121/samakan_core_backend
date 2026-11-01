@@ -55,21 +55,23 @@
       <% if (!release) { %>
         <div class="card">
           <h2>Versi</h2>
-          <div class="grid2">
-            <div>
+          <div class="grid2 fgrid">
+            <div class="f">
               <label for="version_name">Nama versi</label>
               <input type="text" id="version_name" name="version_name" required placeholder="1.3.0" value="<%= value.version_name %>" />
             </div>
-            <div>
+            <div class="f">
               <label for="version_code">versionCode</label>
               <input type="number" id="version_code" name="version_code" required min="<%= minVersion %>" value="<%= value.version_code %>" />
               <div class="hint">Angka di dalam APK. Untuk file yang baru di-build: nama <b>1.3.0</b>, code <b>4</b>.</div>
             </div>
+            <div class="f">
+              <label for="apk_file">File APK</label>
+              <input type="file" id="apk_file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required />
+              <div class="file-status" id="apk-file-status">Belum ada file.</div>
+              <div class="hint">Pilih <b>app-release.apk</b>. Maksimal 120 MB. Kalau unggahan gagal, file harus dipilih ulang.</div>
+            </div>
           </div>
-          <label for="apk_file">File APK</label>
-          <input type="file" id="apk_file" name="apk_file" accept=".apk,application/vnd.android.package-archive" required />
-          <div class="file-status" id="apk-file-status">Belum ada file.</div>
-          <div class="hint">Pilih <b>app-release.apk</b>. Maksimal 120 MB. Kalau unggahan gagal, file harus dipilih ulang.</div>
         </div>
       <% } %>
 
