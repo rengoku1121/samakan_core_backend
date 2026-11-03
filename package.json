@@ -57,7 +57,7 @@
     "test:payout-abnormal": "node scripts/test-payout-abnormal.js",
     "test:order-lifecycle": "node scripts/test-order-lifecycle.js",
     "test:auth": "node scripts/test-login-guard.js && node scripts/test-jwt-verify.js && node scripts/test-rate-limit.js && node scripts/test-admin-auth.js",
-    "test:unit": "node scripts/test-partnership.js && node scripts/test-settlement-report.js && node scripts/test-login-guard.js && node scripts/test-jwt-verify.js && node scripts/test-rate-limit.js && node scripts/test-admin-auth.js && node scripts/test-activity-log.js && node scripts/test-date-range.js && node scripts/test-panel-account.js && node scripts/test-screensaver.js && node scripts/test-kiosk-ota.js && node scripts/test-kiosk-ui.js && node scripts/test-screensaver-sequence.js",
+    "test:unit": "node scripts/test-partnership.js && node scripts/test-settlement-report.js && node scripts/test-login-guard.js && node scripts/test-jwt-verify.js && node scripts/test-rate-limit.js && node scripts/test-admin-auth.js && node scripts/test-activity-log.js && node scripts/test-date-range.js && node scripts/test-panel-account.js && node scripts/test-screensaver.js && node scripts/test-kiosk-ota.js && node scripts/test-kiosk-ui.js && node scripts/test-screensaver-sequence.js && node scripts/test-diagnostic-display.js",
     "test:db": "node scripts/test-all-db.js",
     "test:security": "node scripts/test-login-guard.js && node scripts/test-jwt-verify.js && node scripts/test-rate-limit.js && node scripts/test-admin-auth.js",
     "test:e2e": "node scripts/e2e/run.js",
