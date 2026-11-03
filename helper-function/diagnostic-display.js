@@ -166,13 +166,76 @@ function sensorRows(diag) {
   return fields.map(parseSensorField).filter(Boolean);
 }
 
-/** Hasil berisi 3 bagian atau lebih ("a · b · c") dipecah supaya tidak jadi satu baris panjang. */
+/** "selisih balik 2" → { label: "selisih balik", value: "2" }. Tanpa angka/kata status: value kosong. */
+function splitPart(part) {
+  const text = String(part || "").trim();
+  const num = text.match(/^(.*?[^\d\s–-])\s+(-?[\d.,]+(?:\s*[–-]\s*-?[\d.,]+)?\s*(?:°C|ms|detik|menit|jam|%)?)$/);
+  if (num && !/\d/.test(num[1])) return { label: capitalize(num[1].trim()), value: num[2].trim() };
+  const word = text.match(/^(.+?)\s+(nyala|mati|aktif|nonaktif|normal)$/i);
+  if (word) return { label: capitalize(word[1].trim()), value: word[2] };
+  return { label: capitalize(text), value: "" };
+}
+
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/** Hasil berisi 3 bagian atau lebih ("a · b · c") dipecah jadi baris label + nilai. */
 function noteParts(note) {
   const parts = String(note || "")
     .split(/\s+·\s+/)
     .map((p) => p.trim())
     .filter(Boolean);
-  return parts.length >= 3 ? parts : [];
+  return parts.length >= 3 ? parts.map(splitPart) : [];
 }
 
-module.exports = { SENSOR_GLOSSARY, sensorRows, noteParts, parseSensorField };
+/** Urutan dan pengelompokan sama dengan Mode Servis kiosk. */
+const DIAGNOSTIC_GROUPS = [
+  { title: "Status mesin", ids: ["doorClose", "temperature", "sensorStatus"] },
+  { title: "Elevator", ids: ["liftConnection", "liftErrors", "liftSpeed", "liftSensitivity"] },
+  { title: "Motor & sensor jatuh", ids: ["motorErrors", "dropSensor", "dropSensitivity", "jammedSelections"] },
+  { title: "Diagnosa error", ids: ["quarterTurnErrors", "selectionCount"] },
+  { title: "Pendingin kabinet", ids: ["tempController", "compressorSchedule", "tempParams", "tempConnection"] },
+  {
+    title: "Konfigurasi slot",
+    ids: ["couplingSync", "layerMode", "coupling", "beltDetection", "quarterTurn", "jammedPolicy", "selectionConfig"],
+  },
+];
+
+/** Baris diagnostik → grup bertabel. Id yang tidak dikenal masuk "Lainnya". Grup kosong dibuang. */
+function groupDiagnostics(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const used = new Set();
+  const groups = DIAGNOSTIC_GROUPS.map((g) => {
+    const items = g.ids.map((id) => list.find((r) => r.key === id)).filter(Boolean);
+    items.forEach((r) => used.add(r.key));
+    return { title: g.title, rows: items };
+  });
+  const rest = list.filter((r) => !used.has(r.key));
+  if (rest.length) groups.push({ title: "Lainnya", rows: rest });
+  return groups
+    .filter((g) => g.rows.length)
+    .map((g) => ({
+      ...g,
+      rows: g.rows.slice().sort((a, b) => Number(a.ok) - Number(b.ok)),
+      failed: g.rows.filter((r) => !r.ok).length,
+    }));
+}
+
+/** Ringkasan satu baris untuk sel hasil sensor; tabel lengkapnya terpisah. */
+function sensorSummary(sensors) {
+  const warn = sensors.filter((s) => s.tone === "warn");
+  if (warn.length) return `${warn.length} perlu dicek: ${warn.map((s) => s.name).join(", ")}`;
+  return `${sensors.length} sensor terbaca, pintu dan pendorong di posisi normal`;
+}
+
+module.exports = {
+  SENSOR_GLOSSARY,
+  DIAGNOSTIC_GROUPS,
+  sensorRows,
+  sensorSummary,
+  noteParts,
+  splitPart,
+  groupDiagnostics,
+  parseSensorField,
+};

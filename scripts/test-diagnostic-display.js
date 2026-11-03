@@ -4,7 +4,14 @@
  */
 const path = require("path");
 const ejs = require("ejs");
-const { SENSOR_GLOSSARY, sensorRows, noteParts } = require("../helper-function/diagnostic-display");
+const {
+  SENSOR_GLOSSARY,
+  sensorRows,
+  sensorSummary,
+  noteParts,
+  splitPart,
+  groupDiagnostics,
+} = require("../helper-function/diagnostic-display");
 
 let pass = 0;
 let fail = 0;
@@ -60,11 +67,37 @@ assert("fallback dari detail", fromDetail.length === 2 && fromDetail[0].value ==
 
 assert("tidak ada data sensor", sensorRows(null).length === 0);
 
-assert(
-  "hasil panjang dipecah",
-  noteParts("Suhu 4–8°C · selisih balik 2 · jeda nyala 8").length === 3
+const tempParts = noteParts(
+  "Suhu 4–8°C · selisih balik 2 · jeda nyala 8 · koreksi sensor 0 · defrost tiap 3 jam selama 10 menit · proteksi nyala"
 );
+assert("hasil panjang dipecah", tempParts.length === 6);
+assert("label + nilai suhu", tempParts[0].label === "Suhu" && tempParts[0].value === "4–8°C");
+assert("label + nilai angka", tempParts[1].label === "Selisih balik" && tempParts[1].value === "2");
+assert("koreksi 0", tempParts[3].label === "Koreksi sensor" && tempParts[3].value === "0");
+assert(
+  "kalimat dua angka tidak dipotong",
+  tempParts[4].label === "Defrost tiap 3 jam selama 10 menit" && tempParts[4].value === ""
+);
+assert("kata status", tempParts[5].label === "Proteksi" && tempParts[5].value === "nyala");
+assert("target derajat", splitPart("target 3°C").value === "3°C");
+assert("tanpa nilai tetap teks", splitPart("Pendingin").label === "Pendingin" && splitPart("Pendingin").value === "");
 assert("hasil pendek tidak dipecah", noteParts("8°C · Normal").length === 0);
+
+const groups = groupDiagnostics([
+  { key: "tempParams", ok: true },
+  { key: "doorClose", ok: true },
+  { key: "sensorStatus", ok: true },
+  { key: "liftErrors", ok: false },
+  { key: "liftSpeed", ok: true },
+  { key: "unknownThing", ok: true },
+]);
+assert("urutan grup ikut Mode Servis", groups.map((g) => g.title).join("|") === "Status mesin|Elevator|Pendingin kabinet|Lainnya");
+assert("urutan dalam grup ikut daftar", groups[0].rows.map((r) => r.key).join(",") === "doorClose,sensorStatus");
+assert("gagal di atas dan dihitung", groups[1].rows[0].key === "liftErrors" && groups[1].failed === 1);
+assert("grup kosong dibuang", !groups.some((g) => g.title === "Diagnosa error"));
+
+assert("ringkasan sensor normal", /11 sensor terbaca/.test(sensorSummary(rows)));
+assert("ringkasan sensor warn", /1 perlu dicek: Pintu masuk/.test(sensorSummary(sensorRows({ values: { fields: ["JHK open-1,close-0"] } }))));
 
 assert("glosarium punya JHK dan CHK", SENSOR_GLOSSARY.some((g) => g.code === "JHK") && SENSOR_GLOSSARY.some((g) => g.code === "CHK"));
 
@@ -78,18 +111,9 @@ const health = {
   uartDown: false,
   simulated: false,
   linkLine: "Koneksi VMC: 0 kirim ulang, 0 gagal",
-  diagnostics: [
-    { key: "sensorStatus", label: "Status sensor lunch box", ok: true, note: "x", sensors: rows, parts: [] },
-    {
-      key: "tempParams",
-      label: "Parameter pendingin & defrost",
-      ok: true,
-      note: "a · b · c",
-      sensors: [],
-      parts: ["Suhu 4–8°C", "selisih balik 2", "jeda nyala 8"],
-    },
-    { key: "doorClose", label: "Waktu tutup pintu", ok: true, note: "10 detik", sensors: [], parts: [] },
-  ],
+  diagnostics: [],
+  diagnosticGroups: [],
+  sensors: rows,
   sensorGlossary: SENSOR_GLOSSARY,
   driveErrors: [],
   intervalMs: null,
@@ -98,13 +122,31 @@ const health = {
   history: { rows: [], page: 1, totalPages: 1, total: 0, basePath: "/x" },
 };
 
+health.diagnostics = [
+  {
+    key: "sensorStatus",
+    label: "Status sensor lunch box",
+    ok: true,
+    note: sensorSummary(rows),
+    sensors: rows,
+    parts: [],
+  },
+  { key: "tempParams", label: "Parameter pendingin & defrost", ok: true, note: "x", sensors: [], parts: tempParts },
+  { key: "doorClose", label: "Waktu tutup pintu", ok: true, note: "10 detik", sensors: [], parts: [] },
+  { key: "liftErrors", label: "Jumlah error lift", ok: false, note: "Timeout", sensors: [], parts: [] },
+];
+health.diagnosticGroups = groupDiagnostics(health.diagnostics);
+
 ejs.renderFile(partial, { health, intervalAction: "" }, (err, html) => {
   assert("partial render tanpa error", !err);
   if (!err) {
-    assert("tabel sensor tampil", html.includes("mh-sensor-table") && html.includes("Pintu masuk microwave (belakang)"));
-    assert("glosarium tampil", html.includes("Arti singkatan sensor") && html.includes("进货口"));
-    assert("bagian panjang jadi chip", html.includes('class="mh-parts"') && html.includes("selisih balik 2"));
-    assert("hasil pendek tetap satu baris", html.includes(" · 10 detik"));
+    assert("tabel per grup", html.includes("Status mesin") && html.includes("Pendingin kabinet") && html.includes("mh-diag-table"));
+    assert("kolom tabel", html.includes("Pemeriksaan") && html.includes(">Hasil<") && html.includes(">Status<"));
+    assert("nilai pendingin jadi tabel kecil", html.includes('class="mh-kv"') && html.includes("Selisih balik"));
+    assert("baris gagal ditandai", html.includes("mh-row-bad") && html.includes("1 gagal"));
+    assert("tabel sensor terpisah", html.includes('id="mh-sensor"') && html.includes("Pintu masuk microwave (belakang)"));
+    assert("glosarium jadi tabel", html.includes("Arti singkatan sensor") && html.includes("进货口"));
+    assert("hasil pendek tetap", html.includes("10 detik"));
   } else {
     console.error(err);
   }

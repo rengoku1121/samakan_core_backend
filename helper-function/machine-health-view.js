@@ -4,7 +4,13 @@
  */
 const healthModel = require("../models/machine-health-report");
 const { formatDateId } = require("./format-date");
-const { SENSOR_GLOSSARY, sensorRows, noteParts } = require("./diagnostic-display");
+const {
+  SENSOR_GLOSSARY,
+  sensorRows,
+  sensorSummary,
+  noteParts,
+  groupDiagnostics,
+} = require("./diagnostic-display");
 
 const STATUS_LABELS = {
   healthy: "Sehat",
@@ -38,7 +44,7 @@ function diagnosticRows(payload) {
         key,
         label: d.label || key,
         ok,
-        note,
+        note: sensors.length ? sensorSummary(sensors) : note,
         sensors,
         parts: sensors.length ? [] : noteParts(note),
       };
@@ -97,6 +103,8 @@ async function buildMachineHealth(machine, { page = 1, basePath, globalIntervalM
   });
   const payload = parsePayload(machine.last_health_payload);
   const status = machine.last_health_status || "unknown";
+  const diagnostics = diagnosticRows(payload);
+  const sensorDiag = diagnostics.find((d) => d.sensors.length);
 
   return {
     status,
@@ -106,7 +114,9 @@ async function buildMachineHealth(machine, { page = 1, basePath, globalIntervalM
     uartDown: Boolean(payload && payload.uart_connected === false),
     simulated: isSimulated(payload),
     linkLine: formatLinkLine(payload),
-    diagnostics: diagnosticRows(payload),
+    diagnostics,
+    diagnosticGroups: groupDiagnostics(diagnostics),
+    sensors: sensorDiag ? sensorDiag.sensors : [],
     sensorGlossary: SENSOR_GLOSSARY,
     driveErrors: driveErrorRows(payload),
     intervalMs: machine.health_report_interval_ms ?? null,

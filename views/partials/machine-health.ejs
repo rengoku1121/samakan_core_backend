@@ -42,26 +42,38 @@
   .mh-form button{margin-top:10px;padding:10px 14px;border:0;border-radius:12px;font-weight:900;font-size:13px;color:#fff;cursor:pointer;background:linear-gradient(135deg,#ff8a00,#ffb866)}
   .mh-alert-ok{margin-top:12px;padding:10px 12px;border-radius:12px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;font-size:13px}
   .mh-alert-err{margin-top:12px;padding:10px 12px;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:13px}
-  .mh-parts{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0 22px;padding:0;list-style:none}
-  .mh-list .mh-parts li{padding:3px 9px;border:1px solid #e5e7eb;border-radius:999px;background:#f8fafc;color:#334155;font-size:12px;line-height:1.4}
-  .mh-sensors{margin:8px 0 0 22px;border:1px solid #f1f5f9;border-radius:12px;overflow:hidden}
-  .mh-sensor-table{width:100%;border-collapse:collapse;font-size:13px}
-  .mh-sensor-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;background:#f8fafc;padding:7px 10px}
-  .mh-sensor-table td{padding:7px 10px;border-top:1px solid #f1f5f9;vertical-align:top}
-  .mh-sensor-table code{font-size:11px;color:#64748b;background:#f1f5f9;border-radius:6px;padding:1px 5px}
+  .mh-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+  .mh-group{border:1px solid #f1e7dc;border-radius:14px;overflow:hidden;background:#fff}
+  .mh-group-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:#fffaf5;border-bottom:1px solid #f1e7dc;font-size:13px;font-weight:900;color:#334155}
+  .mh-group-count{font-size:11px;font-weight:800;color:#065f46;white-space:nowrap}
+  .mh-group-bad{color:#991b1b}
+  .mh-scroll{overflow-x:auto}
+  .mh-diag-table{width:100%;border-collapse:collapse;font-size:13px}
+  .mh-diag-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;background:#f8fafc;padding:8px 12px;white-space:nowrap}
+  .mh-diag-table td{padding:8px 12px;border-top:1px solid #f1f5f9;vertical-align:top;line-height:1.45;color:#334155}
+  .mh-diag-table td small{display:block;margin-top:2px;color:#94a3b8;font-size:11px}
+  .mh-diag-table code{font-size:11px;color:#475569;background:#f1f5f9;border-radius:6px;padding:1px 6px;white-space:nowrap}
+  .mh-col-check{width:38%}
+  .mh-col-code{width:1%;white-space:nowrap}
+  .mh-col-status{width:1%;text-align:center;white-space:nowrap}
+  .mh-row-bad td{background:#fef2f2}
+  .mh-pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:900}
+  .mh-pill-ok{background:#ecfdf5;color:#065f46}
+  .mh-pill-bad{background:#fee2e2;color:#991b1b}
+  .mh-kv{border-collapse:collapse;width:100%}
+  .mh-diag-table .mh-kv td{border:0;padding:2px 0;vertical-align:baseline}
+  .mh-diag-table .mh-kv td:first-child{color:#64748b;padding-right:12px}
+  .mh-diag-table .mh-kv td:last-child{font-weight:800;text-align:right;white-space:nowrap}
+  .mh-link{display:inline-block;margin-left:6px;font-size:12px;font-weight:800;color:#c2410c;text-decoration:none}
   .mh-val{font-weight:800;white-space:nowrap}
   .mh-val-ok{color:#065f46}
   .mh-val-warn{color:#92400e}
-  .mh-glossary{margin:8px 0 0 22px;font-size:12px}
-  .mh-glossary summary{cursor:pointer;font-weight:800;color:#7c2d12}
-  .mh-glossary dl{margin:8px 0 0;display:grid;grid-template-columns:max-content 1fr;gap:6px 12px}
-  .mh-glossary dt{font-weight:900;color:#334155}
-  .mh-glossary dd{margin:0;color:#475569;line-height:1.45}
-  .mh-glossary dd small{display:block;color:#94a3b8}
+  .mh-glossary{margin-top:10px;font-size:13px}
+  .mh-glossary > summary{cursor:pointer;font-weight:800;color:#7c2d12;margin-bottom:8px}
+  .mh-glossary .mh-scroll{border:1px solid #f1e7dc;border-radius:14px}
   @media (max-width:640px){
-    .mh-parts,.mh-sensors,.mh-glossary{margin-left:0}
-    .mh-glossary dl{grid-template-columns:1fr}
-    .mh-glossary dd{margin-bottom:6px}
+    .mh-groups{grid-template-columns:1fr}
+    .mh-col-check{width:auto}
   }
 </style>
 
@@ -87,45 +99,89 @@
   </div>
   <% if (h.linkLine) { %><p class="mh-muted"><%= h.linkLine %></p><% } %>
 
-  <% if (h.diagnostics.length) { %>
+  <% if (h.diagnosticGroups.length) { %>
     <p class="mh-section">Diagnostik terakhir</p>
-    <ul class="mh-list">
-      <% h.diagnostics.forEach(function (d) { %>
-        <li>
-          <span class="<%= d.ok ? 'mh-ok' : 'mh-fail' %>"><%= d.ok ? '✓' : '✗' %></span><b><%= d.label %></b>
-          <% if (d.sensors.length) { %>
-            <div class="mh-sensors">
-              <table class="mh-sensor-table">
-                <thead><tr><th>Sensor</th><th>Kondisi</th></tr></thead>
-                <tbody>
-                  <% d.sensors.forEach(function (s) { %>
-                    <tr>
-                      <td><%= s.name %><% if (s.known) { %> <code><%= s.code %></code><% } %></td>
-                      <td><span class="mh-val<%= s.tone === 'ok' ? ' mh-val-ok' : s.tone === 'warn' ? ' mh-val-warn' : '' %>"><%= s.value || '—' %></span></td>
-                    </tr>
-                  <% }) %>
-                </tbody>
-              </table>
-            </div>
-            <details class="mh-glossary">
-              <summary>Arti singkatan sensor</summary>
-              <dl>
-                <% h.sensorGlossary.forEach(function (g) { %>
-                  <dt><%= g.code %></dt>
-                  <dd><b><%= g.name %></b>. <%= g.meaning %><% if (g.origin) { %><small><%= g.origin %></small><% } %></dd>
+    <div class="mh-groups">
+      <% h.diagnosticGroups.forEach(function (g) { %>
+        <div class="mh-group">
+          <div class="mh-group-head">
+            <span><%= g.title %></span>
+            <span class="mh-group-count<%= g.failed ? ' mh-group-bad' : '' %>">
+              <%= g.failed ? g.failed + ' gagal' : 'Semua OK' %> · <%= g.rows.length %> cek
+            </span>
+          </div>
+          <div class="mh-scroll">
+            <table class="mh-diag-table">
+              <thead><tr><th class="mh-col-check">Pemeriksaan</th><th>Hasil</th><th class="mh-col-status">Status</th></tr></thead>
+              <tbody>
+                <% g.rows.forEach(function (d) { %>
+                  <tr class="<%= d.ok ? '' : 'mh-row-bad' %>">
+                    <td class="mh-col-check"><b><%= d.label %></b></td>
+                    <td>
+                      <% if (d.parts.length) { %>
+                        <table class="mh-kv">
+                          <% d.parts.forEach(function (p) { %>
+                            <tr><td><%= p.label %></td><td><%= p.value %></td></tr>
+                          <% }) %>
+                        </table>
+                      <% } else { %>
+                        <%= d.note || '—' %>
+                        <% if (d.sensors.length) { %><a class="mh-link" href="#mh-sensor">Lihat tabel sensor ↓</a><% } %>
+                      <% } %>
+                    </td>
+                    <td class="mh-col-status">
+                      <span class="mh-pill <%= d.ok ? 'mh-pill-ok' : 'mh-pill-bad' %>"><%= d.ok ? 'OK' : 'Gagal' %></span>
+                    </td>
+                  </tr>
                 <% }) %>
-                <dt>ON / OFF</dt>
-                <dd>Dari mesin: 1 = sakelar ON, 0 = sakelar OFF. Pintu "Tertutup" berarti sakelar tutup ON dan sakelar buka OFF.</dd>
-              </dl>
-            </details>
-          <% } else if (d.parts.length) { %>
-            <ul class="mh-parts">
-              <% d.parts.forEach(function (p) { %><li><%= p %></li><% }) %>
-            </ul>
-          <% } else if (d.note) { %><span class="mh-muted"> · <%= d.note %></span><% } %>
-        </li>
+              </tbody>
+            </table>
+          </div>
+        </div>
       <% }) %>
-    </ul>
+    </div>
+
+    <% if (h.sensors.length) { %>
+      <p class="mh-section" id="mh-sensor">Sensor lunch box</p>
+      <div class="mh-group">
+        <div class="mh-scroll">
+          <table class="mh-diag-table">
+            <thead><tr><th class="mh-col-check">Sensor</th><th class="mh-col-code">Kode</th><th>Kondisi</th></tr></thead>
+            <tbody>
+              <% h.sensors.forEach(function (s) { %>
+                <tr>
+                  <td class="mh-col-check"><%= s.name %></td>
+                  <td class="mh-col-code"><% if (s.known) { %><code><%= s.code %></code><% } else { %>—<% } %></td>
+                  <td><span class="mh-val<%= s.tone === 'ok' ? ' mh-val-ok' : s.tone === 'warn' ? ' mh-val-warn' : '' %>"><%= s.value || '—' %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <details class="mh-glossary">
+        <summary>Arti singkatan sensor</summary>
+        <div class="mh-scroll">
+          <table class="mh-diag-table">
+            <thead><tr><th class="mh-col-code">Kode</th><th class="mh-col-check">Nama</th><th>Penjelasan</th></tr></thead>
+            <tbody>
+              <% h.sensorGlossary.forEach(function (g) { %>
+                <tr>
+                  <td class="mh-col-code"><code><%= g.code %></code></td>
+                  <td class="mh-col-check"><b><%= g.name %></b></td>
+                  <td><%= g.meaning %><% if (g.origin) { %><small><%= g.origin %></small><% } %></td>
+                </tr>
+              <% }) %>
+              <tr>
+                <td class="mh-col-code"><code>ON / OFF</code></td>
+                <td class="mh-col-check"><b>Nilai sakelar</b></td>
+                <td>1 = sakelar ON, 0 = sakelar OFF. Pintu "Tertutup" berarti sakelar tutup ON dan sakelar buka OFF.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+    <% } %>
   <% } %>
 
   <% if (h.driveErrors.length) { %>
